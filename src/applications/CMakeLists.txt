@@ -1,6 +1,7 @@
 build_lib(
   LIBNAME applications
   SOURCE_FILES
+    helper/fncs-application-helper.cc
     helper/bulk-send-helper.cc
     helper/on-off-helper.cc
     helper/packet-sink-helper.cc
@@ -27,6 +28,7 @@ build_lib(
     model/udp-server.cc
     model/udp-trace-client.cc
   HEADER_FILES
+    helper/fncs-application-helper.h
     helper/bulk-send-helper.h
     helper/on-off-helper.h
     helper/packet-sink-helper.h
@@ -53,6 +55,7 @@ build_lib(
     model/udp-server.h
     model/udp-trace-client.h
   LIBRARIES_TO_LINK ${libinternet}
+                    ${libfncs}
   TEST_SOURCES
     test/three-gpp-http-client-server-test.cc
     test/bulk-send-application-test-suite.cc
