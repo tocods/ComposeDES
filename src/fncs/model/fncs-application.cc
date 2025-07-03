@@ -434,6 +434,7 @@ FncsApplication::HandleRead (Ptr<Socket> socket)
   NS_LOG_FUNCTION (this << socket);
   Ptr<Packet> packet;
   Address from;
+  std::string tosend = "";
   while ((packet = socket->RecvFrom (from)))
     {
       uint32_t size = packet->GetSize();
@@ -525,12 +526,21 @@ FncsApplication::HandleRead (Ptr<Socket> socket)
 		          << packet->GetUid () <<"'");
         }
       //fncs::publish(topic, value);
-       std::string v2send = value + "=sendend";
+      std::string value_no_zero = value;
+      value_no_zero.erase(std::remove(value_no_zero.begin(), value_no_zero.end(), '\0'), value_no_zero.end());
+      int s = value_no_zero.length();
+      NS_LOG_INFO ("FncsApplication::HandleRead: topic '" << topic << "' value '" << value << "' size " << s);
+      // if (s > 0 && value[s-1] == '\n') {
+      //   value.erase(s-1); // remove trailing newline
+      // }
+      tosend = tosend.append(value_no_zero).append("/");
+      
       NS_LOG_DEBUG ("FncsApplication::HandleRead: calling fncs::publish for topic '" << topic << "' value '" << value << "'");
-      NS_LOG_INFO ("FncsApplication::HandleRead: calling fncs::publish for topic '" << topic << "' value '" << v2send << "'");
+      NS_LOG_INFO ("FncsApplication::HandleRead: calling fncs::publish for topic '" << topic << "' value '" << tosend << "'");
      
-      fncs::publish("finish", v2send);
+     
     }
+    fncs::publish("finish", tosend);
 }
 
 } // Namespace ns3
