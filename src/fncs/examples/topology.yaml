@@ -1,0 +1,48 @@
+# Minimal YAML-driven topology example for src/fncs/examples/fncs-simulator.cc
+# Run (from ns-3 root):
+#   ./ns3 run "fncs-example --topo=src/fncs/examples/topology.yaml"
+
+sim:
+  stop: 10s
+
+nodes:
+  - id: n0
+    type: host
+  - id: n1
+    type: host
+  - id: s0
+    type: switch
+
+# Links:
+# - p2p: exactly 2 endpoints
+# - csma:
+#   * if exactly 2 endpoints and one endpoint is a switch -> switch port (bridge LAN)
+#   * otherwise -> a standalone CSMA LAN (all endpoints must be hosts)
+links:
+  - type: csma
+    endpoints: [n0, s0]
+    dataRate: 100Mbps
+    delay: 10us
+  - type: csma
+    endpoints: [n1, s0]
+    dataRate: 100Mbps
+    delay: 10us
+
+apps:
+  - type: fncs
+    node: n0
+    name: node1
+  - type: fncs
+    node: n1
+    name: node2
+
+  - type: udpecho-server
+    node: n1
+    port: 9
+  - type: udpecho-client
+    node: n0
+    remote: n1
+    port: 9
+    maxPackets: 1
+    interval: 1s
+    packetSize: 1024

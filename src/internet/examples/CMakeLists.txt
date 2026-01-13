@@ -5,6 +5,11 @@ build_lib_example(
     ${libnetwork}
     ${libinternet}
     ${libapplications}
+    ${libcore}
+    ${libfncs}
+    ${libcsma}
+    ${libpoint-to-point}
+    ${libbridge}
 )
 
 build_lib_example(

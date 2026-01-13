@@ -6,6 +6,8 @@ build_lib_example(
                     ${libnetwork}
                     ${libinternet}
                     ${libpoint-to-point}
+                    ${libcsma}
+                    ${libbridge}
                     ${libapplications}
 )
 

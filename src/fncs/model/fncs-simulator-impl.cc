@@ -237,9 +237,10 @@ FncsSimulatorImpl::Run (void)
 
       // If local event is beyond grantedTime then need to request
       // new time.
-      NS_LOG_INFO ("nextTime " << nextTime << " m_grantedTime " << m_grantedTime);
+      //NS_LOG_INFO ("nextTime " << nextTime << " m_grantedTime " << m_grantedTime);
       if (nextTime > m_grantedTime || IsLocalFinished () )
         {
+          NS_LOG_INFO ("Requesting new time from FNCS");
           fncs::time requested = static_cast<fncs::time> (NextTs ());
           NS_LOG_LOGIC ("requested " << requested);
           fncs::time granted = fncs::time_request(requested);
@@ -249,14 +250,18 @@ FncsSimulatorImpl::Run (void)
           NS_LOG_LOGIC ("m_grantedTime " << m_grantedTime);
           m_currentTs = grantedTs;
           if (m_grantedTime.GetTimeStep() == GetMaximumSimulationTime ().GetTimeStep()) {
+            NS_LOG_INFO("Simulation has reached maximum time, stopping.");
             Stop();
           }
           else {
             // Check for FNCS messages.
             vector<std::string> events = fncs::get_events();
+            int size = events.size();
+            NS_LOG_INFO("Received " << size << " FNCS events.");
             for (vector<std::string>::iterator it=events.begin();
                 it!=events.end(); ++it) {
               std::string topic = *it;
+              NS_LOG_INFO("Processing FNCS topic '" << topic << "'");
               if(topic == "cloudsim/end") {
                 NS_LOG_INFO("Received end message, stopping simulation.");
                 Stop();
@@ -273,8 +278,9 @@ FncsSimulatorImpl::Run (void)
               // int slash_count = parts.size()-1;
 
               else if (topic == "cloudsim/transfer") {
-                NS_LOG_INFO("Received cloudsim/transfer message, processing.");
+               
                 std::string value = fncs::get_value(*it);
+                 NS_LOG_INFO("Received cloudsim/transfer message, processing. " << value);
                 // std::string simname = parts[0];
                 // std::string fromto = parts[1];
                 // std::string key = parts[2];
@@ -290,11 +296,15 @@ FncsSimulatorImpl::Run (void)
                 // Locate the FncsApplication instances with the same names.
                 std::vector<std::string> outs = split(value, '/');
                 for(std::string s: outs) {
-                  std::vector<std::string> parts = split(s, '_');
+                  std::vector<std::string> parts = split(s, '?');
                   std::string from = parts[0];
                   std::string to = parts[3];
                   std::string txt = parts[4];
                   std::string src_task = parts[1];
+                  NS_LOG_INFO(" transfer from '" << from
+                    << "' to '" << to
+                    << "' txt='" << txt << "'"
+                    << " src_task='" << src_task << "'");
                   Ptr<FncsApplication> from_app =
                     Names::Find<FncsApplication>("fncs_"+from);
                   Ptr<FncsApplication> to_app =

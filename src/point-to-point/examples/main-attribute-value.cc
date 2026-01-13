@@ -1,147 +1,764 @@
+/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2008 University of Washington
+ * Copyright (c) 2010 INRIA
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
  *
- * Author: Tom Henderson <tomh@tomh.org>
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ * Authors: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
 
-#include "ns3/command-line.h"
-#include "ns3/config.h"
-#include "ns3/drop-tail-queue.h"
-#include "ns3/log.h"
-#include "ns3/node.h"
-#include "ns3/point-to-point-net-device.h"
-#include "ns3/pointer.h"
-#include "ns3/ptr.h"
-#include "ns3/queue.h"
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+#include <cctype>
+#include <cstdlib>
+#include <limits>
+#include "ns3/core-module.h"
 #include "ns3/simulator.h"
-#include "ns3/string.h"
-#include "ns3/uinteger.h"
+#include "ns3/nstime.h"
+#include "ns3/command-line.h"
+#include "ns3/double.h"
+#include "ns3/random-variable-stream.h"
+#include "ns3/fncs-simulator-impl.h"
+#include "ns3/applications-module.h"
+#include "ns3/core-module.h"
+#include "ns3/internet-module.h"
+#include "ns3/network-module.h"
+#include "ns3/bridge-module.h"
+#include "ns3/point-to-point-module.h"
+#include "ns3/ipv4.h"
+#include "ns3/ipv4-global-routing-helper.h"
+
+/**
+ * \file
+ * \ingroup simulator
+ * Example program demonstrating use of various Schedule functions.
+ */
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("AttributeValueSample");
-
-//
-// This is a basic example of how to use the attribute system to
-// set and get a value in the underlying system; namely, the maximum
-// size of the FIFO queue in the PointToPointNetDevice
-//
-
-int
-main(int argc, char* argv[])
+namespace
 {
-    LogComponentEnable("AttributeValueSample", LOG_LEVEL_INFO);
 
-    // Queues in ns-3 are objects that hold items (other objects) in
-    // a queue structure.  The C++ implementation uses templates to
-    // allow queues to hold various types of items, but the most
-    // common is a pointer to a packet (Ptr<Packet>).
-    //
-    // The maximum queue size can either be enforced in bytes ('b') or
-    // packets ('p').  A special type called the ns3::QueueSize can
-    // hold queue size values in either unit (bytes or packets).  The
-    // DropTailQueue<Packet> class has a MaxSize attribute that can
-    // be set to a QueueSize.
+std::string
+Trim (const std::string &s)
+{
+  size_t start = 0;
+  while (start < s.size () && std::isspace (static_cast<unsigned char> (s[start])))
+    {
+      ++start;
+    }
+  size_t end = s.size ();
+  while (end > start && std::isspace (static_cast<unsigned char> (s[end - 1])))
+    {
+      --end;
+    }
+  return s.substr (start, end - start);
+}
 
-    // By default, the MaxSize attribute has a value of 100 packets ('100p')
-    // (this default can be observed in the function DropTail<Item>::GetTypeId)
-    //
-    // Here, we set it to 80 packets.  We could use one of two value types:
-    // a string-based value or a QueueSizeValue value
-    Config::SetDefault("ns3::DropTailQueue<Packet>::MaxSize", StringValue("80p"));
-    // The below function call is redundant
-    Config::SetDefault("ns3::DropTailQueue<Packet>::MaxSize",
-                       QueueSizeValue(QueueSize(QueueSizeUnit::PACKETS, 80)));
+bool
+StartsWith (const std::string &s, const std::string &prefix)
+{
+  return s.rfind (prefix, 0) == 0;
+}
 
-    // Allow the user to override any of the defaults and the above
-    // SetDefaults() at run-time, via command-line arguments
-    // For example, via "--ns3::DropTailQueue<Packet>::MaxSize=80p"
-    CommandLine cmd(__FILE__);
-    // This provides yet another way to set the value from the command line:
-    cmd.AddValue("maxSize", "ns3::DropTailQueue<Packet>::MaxSize");
-    cmd.Parse(argc, argv);
+std::string
+StripQuotes (std::string s)
+{
+  s = Trim (s);
+  if (s.size () >= 2)
+    {
+      if ((s.front () == '"' && s.back () == '"') || (s.front () == '\'' && s.back () == '\''))
+        {
+          return s.substr (1, s.size () - 2);
+        }
+    }
+  return s;
+}
 
-    // Now, we will create a few objects using the low-level API
-    Ptr<Node> n0 = CreateObject<Node>();
+std::pair<std::string, std::string>
+SplitKeyValueOrDie (const std::string &line, uint32_t lineNo)
+{
+  auto pos = line.find (':');
+  if (pos == std::string::npos)
+    {
+      NS_FATAL_ERROR ("YAML parse error at line " << lineNo << ": expected 'key: value' but got: "
+                                             << line);
+    }
+  std::string key = Trim (line.substr (0, pos));
+  std::string value = Trim (line.substr (pos + 1));
+  if (key.empty ())
+    {
+      NS_FATAL_ERROR ("YAML parse error at line " << lineNo << ": empty key");
+    }
+  return {key, StripQuotes (value)};
+}
 
-    Ptr<PointToPointNetDevice> net0 = CreateObject<PointToPointNetDevice>();
-    n0->AddDevice(net0);
+std::vector<std::string>
+SplitList (const std::string &value)
+{
+  std::string s = Trim (value);
+  if (s.empty ())
+    {
+      return {};
+    }
 
-    Ptr<Queue<Packet>> q = CreateObject<DropTailQueue<Packet>>();
-    net0->SetQueue(q);
+  // Support both YAML flow sequence: [a, b]  and simple CSV: a,b
+  if (s.front () == '[' && s.back () == ']')
+    {
+      s = s.substr (1, s.size () - 2);
+    }
 
-    // At this point, we have created a single node (Node 0) and a
-    // single PointToPointNetDevice (NetDevice 0) and added a
-    // DropTailQueue to it.
+  std::vector<std::string> out;
+  std::string token;
+  std::istringstream iss (s);
+  while (std::getline (iss, token, ','))
+    {
+      token = StripQuotes (Trim (token));
+      if (!token.empty ())
+        {
+          out.push_back (token);
+        }
+    }
+  return out;
+}
 
-    // Now, we can manipulate the MaxSize value of the already
-    // instantiated DropTailQueue.  Here are various ways to do that.
+Time
+ParseTimeOrDie (const std::string &s, const std::string &what)
+{
+  std::string t = Trim (s);
+  if (t.empty ())
+    {
+      NS_FATAL_ERROR ("Missing time value for " << what);
+    }
 
-    // We assume that a smart pointer (Ptr) to a relevant network device
-    // is in hand; here, it is the net0 pointer.
+  // Accept forms like: 10s, 2ms, 50us, 100ns
+  auto endsWith = [&] (const std::string &suffix) {
+    return t.size () >= suffix.size () && t.compare (t.size () - suffix.size (), suffix.size (), suffix) == 0;
+  };
 
-    // 1.  Pointer-based access
-    //
-    // One way to change the value is to access a pointer to the
-    // underlying queue and modify its attribute.
-    //
-    // First, we observe that we can get a pointer to the (base class)
-    // queue via the PointToPointNetDevice attributes, where it is called
-    // TxQueue
-    PointerValue ptr;
-    net0->GetAttribute("TxQueue", ptr);
-    Ptr<Queue<Packet>> txQueue = ptr.Get<Queue<Packet>>();
+  double scale = 0.0;
+  std::string numberPart;
+  if (endsWith ("ns"))
+    {
+      scale = 1e-9;
+      numberPart = t.substr (0, t.size () - 2);
+    }
+  else if (endsWith ("us"))
+    {
+      scale = 1e-6;
+      numberPart = t.substr (0, t.size () - 2);
+    }
+  else if (endsWith ("ms"))
+    {
+      scale = 1e-3;
+      numberPart = t.substr (0, t.size () - 2);
+    }
+  else if (endsWith ("s"))
+    {
+      scale = 1.0;
+      numberPart = t.substr (0, t.size () - 1);
+    }
+  else
+    {
+      NS_FATAL_ERROR ("Unsupported time unit for " << what << ": '" << t
+                                                    << "' (use ns/us/ms/s)");
+    }
 
-    // Using the GetObject function, we can perform a safe downcast
-    // to a DropTailQueue
-    Ptr<DropTailQueue<Packet>> dtq = txQueue->GetObject<DropTailQueue<Packet>>();
-    NS_ASSERT(dtq);
+  double v = 0.0;
+  try
+    {
+      v = std::stod (Trim (numberPart));
+    }
+  catch (...)
+    {
+      NS_FATAL_ERROR ("Invalid numeric time for " << what << ": '" << t << "'");
+    }
+  return Seconds (v * scale);
+}
 
-    // Next, we can get the value of an attribute on this queue
-    // We have introduced wrapper "Value" classes for the underlying
-    // data types, similar to Java wrappers around these types, since
-    // the attribute system stores values and not disparate types.
-    // Here, the attribute value is assigned to a QueueSizeValue, and
-    // the Get() method on this value produces the (unwrapped) QueueSize.
-    QueueSizeValue limit;
-    dtq->GetAttribute("MaxSize", limit);
-    NS_LOG_INFO("1.  dtq limit: " << limit.Get());
+struct NodeSpec
+{
+  std::string id;
+  std::string type; // host | switch
+};
 
-    // Note that the above downcast is not really needed; we could have
-    // done the same using the Ptr<Queue> even though the attribute
-    // is a member of the subclass
-    txQueue->GetAttribute("MaxSize", limit);
-    NS_LOG_INFO("2.  txQueue limit: " << limit.Get());
+struct LinkSpec
+{
+  std::string type; // p2p | csma
+  std::vector<std::string> endpoints;
+  std::string dataRate = "5Mbps";
+  std::string delay = "2ms";
+};
 
-    // Now, let's set it to another value (60 packets).  Let's also make
-    // use of the StringValue shorthand notation to set the size by
-    // passing in a string (the string must be a positive integer suffixed
-    // by either the 'p' or 'b' character).
-    txQueue->SetAttribute("MaxSize", StringValue("60p"));
-    txQueue->GetAttribute("MaxSize", limit);
-    NS_LOG_INFO("3.  txQueue limit changed: " << limit.Get());
+struct AppSpec
+{
+  std::string type; // fncs | udpecho-server | udpecho-client
+  std::unordered_map<std::string, std::string> kv;
+};
 
-    // 2.  Namespace-based access
-    //
-    // An alternative way to get at the attribute is to use the configuration
-    // namespace.  Here, this attribute resides on a known path in this
-    // namespace; this approach is useful if one doesn't have access to
-    // the underlying pointers and would like to configure a specific
-    // attribute with a single statement.
-    Config::Set("/NodeList/0/DeviceList/0/TxQueue/MaxSize", StringValue("25p"));
-    txQueue->GetAttribute("MaxSize", limit);
-    NS_LOG_INFO("4.  txQueue limit changed through namespace: " << limit.Get());
+struct TopologySpec
+{
+  Time stop = Seconds (10.0);
+  std::vector<NodeSpec> nodes;
+  std::vector<LinkSpec> links;
+  std::vector<AppSpec> apps;
+};
 
-    // we could have also used wildcards to set this value for all nodes
-    // and all net devices (which in this simple example has the same
-    // effect as the previous Set())
-    Config::Set("/NodeList/*/DeviceList/*/TxQueue/MaxSize", StringValue("15p"));
-    txQueue->GetAttribute("MaxSize", limit);
-    NS_LOG_INFO("5.  txQueue limit changed through wildcarded namespace: " << limit.Get());
+TopologySpec
+LoadTopologyYamlOrDie (const std::string &path)
+{
+  std::ifstream in (path);
+  if (!in.is_open ())
+    {
+      NS_FATAL_ERROR ("Unable to open topology YAML: " << path);
+    }
 
+  enum class Section
+  {
+    None,
+    Sim,
+    Nodes,
+    Links,
+    Apps
+  };
+
+  TopologySpec spec;
+  Section section = Section::None;
+
+  std::unordered_map<std::string, std::string> currentItem;
+  auto flushItem = [&] () {
+    if (currentItem.empty ())
+      {
+        return;
+      }
+    if (section == Section::Nodes)
+      {
+        NodeSpec n;
+        n.id = currentItem["id"];
+        n.type = currentItem.count ("type") ? currentItem["type"] : currentItem["kind"];
+        n.id = Trim (n.id);
+        n.type = Trim (n.type);
+        if (n.id.empty ())
+          {
+            NS_FATAL_ERROR ("Node is missing 'id'");
+          }
+        if (n.type.empty ())
+          {
+            NS_FATAL_ERROR ("Node '" << n.id << "' is missing 'type' (host|switch)");
+          }
+        spec.nodes.push_back (n);
+      }
+    else if (section == Section::Links)
+      {
+        LinkSpec l;
+        l.type = currentItem["type"];
+        if (currentItem.count ("dataRate"))
+          {
+            l.dataRate = currentItem["dataRate"];
+          }
+        if (currentItem.count ("delay"))
+          {
+            l.delay = currentItem["delay"];
+          }
+        if (currentItem.count ("endpoints"))
+          {
+            l.endpoints = SplitList (currentItem["endpoints"]);
+          }
+        if (Trim (l.type).empty ())
+          {
+            NS_FATAL_ERROR ("Link is missing 'type' (p2p|csma)");
+          }
+        if (l.endpoints.size () < 2)
+          {
+            NS_FATAL_ERROR ("Link 'endpoints' must have at least 2 node ids");
+          }
+        spec.links.push_back (l);
+      }
+    else if (section == Section::Apps)
+      {
+        AppSpec a;
+        a.type = currentItem["type"];
+        if (Trim (a.type).empty ())
+          {
+            NS_FATAL_ERROR ("App is missing 'type'");
+          }
+        a.kv = std::move (currentItem);
+        spec.apps.push_back (a);
+      }
+    currentItem.clear ();
+  };
+
+  std::string raw;
+  uint32_t lineNo = 0;
+  while (std::getline (in, raw))
+    {
+      ++lineNo;
+      // Strip comments (# ...)
+      auto hash = raw.find ('#');
+      if (hash != std::string::npos)
+        {
+          raw = raw.substr (0, hash);
+        }
+      std::string line = Trim (raw);
+      if (line.empty ())
+        {
+          continue;
+        }
+
+      if (line == "sim:")
+        {
+          flushItem ();
+          section = Section::Sim;
+          continue;
+        }
+      if (line == "nodes:")
+        {
+          flushItem ();
+          section = Section::Nodes;
+          continue;
+        }
+      if (line == "links:")
+        {
+          flushItem ();
+          section = Section::Links;
+          continue;
+        }
+      if (line == "apps:")
+        {
+          flushItem ();
+          section = Section::Apps;
+          continue;
+        }
+
+      if (section == Section::Sim)
+        {
+          auto kv = SplitKeyValueOrDie (line, lineNo);
+          if (kv.first == "stop")
+            {
+              spec.stop = ParseTimeOrDie (kv.second, "sim.stop");
+            }
+          else
+            {
+              NS_FATAL_ERROR ("Unknown sim key at line " << lineNo << ": " << kv.first);
+            }
+          continue;
+        }
+
+      if (section == Section::Nodes || section == Section::Links || section == Section::Apps)
+        {
+          if (StartsWith (line, "-"))
+            {
+              flushItem ();
+              std::string rest = Trim (line.substr (1));
+              if (!rest.empty ())
+                {
+                  auto kv = SplitKeyValueOrDie (rest, lineNo);
+                  currentItem[kv.first] = kv.second;
+                }
+              continue;
+            }
+
+          auto kv = SplitKeyValueOrDie (line, lineNo);
+          currentItem[kv.first] = kv.second;
+          continue;
+        }
+
+      NS_FATAL_ERROR ("YAML parse error at line " << lineNo << ": unexpected content outside sections: "
+                                                   << line);
+    }
+
+  flushItem ();
+  return spec;
+}
+
+} // namespace
+
+class MyModel
+{
+public:
+  void Start (void);
+private:
+  void HandleEvent (double eventValue);
+};
+
+void
+MyModel::Start (void)
+{
+  Simulator::Schedule (Seconds (10.0),
+                       &MyModel::HandleEvent,
+                       this, Simulator::Now ().GetSeconds ());
+}
+void
+MyModel::HandleEvent (double value)
+{
+  std::cout << "Member method received event at "
+            << Simulator::Now ().GetSeconds ()
+            << "s started at " << value << "s" << std::endl;
+}
+
+static void
+ExampleFunction (MyModel *model)
+{
+  std::cout << "ExampleFunction received event at "
+            << Simulator::Now ().GetSeconds () << "s" << std::endl;
+  model->Start ();
+}
+
+static void
+RandomFunction (void)
+{
+  std::cout << "RandomFunction received event at "
+            << Simulator::Now ().GetSeconds () << "s" << std::endl;
+}
+
+static void
+CancelledEvent (void)
+{
+  std::cout << "I should never be called... " << std::endl;
+}
+
+int main (int argc, char *argv[])
+{
+  std::string topoYaml;
+
+  CommandLine cmd;
+  cmd.AddValue ("topo", "Topology YAML file (enables YAML-driven topology)", topoYaml);
+  cmd.Parse (argc, argv);
+
+
+  // Fncs simulation setup
+  Ptr<FncsSimulatorImpl> sim = CreateObject<FncsSimulatorImpl> ();
+  Simulator::SetImplementation(sim);
+  LogComponentEnable ("FncsApplication", LOG_LEVEL_INFO);
+  LogComponentEnable ("FncsSimulatorImpl", LOG_LEVEL_INFO);
+
+    Time::SetResolution(Time::NS);
+    LogComponentEnable("UdpEchoClientApplication", LOG_LEVEL_INFO);
+    LogComponentEnable("UdpEchoServerApplication", LOG_LEVEL_INFO);
+
+    // Default: preserve original 2-node p2p + UDP echo setup when no YAML is provided.
+    if (topoYaml.empty ())
+      {
+        NodeContainer nodes;
+        nodes.Create (2);
+
+        PointToPointHelper pointToPoint;
+        pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
+        pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));
+
+        NetDeviceContainer devices;
+        devices = pointToPoint.Install (nodes);
+
+        InternetStackHelper stack;
+        stack.Install (nodes);
+
+        Ipv4AddressHelper address;
+        address.SetBase ("10.1.1.0", "255.255.255.0");
+
+        Ipv4InterfaceContainer interfaces = address.Assign (devices);
+
+        UdpEchoServerHelper echoServer (9);
+
+        FncsApplicationHelper fncsHelper ("ns3::FncsServer", 1);
+
+        ApplicationContainer fncsApps = fncsHelper.Install (nodes.Get (0), "node1");
+        fncsApps.Add (fncsHelper.Install (nodes.Get (1), "node2"));
+        fncsApps.Start (Seconds (0));
+        fncsApps.Stop (Seconds (INT_MAX));
+
+        ApplicationContainer serverApps = echoServer.Install (nodes.Get (1));
+        serverApps.Start (Seconds (0));
+        serverApps.Stop (Seconds (10));
+
+        UdpEchoClientHelper echoClient (interfaces.GetAddress (1), 9);
+        echoClient.SetAttribute ("MaxPackets", UintegerValue (1));
+        echoClient.SetAttribute ("Interval", TimeValue (Seconds (1)));
+        echoClient.SetAttribute ("PacketSize", UintegerValue (1024));
+
+        ApplicationContainer clientApps = echoClient.Install (nodes.Get (0));
+        clientApps.Start (Seconds (0));
+        clientApps.Stop (Seconds (10));
+
+        Simulator::Run ();
+        Simulator::Destroy ();
+        return 0;
+      }
+
+    // YAML-driven topology
+    TopologySpec spec = LoadTopologyYamlOrDie (topoYaml);
+
+    std::unordered_map<std::string, Ptr<Node>> nodesById;
+    std::unordered_set<std::string> switches;
+    NodeContainer hostNodes;
+    for (const auto &n : spec.nodes)
+      {
+        Ptr<Node> node = CreateObject<Node> ();
+        nodesById[n.id] = node;
+        if (n.type == "switch")
+          {
+            switches.insert (n.id);
+          }
+        else if (n.type == "host")
+          {
+            hostNodes.Add (node);
+          }
+        else
+          {
+            NS_FATAL_ERROR ("Unknown node type for '" << n.id << "': '" << n.type << "' (use host|switch)");
+          }
+      }
+
+    InternetStackHelper stack;
+    stack.Install (hostNodes);
+
+    // For bridge switches, collect their CSMA ports and the host-side devices to address as one LAN.
+    std::unordered_map<std::string, NetDeviceContainer> switchPorts;
+    std::unordered_map<std::string, NetDeviceContainer> switchLanHostDevices;
+    std::vector<NetDeviceContainer> standaloneCsmaLans; // LANs without switches
+
+    // P2P links can be addressed immediately (each link is its own subnet).
+    uint32_t subnetIndex = 1;
+    auto nextSubnetBase = [&] () {
+      std::ostringstream os;
+      os << "10.1." << subnetIndex++ << ".0";
+      return os.str ();
+    };
+
+    for (const auto &l : spec.links)
+      {
+        if (l.type == "p2p")
+          {
+            if (l.endpoints.size () != 2)
+              {
+                NS_FATAL_ERROR ("p2p link requires exactly 2 endpoints");
+              }
+            const std::string &a = l.endpoints[0];
+            const std::string &b = l.endpoints[1];
+            if (!nodesById.count (a) || !nodesById.count (b))
+              {
+                NS_FATAL_ERROR ("p2p link references unknown endpoint(s): " << a << ", " << b);
+              }
+
+            PointToPointHelper p2p;
+            p2p.SetDeviceAttribute ("DataRate", StringValue (l.dataRate));
+            p2p.SetChannelAttribute ("Delay", StringValue (l.delay));
+
+            NetDeviceContainer devices = p2p.Install (nodesById[a], nodesById[b]);
+            Ipv4AddressHelper address;
+            address.SetBase (nextSubnetBase ().c_str (), "255.255.255.0");
+            address.Assign (devices);
+          }
+        else if (l.type == "csma")
+          {
+            // If one endpoint is a switch and there are exactly two endpoints, treat it as a port on a bridge.
+            std::string switchId;
+            for (const auto &e : l.endpoints)
+              {
+                if (switches.count (e))
+                  {
+                    switchId = e;
+                    break;
+                  }
+              }
+
+
+            if (!switchId.empty () && l.endpoints.size () == 2)
+              {
+                const std::string &a = l.endpoints[0];
+                const std::string &b = l.endpoints[1];
+                std::string hostId = (a == switchId) ? b : a;
+                if (!nodesById.count (hostId) || !nodesById.count (switchId))
+                  {
+                    NS_FATAL_ERROR ("csma link references unknown endpoint(s)");
+                  }
+                if (!switches.count (switchId))
+                  {
+                    NS_FATAL_ERROR ("Internal error: expected '" << switchId << "' to be a switch");
+                  }
+
+                NodeContainer pair;
+                pair.Add (nodesById[hostId]);
+                pair.Add (nodesById[switchId]);
+              }
+            else
+              {
+                // Standalone CSMA LAN (no bridge switch). All endpoints must be hosts.
+                NodeContainer lan;
+                for (const auto &e : l.endpoints)
+                  {
+                    if (!nodesById.count (e))
+                      {
+                        NS_FATAL_ERROR ("csma link references unknown endpoint: " << e);
+                      }
+                    if (switches.count (e))
+                      {
+                        NS_FATAL_ERROR ("csma LAN without 1:1 switch port mapping does not support endpoint of type switch: "
+                                        << e);
+                      }
+                    lan.Add (nodesById[e]);
+                  }
+              }
+          }
+        else
+          {
+            NS_FATAL_ERROR ("Unknown link type: '" << l.type << "' (use p2p|csma)");
+          }
+      }
+
+    // Install bridges on switch nodes.
+    for (const auto &kv : switchPorts)
+      {
+        const std::string &switchId = kv.first;
+        Ptr<Node> sw = nodesById[switchId];
+        BridgeHelper bridge;
+        bridge.Install (sw, kv.second);
+      }
+
+    // Address assignment: each bridge switch forms one LAN subnet; each standalone CSMA LAN is one subnet.
+    for (auto &kv : switchLanHostDevices)
+      {
+        Ipv4AddressHelper address;
+        address.SetBase (nextSubnetBase ().c_str (), "255.255.255.0");
+        address.Assign (kv.second);
+      }
+    for (auto &lanDevices : standaloneCsmaLans)
+      {
+        Ipv4AddressHelper address;
+        address.SetBase (nextSubnetBase ().c_str (), "255.255.255.0");
+        address.Assign (lanDevices);
+      }
+
+    Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
+
+    // Install apps
+    ApplicationContainer allApps;
+    for (const auto &a : spec.apps)
+      {
+        if (a.type == "fncs")
+          {
+            auto itNode = a.kv.find ("node");
+            auto itName = a.kv.find ("name");
+            if (itNode == a.kv.end () || itName == a.kv.end ())
+              {
+                NS_FATAL_ERROR ("fncs app requires keys: node, name");
+              }
+            const std::string &nodeId = itNode->second;
+            const std::string &name = itName->second;
+            if (!nodesById.count (nodeId))
+              {
+                NS_FATAL_ERROR ("fncs app references unknown node: " << nodeId);
+              }
+            FncsApplicationHelper fncsHelper ("ns3::FncsServer", 1);
+            allApps.Add (fncsHelper.Install (nodesById[nodeId], name));
+          }
+        else if (a.type == "udpecho-server")
+          {
+            auto itNode = a.kv.find ("node");
+            auto itPort = a.kv.find ("port");
+            if (itNode == a.kv.end () || itPort == a.kv.end ())
+              {
+                NS_FATAL_ERROR ("udpecho-server app requires keys: node, port");
+              }
+            const std::string &nodeId = itNode->second;
+            uint16_t port = static_cast<uint16_t> (std::stoul (itPort->second));
+            if (!nodesById.count (nodeId))
+              {
+                NS_FATAL_ERROR ("udpecho-server app references unknown node: " << nodeId);
+              }
+            UdpEchoServerHelper server (port);
+            allApps.Add (server.Install (nodesById[nodeId]));
+          }
+        else if (a.type == "udpecho-client")
+          {
+            auto itNode = a.kv.find ("node");
+            auto itRemote = a.kv.find ("remote");
+            auto itPort = a.kv.find ("port");
+            if (itNode == a.kv.end () || itRemote == a.kv.end () || itPort == a.kv.end ())
+              {
+                NS_FATAL_ERROR ("udpecho-client app requires keys: node, remote, port");
+              }
+            const std::string &nodeId = itNode->second;
+            const std::string &remoteId = itRemote->second;
+            uint16_t port = static_cast<uint16_t> (std::stoul (itPort->second));
+            if (!nodesById.count (nodeId) || !nodesById.count (remoteId))
+              {
+                NS_FATAL_ERROR ("udpecho-client app references unknown node(s): " << nodeId << ", " << remoteId);
+              }
+
+            Ptr<Ipv4> remoteIpv4 = nodesById[remoteId]->GetObject<Ipv4> ();
+            Ipv4InterfaceAddress ifAddr = remoteIpv4->GetAddress (1, 0);
+            Ipv4Address remoteAddr = ifAddr.GetLocal ();
+
+            UdpEchoClientHelper client (remoteAddr, port);
+            if (a.kv.count ("maxPackets"))
+              {
+                client.SetAttribute ("MaxPackets", UintegerValue (std::stoul (a.kv.at ("maxPackets"))));
+              }
+            if (a.kv.count ("interval"))
+              {
+                client.SetAttribute ("Interval", TimeValue (ParseTimeOrDie (a.kv.at ("interval"), "udpecho.interval")));
+              }
+            if (a.kv.count ("packetSize"))
+              {
+                client.SetAttribute ("PacketSize", UintegerValue (std::stoul (a.kv.at ("packetSize"))));
+              }
+            allApps.Add (client.Install (nodesById[nodeId]));
+          }
+        else
+          {
+            NS_FATAL_ERROR ("Unknown app type: '" << a.type
+                                                  << "' (use fncs|udpecho-server|udpecho-client)");
+          }
+      }
+
+    allApps.Start (Seconds (0));
+    allApps.Stop (Seconds (INT_MAX));
+
+    Simulator::Stop (spec.stop);
+
+    Simulator::Run();
     Simulator::Destroy();
-
     return 0;
+  
+  // //Define jitter parameters to simulate lack of total synchronicity in all objects
+  // Config::SetDefault ("ns3::FncsApplication::JitterMinNs", DoubleValue (10));
+  // Config::SetDefault ("ns3::FncsApplication::JitterMaxNs", DoubleValue (100));
+
+  // MyModel model;
+  // Ptr<UniformRandomVariable> v = CreateObject<UniformRandomVariable> ();
+  // v->SetAttribute ("Min", DoubleValue (10));
+  // v->SetAttribute ("Max", DoubleValue (20));
+
+  // Simulator::Schedule (Seconds (10.0), &ExampleFunction, &model);
+
+  // Simulator::Schedule (Seconds (v->GetValue ()), &RandomFunction);
+
+  // EventId id = Simulator::Schedule (Seconds (30.0), &CancelledEvent);
+  // Simulator::Cancel (id);
+
+  // // schedule when to end the simulation
+  // Simulator::Stop (Seconds (100.0));
+
+  // //开始设置拓扑
+
+
+  // Simulator::Run ();
+
+  // Simulator::Destroy ();
 }
