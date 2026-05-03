@@ -527,7 +527,7 @@ FncsApplication::HandleRead (Ptr<Socket> socket)
       //fncs::publish(topic, value);
        std::string v2send = value + "=sendend";
       NS_LOG_DEBUG ("FncsApplication::HandleRead: calling fncs::publish for topic '" << topic << "' value '" << value << "'");
-      NS_LOG_INFO ("FncsApplication::HandleRead: calling fncs::publish for topic '" << topic << "' value '" << v2send << "'");
+      NS_LOG_INFO ("At time" <<  Simulator::Now ().GetNanoSeconds () << "FncsApplication::HandleRead: calling fncs::publish for topic '" << topic << "' value '" << v2send << "'");
      
       fncs::publish("finish", v2send);
     }
