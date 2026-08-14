@@ -4,6 +4,7 @@
 /* C++  standard headers */
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -964,7 +965,7 @@ ostream& operator << (ostream& os, zframe_t *self) {
     assert (self);
     assert (zframe_is (self));
 
-    byte *data = zframe_data (self);
+    uint8_t *data = (uint8_t *)zframe_data (self);
     size_t size = zframe_size (self);
 
     //  Probe data to check if it looks like unprintable binary
