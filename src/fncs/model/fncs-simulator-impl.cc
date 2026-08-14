@@ -47,6 +47,7 @@ typedef std::vector<std::pair<std::string,std::string> > match_list_t;
 #endif
 
 #include "ns3/fncs-application.h"
+#include "third-party/json.hpp"
 
 namespace ns3 {
 
@@ -365,6 +366,39 @@ FncsSimulatorImpl::Run (void)
                 NS_LOG_INFO("Received end message, stopping simulation.");
                 Stop();
                 return;
+              }
+              else if (topic == "control") {
+                nlohmann::json batch = nlohmann::json::parse(fncs::get_value(*it));
+                for (const auto& event : batch.at("events")) {
+                  if (event.at("kind").get<std::string>() == "control.end") {
+                    NS_LOG_INFO("Received orchestrator end, stopping network worker.");
+                    Stop();
+                    return;
+                  }
+                }
+              }
+              else if (topic == "network/dispatch") {
+                nlohmann::json batch = nlohmann::json::parse(fncs::get_value(*it));
+                if (batch.at("schema_version").get<std::string>() != "2.0") {
+                  NS_FATAL_ERROR("Unsupported network dispatch schema version");
+                }
+                const std::string runId = batch.at("run_id").get<std::string>();
+                for (const auto& event : batch.at("events")) {
+                  const auto& payload = event.at("payload");
+                  const std::string from = payload.at("src_host").get<std::string>();
+                  const std::string to = payload.at("dst_host").get<std::string>();
+                  const std::string transferId = payload.at("transfer_id").get<std::string>();
+                  const uint64_t bytes = payload.at("bytes").get<uint64_t>();
+                  Ptr<FncsApplication> fromApp =
+                      Names::Find<FncsApplication>("fncs_" + from);
+                  Ptr<FncsApplication> toApp =
+                      Names::Find<FncsApplication>("fncs_" + to);
+                  if (!fromApp || !toApp) {
+                    NS_FATAL_ERROR("Unknown network worker endpoint " << from << " -> " << to);
+                  }
+                  fromApp->Send(toApp, topic,
+                                runId + "|" + transferId + ":" + std::to_string(bytes));
+                }
               }
               // std::string value = fncs::get_value(*it);
               // std::vector<std::string> outs = split(value, '/');

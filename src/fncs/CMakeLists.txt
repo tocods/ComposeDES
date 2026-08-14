@@ -8,6 +8,7 @@ set(fncs_source_files
 set(fncs_header_files
     model/fncs-simulator-impl.h
     model/fncs-application.h
+    model/third-party/json.hpp
 )
 
 set(FNCS_LIB_PATH /Users/taco/Desktop/cosim/fncs/builds/local/lib/libfncs.dylib)

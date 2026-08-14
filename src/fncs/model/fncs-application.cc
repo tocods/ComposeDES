@@ -44,7 +44,10 @@ using namespace std;
 #include <fncs.hpp>
 #endif
 
+#include "third-party/json.hpp"
+
 #include <algorithm>
+#include <map>
 #include <sstream>
 #include <string>
 
@@ -55,17 +58,63 @@ static std::vector<std::string>& GetFinishBuffer() {
   return buf;
 }
 
+struct WorkerCompletion {
+  std::string runId;
+  std::string transferId;
+  uint64_t finishTimeNs;
+};
+
+static std::vector<WorkerCompletion>& GetWorkerFinishBuffer() {
+  static std::vector<WorkerCompletion> buf;
+  return buf;
+}
+
+static uint64_t& GetWorkerBatchSequence() {
+  static uint64_t sequence = 0;
+  return sequence;
+}
+
 void FlushFinishBuffer() {
   auto& buf = GetFinishBuffer();
-  if (buf.empty()) return;
-  std::string combined;
-  for (size_t i = 0; i < buf.size(); ++i) {
-    if (i > 0) combined += "/";
-    combined += buf[i];
+  if (!buf.empty()) {
+    std::string combined;
+    for (size_t i = 0; i < buf.size(); ++i) {
+      if (i > 0) combined += "/";
+      combined += buf[i];
+    }
+    fncs::publish("finish", combined);
+    buf.clear();
   }
-  std::cout << "[FLUSH] " << buf.size() << " finish msgs: " << combined.substr(0, 120) << std::endl;
-  fncs::publish("finish", combined);
-  buf.clear();
+
+  auto& workerBuf = GetWorkerFinishBuffer();
+  if (workerBuf.empty()) return;
+  std::map<std::pair<std::string, uint64_t>, std::vector<WorkerCompletion>> grouped;
+  for (const auto& completion : workerBuf) {
+    grouped[{completion.runId, completion.finishTimeNs}].push_back(completion);
+  }
+  for (const auto& entry : grouped) {
+    nlohmann::json batch;
+    batch["schema_version"] = "2.0";
+    batch["run_id"] = entry.first.first;
+    batch["batch_id"] = "ns3-batch-" + std::to_string(++GetWorkerBatchSequence());
+    batch["logical_time_ns"] = entry.first.second;
+    batch["events"] = nlohmann::json::array();
+    for (const auto& completion : entry.second) {
+      nlohmann::json event;
+      event["event_id"] = "ns3-event-" + std::to_string(GetWorkerBatchSequence())
+                            + "-" + std::to_string(batch["events"].size());
+      event["kind"] = "network.completed";
+      event["correlation_id"] = completion.transferId;
+      event["payload"] = {
+        {"transfer_id", completion.transferId},
+        {"status", "SUCCEEDED"},
+        {"finish_time_ns", completion.finishTimeNs}
+      };
+      batch["events"].push_back(event);
+    }
+    fncs::publish("network/completed", batch.dump());
+  }
+  workerBuf.clear();
 }
 
 NS_LOG_COMPONENT_DEFINE ("FncsApplication");
@@ -310,6 +359,40 @@ FncsApplication::Send (Ptr<FncsApplication> to, std::string topic, std::string v
   NS_ASSERT_MSG(m_socket != nullptr, "FncsApplication::Send: 'm_socket' is nullptr!");
   Ptr<Packet> p;
 
+  if (topic == "network/dispatch")
+    {
+      size_t sizeSeparator = value.rfind(':');
+      NS_ASSERT_MSG(sizeSeparator != std::string::npos,
+                    "network transfer value is missing byte count");
+      std::string identity = value.substr(0, sizeSeparator);
+      uint64_t transferBytes = std::stoull(value.substr(sizeSeparator + 1));
+      const uint64_t maxDatagramBytes = 60000;
+      uint64_t segmentCount = std::max<uint64_t>(1,
+          (transferBytes + maxDatagramBytes - 1) / maxDatagramBytes);
+      InetSocketAddress address = to->GetRoutableAddress(GetNode());
+      int delayNs = static_cast<int>(
+          m_rand_delay_ns->GetValue(m_jitterMinNs, m_jitterMaxNs) + 0.5);
+
+      for (uint64_t index = 0; index < segmentCount; ++index)
+        {
+          uint64_t offset = index * maxDatagramBytes;
+          uint64_t remaining = transferBytes > offset ? transferBytes - offset : 0;
+          size_t modeledBytes = static_cast<size_t>(
+              std::min<uint64_t>(maxDatagramBytes, remaining));
+          std::string content = topic + "=" + identity + "|"
+              + std::to_string(index) + "|" + std::to_string(segmentCount);
+          size_t packetBytes = std::max(modeledBytes, content.size());
+          std::vector<uint8_t> buffer(packetBytes, 0);
+          std::copy(content.begin(), content.end(), buffer.begin());
+          p = Create<Packet>(buffer.data(), buffer.size());
+          m_txTrace(p);
+          int (Socket::*sendTo)(Ptr<Packet>, uint32_t, const Address&) = &Socket::SendTo;
+          Simulator::Schedule(NanoSeconds(delayNs), sendTo, m_socket, p, 0, address);
+          ++m_sent;
+        }
+      return;
+    }
+
   // Convert given value into a Packet.
   // size_t total_size = topic.size() + 1 + value.size();
   // uint8_t *buffer = new uint8_t[total_size];
@@ -327,8 +410,7 @@ FncsApplication::Send (Ptr<FncsApplication> to, std::string topic, std::string v
   std::string content = topic + "=" + content_part;
   size_t content_size = content.size();
 
-  // Keep the real ns-3 packet small. The logical transfer size is carried after ':'
-  // and FncsSimulatorImpl uses it to schedule synthetic network completion.
+  // Legacy mode keeps the small control packet and its synthetic completion path.
   size_t total_size = content_size;
   uint8_t *buffer = new uint8_t[total_size];
   std::fill(buffer, buffer + total_size, 0); // 填充0
@@ -347,7 +429,6 @@ FncsApplication::Send (Ptr<FncsApplication> to, std::string topic, std::string v
   if (Ipv4Address::IsMatchingType (m_localAddress))
     {
       InetSocketAddress address = to->GetRoutableAddress(GetNode());
-      std::cout << "[Send] " << m_name << " -> " << to->GetName() << " addr=" << address.GetIpv4() << ":" << address.GetPort() << std::endl;
       // if (!f_name.empty())
       // {
       //   std::vector<std::string> topicParts = splitTopic(topic);
@@ -475,7 +556,6 @@ FncsApplication::HandleRead (Ptr<Socket> socket)
   NS_LOG_FUNCTION (this << socket);
   Ptr<Packet> packet;
   Address from;
-  std::cout << "[HandleRead] called at " << Simulator::Now().GetNanoSeconds() << "ns on " << m_name << std::endl;
   while ((packet = socket->RecvFrom (from)))
     {
       uint32_t size = packet->GetSize();
@@ -489,6 +569,7 @@ FncsApplication::HandleRead (Ptr<Socket> socket)
       
       std::string topic = sdata.substr(0, split);
       std::string value = sdata.substr(split+1);
+      value.erase(std::find(value.begin(), value.end(), '\0'), value.end());
       //NS_LOG_INFO ("FncsApplication::HandleRead: topic='" << topic << "' value='" << value << "'");
       if (InetSocketAddress::IsMatchingType (from))
         {
@@ -566,8 +647,33 @@ FncsApplication::HandleRead (Ptr<Socket> socket)
 				  << "' uid '"
 		          << packet->GetUid () <<"'");
         }
-      NS_LOG_INFO ("At time " << Simulator::Now ().GetNanoSeconds ()
-                   << " HandleRead: received data packet; completion is published by synthetic delay path");
+      if (topic == "network/dispatch")
+        {
+          std::vector<std::string> fields;
+          std::stringstream parser(value);
+          std::string field;
+          while (std::getline(parser, field, '|')) fields.push_back(field);
+          if (fields.size() != 4)
+            {
+              NS_FATAL_ERROR("Invalid network worker packet identity: " << value);
+            }
+          const std::string key = fields[0] + "|" + fields[1];
+          const uint64_t expected = std::stoull(fields[3]);
+          static std::map<std::string, uint64_t> receivedSegments;
+          uint64_t received = ++receivedSegments[key];
+          if (received == expected)
+            {
+              GetWorkerFinishBuffer().push_back(
+                  {fields[0], fields[1],
+                   static_cast<uint64_t>(Simulator::Now().GetNanoSeconds())});
+              receivedSegments.erase(key);
+            }
+        }
+      else
+        {
+          NS_LOG_INFO ("At time " << Simulator::Now ().GetNanoSeconds ()
+                       << " HandleRead: legacy packet received");
+        }
     }
 }
 
