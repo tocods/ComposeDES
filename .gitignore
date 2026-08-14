@@ -1,0 +1,23 @@
+.DS_Store
+.claude/
+
+# Component repositories are versioned independently.
+/fncs/
+/GPUsim/
+/ns3/
+/NeuSight/
+/atlahs/
+/vidur/
+
+# Large references and generated artifacts.
+/*.pdf
+/*.pptx
+/archive/
+/case_study_results/.DS_Store
+/case_study_results/*.png
+/case_study_results/*.csv
+/thesis_deliverables/*.pdf
+/thesis_deliverables/*.pptx
+__pycache__/
+*.pyc
+*.log
