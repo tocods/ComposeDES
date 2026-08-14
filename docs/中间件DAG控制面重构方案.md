@@ -1,5 +1,18 @@
 # 协同仿真 DAG 控制面重构方案
 
+## 实施状态（2026-08-14）
+
+v2 控制面首版已经实现并完成三联邦端到端验证：
+
+- FNCS 新增 `orchestrator/workflow_orchestrator.py`，通过 FNCS C API 参与统一时间同步。
+- GPUSim 新增 `worker` 模式，忽略 jobs DAG 文件，动态执行 `compute.dispatch`。
+- ns-3 新增 worker 协议，按 60KB UDP 数据报对 transfer 分段，实际收齐后返回完成。
+- `tests/control_plane_smoke/run.sh` 启动 broker、orchestrator、GPUSim 和 ns-3，验证两任务跨主机 DAG。
+- smoke case 中 producer 于 100001ns 完成；120KB 网络传输的两个数据报于 246770ns、295514ns 到达；consumer 在网络完成后下发并于 395516ns 完成。
+- 最终状态为 2 个 `SUCCEEDED`、0 个在途计算、0 个在途网络，控制面事件日志共 7 条。
+
+当前仍保留 legacy 模式用于旧实验回归。首版尚未实现集合通信原语、失败重试策略和超大通信的流级加速模型；60KB 分段保证经过真实 ns-3 链路，但对数十 GB trace 会产生大量数据报，需要下一阶段增加经过理论校准的 flow/collective 模型。
+
 ## 1. 决策摘要
 
 采用“通用 FNCS broker + 中间件层 workflow-orchestrator + 领域仿真器 worker”的结构。

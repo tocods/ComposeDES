@@ -1,0 +1,61 @@
+[
+  {
+    "name": "producer",
+    "period": 0,
+    "deadline": 1000000,
+    "host": "host1",
+    "cpu_task": {"ram": 16, "pes_number": 1, "length": 10},
+    "gpu_task": {
+      "kernels": [
+        {
+          "block_num": 1,
+          "thread_num": 1,
+          "thread_length": 100,
+          "hardware": "CPU",
+          "requested_gddram_size": 0,
+          "task_input_size": 0,
+          "task_output_size": 0,
+          "type": "float",
+          "calcuType": 0
+        }
+      ],
+      "requested_gddram_size": 0,
+      "task_input_size": 0,
+      "task_output_size": 0
+    },
+    "children": [
+      {
+        "child": "consumer",
+        "size": 120000,
+        "src_host": "host1",
+        "dst_host": "host2"
+      }
+    ]
+  },
+  {
+    "name": "consumer",
+    "period": 0,
+    "deadline": 1000000,
+    "host": "host2",
+    "cpu_task": {"ram": 16, "pes_number": 1, "length": 10},
+    "gpu_task": {
+      "kernels": [
+        {
+          "block_num": 1,
+          "thread_num": 1,
+          "thread_length": 100,
+          "hardware": "CPU",
+          "requested_gddram_size": 0,
+          "task_input_size": 0,
+          "task_output_size": 0,
+          "type": "float",
+          "calcuType": 0
+        }
+      ],
+      "requested_gddram_size": 0,
+      "task_input_size": 0,
+      "task_output_size": 0
+    },
+    "children": []
+  }
+]

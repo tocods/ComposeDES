@@ -16,8 +16,11 @@
 /case_study_results/.DS_Store
 /case_study_results/*.png
 /case_study_results/*.csv
+/case_study_results/*/
+/thesis_deliverables/
 /thesis_deliverables/*.pdf
 /thesis_deliverables/*.pptx
 __pycache__/
 *.pyc
 *.log
+/tests/control_plane_smoke/output/
