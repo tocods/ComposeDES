@@ -20,6 +20,7 @@
 #define FNCS_APPLICATION_H
 
 #include "ns3/application.h"
+#include "ns3/node.h"
 #include "ns3/event-id.h"
 #include "ns3/ptr.h"
 #include "ns3/ipv4-address.h"
@@ -83,6 +84,8 @@ public:
   std::string GetName (void) const;
 
   InetSocketAddress GetLocalInet (void) const;
+
+  InetSocketAddress GetRoutableAddress (Ptr<Node> fromNode) const;
 
   Inet6SocketAddress GetLocalInet6 (void) const;
 

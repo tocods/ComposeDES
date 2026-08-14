@@ -32,14 +32,17 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cstdlib>
 #include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
+#include <limits>
 
 #ifdef FNCS
 #include <fncs.hpp>
-#include <exception>
+#include <iostream>
 typedef std::vector<std::pair<std::string,std::string> > match_list_t;
 #endif
 
@@ -224,6 +227,99 @@ split(std::string str, char delimiter) {
   return retval;
 }
 
+#ifdef FNCS
+static double
+GetSyntheticBandwidthBitsPerNs()
+{
+  const char* bandwidthEnv = std::getenv("NS3_SYNTHETIC_BW_GBPS");
+  if (bandwidthEnv == nullptr)
+    {
+      return 200.0;
+    }
+  try
+    {
+      double bandwidthGbps = std::stod(bandwidthEnv);
+      return bandwidthGbps > 0.0 ? bandwidthGbps : 200.0;
+    }
+  catch (...)
+    {
+      return 200.0;
+    }
+}
+
+static uint32_t
+ParseHostIndex(const std::string& hostName)
+{
+  const std::string prefix = "host";
+  if (hostName.rfind(prefix, 0) != 0)
+    {
+      return 0;
+    }
+  try
+    {
+      return static_cast<uint32_t>(std::stoul(hostName.substr(prefix.size())));
+    }
+  catch (...)
+    {
+      return 0;
+    }
+}
+
+static uint32_t
+GetSyntheticHopCount(const std::string& fromHost, const std::string& toHost)
+{
+  const char* topologyEnv = std::getenv("NS3_SYNTHETIC_TOPOLOGY");
+  const std::string topology = topologyEnv == nullptr ? "direct_p2p" : topologyEnv;
+  if (topology != "chain")
+    {
+      return 1;
+    }
+
+  uint32_t fromIndex = ParseHostIndex(fromHost);
+  uint32_t toIndex = ParseHostIndex(toHost);
+  if (fromIndex == 0 || toIndex == 0)
+    {
+      return 1;
+    }
+  uint32_t distance = fromIndex > toIndex ? fromIndex - toIndex : toIndex - fromIndex;
+  return std::max<uint32_t>(1, distance);
+}
+
+static uint64_t
+EstimateTransferDelayNs(const std::string& bytesText, const std::string& fromHost, const std::string& toHost)
+{
+  uint64_t bytes = 0;
+  try
+    {
+      bytes = static_cast<uint64_t>(std::stoull(bytesText));
+    }
+  catch (...)
+    {
+      bytes = 0;
+    }
+
+  const uint64_t propagationDelayNs = 1000;
+  const double bitsPerNs = GetSyntheticBandwidthBitsPerNs();
+  const uint32_t hopCount = GetSyntheticHopCount(fromHost, toHost);
+  const uint64_t serializationDelayNs = static_cast<uint64_t>(std::ceil((bytes * 8.0) / bitsPerNs));
+  return std::max<uint64_t>(1, hopCount * (propagationDelayNs + serializationDelayNs));
+}
+
+static void
+PublishFinish(const std::string& finishPayload)
+{
+  if (finishPayload.empty())
+    {
+      return;
+    }
+  std::cout << "[HandleRead] synthetic finish at " << Simulator::Now().GetNanoSeconds()
+            << "ns: " << finishPayload.substr(0, 120) << std::endl;
+  std::cout << "[FLUSH] synthetic finish msgs: " << finishPayload.substr(0, 120) << std::endl;
+  NS_LOG_INFO("Publishing synthetic finish payload: " << finishPayload.substr(0, 120));
+  fncs::publish("finish", finishPayload);
+}
+#endif
+
 void
 FncsSimulatorImpl::Run (void)
 {
@@ -240,6 +336,9 @@ FncsSimulatorImpl::Run (void)
       //NS_LOG_INFO ("nextTime " << nextTime << " m_grantedTime " << m_grantedTime);
       if (nextTime > m_grantedTime || IsLocalFinished () )
         {
+          // 在请求新时间前，把缓冲的 finish 消息一次性发出
+          void FlushFinishBuffer();
+          FlushFinishBuffer();
           NS_LOG_INFO ("Requesting new time from FNCS");
           fncs::time requested = static_cast<fncs::time> (NextTs ());
           NS_LOG_LOGIC ("requested " << requested);
@@ -295,8 +394,14 @@ FncsSimulatorImpl::Run (void)
                 // std::string to = at[1];
                 // Locate the FncsApplication instances with the same names.
                 std::vector<std::string> outs = split(value, '/');
+                std::vector<std::string> finishMessages;
+                uint64_t maxTransferDelayNs = 1;
                 for(std::string s: outs) {
                   std::vector<std::string> parts = split(s, '?');
+                  if (parts.size() < 5) {
+                    NS_LOG_WARN("bad cloudsim/transfer payload item, skipping: " << s);
+                    continue;
+                  }
                   std::string from = parts[0];
                   std::string to = parts[3];
                   std::string txt = parts[4];
@@ -310,13 +415,29 @@ FncsSimulatorImpl::Run (void)
                   Ptr<FncsApplication> to_app =
                     Names::Find<FncsApplication>("fncs_"+to);
                   if (!from_app) {
-                    NS_FATAL_ERROR("failed FncsApplication lookup from '" << from << "'");
+                    NS_LOG_WARN("unknown FncsApplication from '" << from << "', skipping");
+                    continue;
                   }
                   if (!to_app) {
-                    NS_FATAL_ERROR("failed FncsApplication lookup to '" << to << "'");
+                    NS_LOG_WARN("unknown FncsApplication to '" << to << "', skipping");
+                    continue;
                   }
                   from_app->Send(to_app, topic, src_task + ":" + txt);
-              }
+                  finishMessages.push_back(src_task + "=sendend");
+                  maxTransferDelayNs = std::max(maxTransferDelayNs, EstimateTransferDelayNs(txt, from, to));
+                }
+                if (!finishMessages.empty()) {
+                  std::string finishPayload;
+                  for (size_t i = 0; i < finishMessages.size(); ++i) {
+                    if (i > 0) {
+                      finishPayload += "/";
+                    }
+                    finishPayload += finishMessages[i];
+                  }
+                  Simulator::Schedule(NanoSeconds(maxTransferDelayNs), &PublishFinish, finishPayload);
+                  NS_LOG_INFO("Scheduled synthetic finish for " << finishMessages.size()
+                    << " packets after " << maxTransferDelayNs << " ns");
+                }
               }
               else {
                 NS_LOG_INFO("ignoring topic '" << topic);
@@ -324,6 +445,12 @@ FncsSimulatorImpl::Run (void)
             }
           }
         }
+
+      // Recompute after FNCS event handling because cloudsim/transfer may schedule
+      // local NS-3 packet events. Using the stale value from the beginning of the
+      // loop can skip runnable local events and deadlock with CloudSim waiting for
+      // the corresponding finish notification.
+      nextTime = Next ();
 
       // Execute next event if it is within the current time window.
       // Local task may be completed.
@@ -528,9 +655,7 @@ FncsSimulatorImpl::IsExpired (const EventId &id) const
 Time
 FncsSimulatorImpl::GetMaximumSimulationTime (void) const
 {
-  /// \todo I am fairly certain other compilers use other non-standard
-  /// post-fixes to indicate 64 bit constants.
-  return TimeStep (0x7fffffffffffffffLL);
+  return TimeStep (std::numeric_limits<int64_t>::max ());
 }
 
 uint32_t

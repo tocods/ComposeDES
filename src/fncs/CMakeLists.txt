@@ -1,5 +1,5 @@
 add_definitions(-DFNCS)
-include_directories(/Users/davidt/FNCS_install/include)
+include_directories(/Users/taco/Desktop/cosim/fncs/builds/local/include)
 set(fncs_source_files
     model/fncs-simulator-impl.cc
     model/fncs-application.cc
@@ -10,7 +10,7 @@ set(fncs_header_files
     model/fncs-application.h
 )
 
-set(FNCS_LIB_PATH /Users/davidt/FNCS_install/lib/libfncs.dylib)
+set(FNCS_LIB_PATH /Users/taco/Desktop/cosim/fncs/builds/local/lib/libfncs.dylib)
 set(ZMQ_LIB_PATH /opt/homebrew/lib/libzmq.dylib)
 set(CZMQ_LIB_PATH /opt/homebrew/lib/libczmq.dylib)
 
@@ -23,4 +23,5 @@ build_lib(
     ${ZMQ_LIB_PATH}
     ${CZMQ_LIB_PATH}
     ${libnetwork}
+    ${libinternet}
 )

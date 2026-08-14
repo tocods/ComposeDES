@@ -21,6 +21,7 @@
 using namespace std;
 #include "ns3/log.h"
 #include "ns3/ipv4-address.h"
+#include "ns3/ipv4.h"
 #include "ns3/ipv6-address.h"
 #include "ns3/nstime.h"
 #include "ns3/inet-socket-address.h"
@@ -48,6 +49,24 @@ using namespace std;
 #include <string>
 
 namespace ns3 {
+
+static std::vector<std::string>& GetFinishBuffer() {
+  static std::vector<std::string> buf;
+  return buf;
+}
+
+void FlushFinishBuffer() {
+  auto& buf = GetFinishBuffer();
+  if (buf.empty()) return;
+  std::string combined;
+  for (size_t i = 0; i < buf.size(); ++i) {
+    if (i > 0) combined += "/";
+    combined += buf[i];
+  }
+  std::cout << "[FLUSH] " << buf.size() << " finish msgs: " << combined.substr(0, 120) << std::endl;
+  fncs::publish("finish", combined);
+  buf.clear();
+}
 
 NS_LOG_COMPONENT_DEFINE ("FncsApplication");
 
@@ -240,7 +259,7 @@ FncsApplication::StopApplication ()
     }
 }
 
-static uint8_t
+__attribute__((unused)) static uint8_t
 char_to_uint8_t (char c)
 {
   return uint8_t(c);
@@ -303,14 +322,14 @@ FncsApplication::Send (Ptr<FncsApplication> to, std::string topic, std::string v
   size_t pos = value.rfind(':');
   NS_ASSERT_MSG(pos != std::string::npos, "value format error, missing ':'");
   std::string content_part = value.substr(0, pos);
-  int pktSize = std::stoi(value.substr(pos + 1));
 
   // 2. 组装 topic+value 到 buffer
   std::string content = topic + "=" + content_part;
   size_t content_size = content.size();
 
-  // 3. 分配最终 buffer
-  size_t total_size = std::max<size_t>(pktSize, content_size);
+  // Keep the real ns-3 packet small. The logical transfer size is carried after ':'
+  // and FncsSimulatorImpl uses it to schedule synthetic network completion.
+  size_t total_size = content_size;
   uint8_t *buffer = new uint8_t[total_size];
   std::fill(buffer, buffer + total_size, 0); // 填充0
   std::copy(content.begin(), content.end(), buffer);
@@ -327,8 +346,9 @@ FncsApplication::Send (Ptr<FncsApplication> to, std::string topic, std::string v
 
   if (Ipv4Address::IsMatchingType (m_localAddress))
     {
-      InetSocketAddress address = to->GetLocalInet();
-      // if (~f_name.empty())
+      InetSocketAddress address = to->GetRoutableAddress(GetNode());
+      std::cout << "[Send] " << m_name << " -> " << to->GetName() << " addr=" << address.GetIpv4() << ":" << address.GetPort() << std::endl;
+      // if (!f_name.empty())
       // {
       //   std::vector<std::string> topicParts = splitTopic(topic);
       //   std::ofstream outFile(f_name.c_str(), ios::app);
@@ -373,7 +393,7 @@ FncsApplication::Send (Ptr<FncsApplication> to, std::string topic, std::string v
   else if (Ipv6Address::IsMatchingType (m_localAddress))
     {
       Inet6SocketAddress address = to->GetLocalInet6();
-      // if (~f_name.empty())
+      // if (!f_name.empty())
       // {
       //   std::vector<std::string> topicParts = splitTopic(topic);
       //   std::ofstream outFile(f_name.c_str(), ios::app);
@@ -420,7 +440,28 @@ FncsApplication::Send (Ptr<FncsApplication> to, std::string topic, std::string v
 
 InetSocketAddress FncsApplication::GetLocalInet (void) const
 {
-  return InetSocketAddress(Ipv4Address::ConvertFrom(m_localAddress), m_localPort);
+  Ptr<Ipv4> ipv4 = GetNode()->GetObject<Ipv4>();
+  Ipv4Address addr = ipv4->GetAddress(1, 0).GetLocal();
+  return InetSocketAddress(addr, m_localPort);
+}
+
+InetSocketAddress FncsApplication::GetRoutableAddress (Ptr<Node> fromNode) const
+{
+  Ptr<Ipv4> dstIpv4 = GetNode()->GetObject<Ipv4>();
+  Ptr<Ipv4> srcIpv4 = fromNode->GetObject<Ipv4>();
+  // 找目标节点上与源节点直连的接口 IP
+  for (uint32_t i = 1; i < dstIpv4->GetNInterfaces(); ++i) {
+    Ipv4Address dstAddr = dstIpv4->GetAddress(i, 0).GetLocal();
+    Ipv4Address dstNet = dstIpv4->GetAddress(i, 0).GetLocal().CombineMask(dstIpv4->GetAddress(i, 0).GetMask());
+    for (uint32_t j = 1; j < srcIpv4->GetNInterfaces(); ++j) {
+      Ipv4Address srcNet = srcIpv4->GetAddress(j, 0).GetLocal().CombineMask(srcIpv4->GetAddress(j, 0).GetMask());
+      if (dstNet == srcNet) {
+        return InetSocketAddress(dstAddr, m_localPort);
+      }
+    }
+  }
+  NS_FATAL_ERROR ("No routable IPv4 interface from node "
+                  << fromNode->GetId () << " to node " << GetNode ()->GetId ());
 }
 
 Inet6SocketAddress FncsApplication::GetLocalInet6 (void) const
@@ -434,6 +475,7 @@ FncsApplication::HandleRead (Ptr<Socket> socket)
   NS_LOG_FUNCTION (this << socket);
   Ptr<Packet> packet;
   Address from;
+  std::cout << "[HandleRead] called at " << Simulator::Now().GetNanoSeconds() << "ns on " << m_name << std::endl;
   while ((packet = socket->RecvFrom (from)))
     {
       uint32_t size = packet->GetSize();
@@ -450,7 +492,7 @@ FncsApplication::HandleRead (Ptr<Socket> socket)
       //NS_LOG_INFO ("FncsApplication::HandleRead: topic='" << topic << "' value='" << value << "'");
       if (InetSocketAddress::IsMatchingType (from))
         {
-          if (~f_name.empty())
+          if (!f_name.empty())
           {
             std::vector<std::string> topicParts = splitTopic(topic);
             std::ofstream outFile(f_name.c_str(), ios::app);
@@ -488,7 +530,7 @@ FncsApplication::HandleRead (Ptr<Socket> socket)
         }
       else if (Inet6SocketAddress::IsMatchingType (from))
         {
-          if (~f_name.empty())
+          if (!f_name.empty())
           {
             std::vector<std::string> topicParts = splitTopic(topic);
             std::ofstream outFile(f_name.c_str(), ios::app);
@@ -524,12 +566,8 @@ FncsApplication::HandleRead (Ptr<Socket> socket)
 				  << "' uid '"
 		          << packet->GetUid () <<"'");
         }
-      //fncs::publish(topic, value);
-       std::string v2send = value + "=sendend";
-      NS_LOG_DEBUG ("FncsApplication::HandleRead: calling fncs::publish for topic '" << topic << "' value '" << value << "'");
-      NS_LOG_INFO ("At time" <<  Simulator::Now ().GetNanoSeconds () << "FncsApplication::HandleRead: calling fncs::publish for topic '" << topic << "' value '" << v2send << "'");
-     
-      fncs::publish("finish", v2send);
+      NS_LOG_INFO ("At time " << Simulator::Now ().GetNanoSeconds ()
+                   << " HandleRead: received data packet; completion is published by synthetic delay path");
     }
 }
 
