@@ -3,13 +3,22 @@ package comm;
 import cloudsim.Log;
 import faulttolerant.FaultTolerantTags;
 import fncs.JNIfncs;
+import cloudsim.core.CloudSim;
+import com.alibaba.fastjson.JSONObject;
 
 import java.rmi.UnexpectedException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Api {
     public static List<String> values = new ArrayList<>();
+    private static final Map<String, List<JSONObject>> workerValues = new LinkedHashMap<>();
+    private static boolean workerMode = false;
+    private static String runId = "";
+    private static long workerEventSequence = 0;
+    private static long batchSequence = 0;
     public static enum CommType {
         SEND_WITHOUT_REPLY,
         SEND_REPLY
@@ -30,15 +39,54 @@ public class Api {
 
 
     public static void truePublish() {
-        if(values.isEmpty())
-            return;
-        StringBuilder out = new StringBuilder();
-        out.append(values.get(0));
-        values.remove(0);
-        for(String s: values)
-            out.append("/").append(s);
-        JNIfncs.publish(topics[0], out.toString());
+        if(!values.isEmpty()) {
+            StringBuilder out = new StringBuilder();
+            out.append(values.get(0));
+            values.remove(0);
+            for(String s: values)
+                out.append("/").append(s);
+            JNIfncs.publish(topics[0], out.toString());
+            values.clear();
+        }
+        if(workerMode && !workerValues.isEmpty()) {
+            long logicalTimeNs = (long) Math.ceil(CloudSim.clock() * 1000.0);
+            for(Map.Entry<String, List<JSONObject>> entry: workerValues.entrySet()) {
+                JSONObject batch = new JSONObject(true);
+                batch.put("schema_version", "2.0");
+                batch.put("run_id", runId);
+                batch.put("batch_id", String.format("gpusim-batch-%09d", ++batchSequence));
+                batch.put("logical_time_ns", logicalTimeNs);
+                batch.put("events", entry.getValue());
+                JNIfncs.publish(entry.getKey(), batch.toJSONString());
+            }
+            workerValues.clear();
+        }
+    }
+
+    public static void setWorkerMode(boolean enabled) {
+        workerMode = enabled;
         values.clear();
+        workerValues.clear();
+    }
+
+    public static boolean isWorkerMode() {
+        return workerMode;
+    }
+
+    public static void setRunId(String value) {
+        if(runId.isEmpty()) {
+            runId = value;
+        } else if(!runId.equals(value)) {
+            throw new IllegalArgumentException("FNCS run_id changed from " + runId + " to " + value);
+        }
+    }
+
+    public static String nextWorkerEventId() {
+        return String.format("gpusim-event-%09d", ++workerEventSequence);
+    }
+
+    public static void publishWorkerEvent(String topic, JSONObject event) {
+        workerValues.computeIfAbsent(topic, ignored -> new ArrayList<>()).add(event);
     }
 
 

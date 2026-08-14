@@ -573,6 +573,7 @@ public class SimEngine {
             System.err.println("  logToFile   : whether to write log to gpusim.log (true/false, default true)");
             System.err.println("  enableMerge : whether to merge linear task chains (true/false, default true)");
             System.err.println("  mergeMode   : 1=new cross-rank merge, other=old merge (default 0)");
+            System.err.println("  mode        : legacy or worker (default legacy; worker ignores jobs.json)");
             System.exit(1);
         }
         JNIfncs.initialize();
@@ -597,6 +598,8 @@ public class SimEngine {
         if (args.length >= 8) {
             mergeMode = Integer.parseInt(args[7]);
         }
+        boolean workerMode = args.length >= 9 && "worker".equalsIgnoreCase(args[8]);
+        comm.Api.setWorkerMode(workerMode);
         // mode=1 强制启用合并（带跨 rank 分段支持）
         if (mergeMode == 1) {
             enableMerge = true;
@@ -631,7 +634,9 @@ public class SimEngine {
         }
 
         engine.parseJsonOfHost(hostPath);
-        engine.parseJsonOfJob(jobPath);
+        if (!workerMode) {
+            engine.parseJsonOfJob(jobPath);
+        }
         engine.parseJsonOfFault(faultPath);
         engine.setAlgorithm(engine.getAlgorithm(algorithm));
         engine.start(outPath);

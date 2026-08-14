@@ -18,6 +18,7 @@ import cloudsim.core.predicates.PredicateAny;
 import cloudsim.core.predicates.PredicateNone;
 import comm.Api;
 import comm.Event;
+import comm.FncsMessage;
 
 /**
  * This class extends the CloudSimCore to enable network simulation in CloudSim. Also, it disables
@@ -525,30 +526,44 @@ public class CloudSim {
 			queue_empty = false;
 			SimEvent first = fit.next();
 
-			//Log.printLine("同步时间: " + first.eventTime());
-			double next_time = first.eventTime() * 1000; // fncs接受不了小数时间
-			Api.truePublish();
-			double true_next = Api.timeRequest((long) Math.ceil(next_time));
-			//Log.printLine("request" +  next_time/1000 + " next time: " + true_next / 1000);
-			clock = true_next / 1000;
-			Log.printLine("更新时间到：" + clock);
+			// Consume local events at the current logical time before entering a
+			// FNCS barrier. Requesting first would allow the 1ns time delta to move
+			// the global clock past CloudSim's t=0 initialization events.
+			if(first.eventTime() > clock()) {
+				double next_time = first.eventTime() * 1000; // FNCS time unit is ns
+				Api.truePublish();
+				double true_next = Api.timeRequest((long) Math.ceil(next_time));
+				clock = true_next / 1000;
+				Log.printLine("更新时间到：" + clock);
 
-			// 无论本地事件是否到期，都要处理 FNCS 传入的事件（网络回包等）
-			String[] events = Api.getEvents();
-			List<Event> tran2E = new ArrayList<>();
-			for(String s: events) {
-				String[] out = Api.getValue(s).split("/");
-				for(String o: out) {
-					if(o.isEmpty()) continue;
-					Event event = Event.toEvent(o);
-					Log.printLine("收到事件: " + event.src_name);
-					tran2E.add(event);
+				// A grant can be earlier than the next local event when another
+				// federate publishes a completion. Always consume those messages.
+				String[] events = Api.getEvents();
+				if(Api.isWorkerMode()) {
+					List<FncsMessage> workerMessages = new ArrayList<>();
+					for(String topic: events) {
+						String value = Api.getValue(topic);
+						if(value == null || value.isEmpty()) continue;
+						workerMessages.add(new FncsMessage(topic, value));
+					}
+					doWorkerUpdate(workerMessages);
+				} else {
+					List<Event> tran2E = new ArrayList<>();
+					for(String s: events) {
+						String[] out = Api.getValue(s).split("/");
+						for(String o: out) {
+							if(o.isEmpty()) continue;
+							Event event = Event.toEvent(o);
+							Log.printLine("收到事件: " + event.src_name);
+							tran2E.add(event);
+						}
+					}
+					doUpdate(tran2E);
 				}
-			}
-			doUpdate(tran2E);
 
-			if((int)clock() < (int)first.eventTime()) {
-				return false;
+				if(clock() + 1e-9 < first.eventTime()) {
+					return false;
+				}
 			}
 
 			processEvent(first);
@@ -559,7 +574,7 @@ public class CloudSim {
 			boolean trymore = fit.hasNext();
 			while (trymore) {
 				SimEvent next = fit.next();
-				if (next.eventTime() == first.eventTime() || next.eventTime() - first.eventTime() < 1) {
+				if (Math.abs(next.eventTime() - first.eventTime()) < 1e-9) {
 					Log.printLine(next.getTag() + ":" + next.eventTime());
 					processEvent(next);
 					toRemove.add(next);
@@ -841,6 +856,13 @@ public class CloudSim {
 			String src = e.src_name;
 			Integer entityId = workflow.Parameters.engineID;
 			send(0, entityId, 0, Api.RECEIVE_EVENT, src);
+		}
+	}
+
+	private static void doWorkerUpdate(List<FncsMessage> messages) {
+		for(FncsMessage message: messages) {
+			Integer entityId = workflow.Parameters.engineID;
+			send(0, entityId, 0, Api.RECEIVE_EVENT, message);
 		}
 	}
 

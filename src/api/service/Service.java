@@ -4,6 +4,8 @@ import api.info.JobRunningInfo;
 import api.info.TaskRunInfo;
 import comm.CommEngine;
 import comm.Packet;
+import comm.Api;
+import comm.WorkerCommEngine;
 import de.vandermeer.asciitable.AsciiTable;
 import de.vandermeer.skb.interfaces.transformers.textformat.TextAlignment;
 import faulttolerant.FaultRecord;
@@ -134,6 +136,14 @@ public class Service {
         return broker;
     }
 
+    private WorkerCommEngine createWorkerBroker() {
+        try {
+            return new WorkerCommEngine("Broker", hosts);
+        } catch (Exception error) {
+            throw new IllegalStateException("Unable to create compute worker", error);
+        }
+    }
+
 
     public String start(String outputPath){
         Log.printLine(String.join("", Collections.nCopies(100, "-")));
@@ -148,7 +158,7 @@ public class Service {
             datacenter = createDatacenter();
             assert datacenter != null;
             //Log.printLine(datacenter.getId());
-            engine = createBroker();
+            engine = Api.isWorkerMode() ? createWorkerBroker() : createBroker();
             assert engine != null;
             engine.submitVmList(new ArrayList<>());
             engine.initJobAllocationInterface(hosts, algorithm);
