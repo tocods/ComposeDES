@@ -527,28 +527,29 @@ public class CloudSim {
 
 			//Log.printLine("同步时间: " + first.eventTime());
 			double next_time = first.eventTime() * 1000; // fncs接受不了小数时间
-			//Log.printLine("请求时间: " + next_time);
+			Api.truePublish();
 			double true_next = Api.timeRequest((long) Math.ceil(next_time));
 			//Log.printLine("request" +  next_time/1000 + " next time: " + true_next / 1000);
 			clock = true_next / 1000;
 			Log.printLine("更新时间到：" + clock);
-			if((int)clock() < (int)first.eventTime()) {
-				Log.printLine("first event time is" + first.eventTime());
-				return false;
-			}
 
-			// 获取其他仿真器传来的事件
+			// 无论本地事件是否到期，都要处理 FNCS 传入的事件（网络回包等）
 			String[] events = Api.getEvents();
 			List<Event> tran2E = new ArrayList<>();
 			for(String s: events) {
 				String[] out = Api.getValue(s).split("/");
 				for(String o: out) {
+					if(o.isEmpty()) continue;
 					Event event = Event.toEvent(o);
-					Log.printLine("收到事件");
+					Log.printLine("收到事件: " + event.src_name);
 					tran2E.add(event);
 				}
 			}
 			doUpdate(tran2E);
+
+			if((int)clock() < (int)first.eventTime()) {
+				return false;
+			}
 
 			processEvent(first);
 			future.remove(first);

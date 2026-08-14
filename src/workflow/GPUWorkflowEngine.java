@@ -33,6 +33,14 @@ public class GPUWorkflowEngine extends GpuDatacenterBroker {
     protected int jobNeedRepeat = 0;
 
     protected Boolean haveJobRepeat = false;
+
+    // 依赖计数优化：记录每个任务未完成的父任务数量
+    protected Map<String, Integer> remainingParentCount = new HashMap<>();
+    // 依赖计数优化：记录每个任务的所有子任务（反向依赖图）
+    protected Map<String, List<GpuJob>> childrenMap = new HashMap<>();
+
+    // 是否输出详细依赖检查日志（仅调试用）
+    protected static boolean verboseDependencyLog = false;
     /**
      * @param name 用于DEBUG
      * @see GpuDatacenterBroker
@@ -52,6 +60,9 @@ public class GPUWorkflowEngine extends GpuDatacenterBroker {
             Log.printLine("yes ri");
             send(getId(), workflow.Parameters.duration, WorkflowSimTags.WORKFLOW_CLOUDLET_END_SIM);
         }
+        // 防止 future 事件队列过早清空导致仿真提前终止
+        // 设为大间隔（1e9 sim units）— 实际终止由各 task 的 CLOUDLET_RETURN 事件驱动
+        send(getId(), 1_000_000_000.0, WorkflowSimTags.WORKFLOW_KEEP_ALIVE);
         super.startEntity();
     }
 
@@ -89,6 +100,11 @@ public class GPUWorkflowEngine extends GpuDatacenterBroker {
             case WorkflowSimTags.WORKFLOW_CLOUDLET_DEADLINE:
                 GpuJob gpuJob2 = (GpuJob) ev.getData();
                 checkDeadline(gpuJob2);
+                break;
+            case WorkflowSimTags.WORKFLOW_KEEP_ALIVE:
+                if (!ifFinish()) {
+                    send(getId(), 1_000_000_000.0, WorkflowSimTags.WORKFLOW_KEEP_ALIVE);
+                }
                 break;
             default:
                 super.processOtherEvent(ev);
@@ -199,6 +215,63 @@ public class GPUWorkflowEngine extends GpuDatacenterBroker {
     }
 
     /**
+     * 构建反向依赖图（子任务映射）和父任务计数
+     * 在首次 doTaskDeliver 前调用一次，避免每次扫描全部任务
+     */
+    protected void buildDependencyMaps() {
+        if (!remainingParentCount.isEmpty())
+            return;  // 只构建一次
+
+        for (Cloudlet c : getCloudletList()) {
+            GpuJob job = (GpuJob) c;
+            int parentCount = job.getParent().size();
+            remainingParentCount.put(job.getName(), parentCount);
+
+            for (Cloudlet parent : job.getParent()) {
+                String parentName = ((GpuJob) parent).getName();
+                childrenMap.computeIfAbsent(parentName, k -> new ArrayList<>()).add(job);
+            }
+        }
+    }
+
+    /**
+     * 任务完成后更新依赖计数，将就绪任务提交
+     */
+    protected void deliverReadyChildren(GpuJob completedJob) {
+        List<GpuJob> readyList = new ArrayList<>();
+        List<GpuJob> children = childrenMap.get(completedJob.getName());
+        if (children == null)
+            return;
+
+        for (GpuJob child : children) {
+            int remaining = remainingParentCount.getOrDefault(child.getName(), 0) - 1;
+            remainingParentCount.put(child.getName(), remaining);
+            if (remaining <= 0 && getCloudletList().contains(child)) {
+                readyList.add(child);
+            }
+        }
+
+        for (GpuJob job : readyList) {
+            getCloudletList().remove(job);
+            submitJob(job);
+        }
+    }
+
+    protected void submitJob(GpuJob job) {
+        if (job.getPeriod() != 0 && job.getExecTime() == 0) {
+            jobNeedRepeat++;
+            haveJobRepeat = true;
+            if (!jobRepeat.containsKey(job.getName())) {
+                jobRepeat.put(job.getName(), 0);
+            }
+        }
+        int datacenterId = host2Datacenter.get(job.getVmId());
+        sendNow(datacenterId, CloudSimTags.CLOUDLET_SUBMIT, job);
+        cloudletsSubmitted++;
+        getCloudletSubmittedList().add(job);
+    }
+
+    /**
      * 下发任务给 {@link GPUWorkflowDatacenter}
      * 触发时机：
      * 1. 运行开始时
@@ -206,37 +279,22 @@ public class GPUWorkflowEngine extends GpuDatacenterBroker {
      * 3. 有新上传的任务
      */
     protected void doTaskDeliver() throws Exception {
+        // 首次调用时构建依赖图（仅构建一次）
+        buildDependencyMaps();
+
         List<GpuJob> tasks2Submit = new ArrayList<>();
-        for(Cloudlet c: getCloudletList()) {
+        for (Cloudlet c : getCloudletList()) {
             GpuJob job = (GpuJob) c;
-            boolean ifAllParentFinish = true;
-            for(Cloudlet parent: job.getParent()){
-                Log.printLine(((GpuJob)parent).getName()+ " is parent of " + job.getName());
-                if(!getCloudletReceivedList().contains(parent)){
-                    ifAllParentFinish = false;
-                    break;
-                }
-            }
-            if(ifAllParentFinish)
+            int remaining = remainingParentCount.getOrDefault(job.getName(), 0);
+            if (remaining <= 0) {
                 tasks2Submit.add(job);
-            else
-                Log.printLine(job.getName() + " cannot be delivered");
+            } else if (verboseDependencyLog) {
+                Log.printLine(job.getName() + " cannot be delivered, remaining parents: " + remaining);
+            }
         }
         getCloudletList().removeAll(tasks2Submit);
-        for(GpuJob job: tasks2Submit) {
-            if(job.getPeriod() != 0 && job.getExecTime() == 0) {
-                jobNeedRepeat++;
-                haveJobRepeat = true;
-                if(!jobRepeat.containsKey(job.getName())) {
-                    jobRepeat.put(job.getName(), 0);
-                    //send(getId(), job.getPeriod(), WorkflowSimTags.WORKFLOW_CLOUDLET_NEXT_PERIOD, job);
-                    //send(getId(), job.getDeadline(), WorkflowSimTags.WORKFLOW_CLOUDLET_DEADLINE, job);
-                }
-            }
-            int datacenterId = host2Datacenter.get(job.getVmId());
-            sendNow(datacenterId, CloudSimTags.CLOUDLET_SUBMIT, job);
-            cloudletsSubmitted ++;
-            getCloudletSubmittedList().add(job);
+        for (GpuJob job : tasks2Submit) {
+            submitJob(job);
         }
     }
 
@@ -291,6 +349,7 @@ public class GPUWorkflowEngine extends GpuDatacenterBroker {
 //        send(getId(), Math.max(delay, 0), WorkflowSimTags.WORKFLOW_CLOUDLET_NEXT_PERIOD, jobRepeat);
         Log.printLine("将" + job.getName() + "设为1");
         jobRepeat.put(job.getName(), 1);
+        jobNeedRepeat --;
     }
 
     /**
@@ -309,6 +368,9 @@ public class GPUWorkflowEngine extends GpuDatacenterBroker {
                 doNext((GpuJob) task);
             }
         }
+
+        // 优化：仅处理已完成任务的直接子任务，而非重新扫描全部任务
+        deliverReadyChildren((GpuJob) task);
 
         if(ifFinish()) {
             Log.printLine("仿真结束");

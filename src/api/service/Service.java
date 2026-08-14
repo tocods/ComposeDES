@@ -100,7 +100,7 @@ public class Service {
 
         GPUWorkflowFaultDatacenter datacenter = null;
         try {
-            datacenter = new GPUWorkflowFaultDatacenter("Datacenter", characteristics,
+                        datacenter = new GPUWorkflowFaultDatacenter("Datacenter", characteristics,
                     new GridGpuVmAllocationPolicyBreadthFirst(hosts), storageList, 2);
             if(!faulttolerant.Parameters.host2FaultInject.isEmpty()) {
                 datacenter.setFaultToleranceEnabled();
@@ -138,6 +138,7 @@ public class Service {
     public String start(String outputPath){
         Log.printLine(String.join("", Collections.nCopies(100, "-")));
         Log.printLine("开始仿真");
+        Parameters.networkRecords = new ArrayList<>();
         try {
             int num_user = 1;
             Calendar calendar = Calendar.getInstance();
@@ -323,7 +324,7 @@ public class Service {
             GpuJob gpuJob = (GpuJob) cl;
             JobRunningInfo info = new JobRunningInfo();
             at.addRule();
-            at.addRow("Job", "Status", "Host", "Duration", "Start", "End");
+            at.addRow("Job", "Status", "Host", "Duration", "Start", "End", "Utilization");
             at.addRule();
             String jobStatus = "Success";
             if(gpuJob.getStatus() == Cloudlet.FAILED)
@@ -334,7 +335,8 @@ public class Service {
             at.addRow(gpuJob.getName(), jobStatus, gpuJob.getHost().getName(),
                     dft.format(Math.max(-1, gpuJob.getActualCPUTime())),
                     dft.format(gpuJob.getExecStartTime()),
-                    dft.format(gpuJob.getFinishTime()));
+                    dft.format(gpuJob.getFinishTime()),
+                    "");
             info.duration =  dft.format(Math.max(-1, gpuJob.getActualCPUTime()));
             info.start = dft.format(gpuJob.getExecStartTime());
             info.end = dft.format(gpuJob.getFinishTime());
@@ -362,7 +364,7 @@ public class Service {
                 }
                 continue;
             }
-            at.addRow("Kernel", "H2D","D2H", "Duration", "Start", "End");
+            at.addRow("Kernel", "H2D","D2H", "Duration", "Start", "End", "Utilization");
             //at.addRule();
             // 遍历任务的每一个内核
             for(GpuCloudlet gpuCloudlet : gpuJob.getTasks()) {
@@ -372,15 +374,19 @@ public class Service {
                     continue;
                 }
                 at.addRule();
+                String utilization = dft.format(gpuTask.getUtilization());
                 at.addRow(gpuTask.getName(), dftTransfer.format(gpuTask.getH2d()), dftTransfer.format(gpuTask.getD2h()),
                         dft.format(Math.max(-1, gpuTask.getActualGPUTime())),
                         dft.format(gpuTask.getExecStartTime()),
-                        dft.format(gpuTask.getFinishTime()));
+                        dft.format(gpuTask.getFinishTime()),
+                        utilization);
+                taskRunInfo.name = gpuTask.getName();
                 taskRunInfo.d2h = dftTransfer.format(gpuTask.getD2h());
                 taskRunInfo.h2d = dftTransfer.format(gpuTask.getH2d());
                 taskRunInfo.end = dft.format(gpuTask.getFinishTime());
                 taskRunInfo.start = dft.format(gpuTask.getExecStartTime());
                 taskRunInfo.duration = dft.format(Math.max(-1, gpuTask.getActualGPUTime()));
+                taskRunInfo.utilization = utilization;
                 info.runInfos.add(taskRunInfo);
             }
             at.addRule();
@@ -413,11 +419,13 @@ public class Service {
                 for(TaskRunInfo entry: info.runInfos) {
                     Element gpu = new Element("KernelRecord");
                     gpu.setAttribute("id", String.valueOf(id));
+                    gpu.setAttribute("name", entry.name);
                     gpu.setAttribute("h2d", entry.h2d);
                     gpu.setAttribute("d2h", entry.d2h);
                     gpu.setAttribute("start", entry.start);
                     gpu.setAttribute("end", entry.end);
                     gpu.setAttribute("duration", entry.duration);
+                    gpu.setAttribute("utilization", entry.utilization);
                     t.addContent(gpu);
                     id++;
                 }
@@ -425,6 +433,19 @@ public class Service {
             }
             doc.getRootElement().addContent(r);
         }
+
+        Element networkRecords = new Element("NetworkRecords");
+        for(Parameters.NetworkRecord record: Parameters.networkRecords) {
+            Element networkRecord = new Element("NetworkRecord");
+            networkRecord.setAttribute("job", record.jobName);
+            networkRecord.setAttribute("start", dft.format(record.start));
+            networkRecord.setAttribute("end", dft.format(record.end));
+            networkRecord.setAttribute("duration", dft.format(record.end - record.start));
+            networkRecord.setAttribute("packetCount", String.valueOf(record.packetCount));
+            networkRecord.setAttribute("totalBytes", String.valueOf(record.totalBytes));
+            networkRecords.addContent(networkRecord);
+        }
+        doc.getRootElement().addContent(networkRecords);
         XMLOutputter xmlOutput = new XMLOutputter();
         Format f = Format.getRawFormat();
         f.setIndent("  "); // 文本缩进

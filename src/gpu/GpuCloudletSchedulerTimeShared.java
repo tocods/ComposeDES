@@ -77,9 +77,12 @@ public class GpuCloudletSchedulerTimeShared extends CloudletSchedulerTimeShared 
 			Log.printLine(CloudSim.clock() + ": 任务被执行， 计算能力： " + (cap  * rcl.getNumberOfPes()) + "间隔时间： " + timeSpam + " 剩余长度：" + rcl.getRemainingCloudletLength() + " 总长度：" + rcl.getCloudletTotalLength());
 		}
 
+		// GPU 任务的 cloudlet 在 paused list 中（由 GpuTaskScheduler 独立调度），
+		// exec list 为空时返回 MAX_VALUE，防止 updateCloudletProcessing() 每 1 单位时间
+		// 注册一次 VM_DATACENTER_EVENT，造成时间无法跳跃到下一事件。
 		if (getCloudletExecList().size() == 0) {
 			setPreviousTime(currentTime);
-			return 0.0;
+			return Double.MAX_VALUE;
 		}
 
 		// check finished cloudlets

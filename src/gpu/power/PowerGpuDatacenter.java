@@ -16,9 +16,9 @@ import java.util.Map.Entry;
 /**
  * {@link PowerGpuDatacenter} extends {@link GpuDatacenter} to enable simulation
  * of power-aware data centers.
- * 
+ *
  * @author Ahmad Siavashi
- * 
+ *
  */
 public class PowerGpuDatacenter extends GpuDatacenter {
 
@@ -127,10 +127,11 @@ public class PowerGpuDatacenter extends GpuDatacenter {
 	public Map<Integer, List<Double>> getGpuUtilOfHost(PowerGpuHost h) {
 		return gpuUtils.get(h);
 	}
-	
+
+	// GPU_VM_DATACENTER_POWER_EVENT 自循环已移除。
+	// 利用率/电力数据改为在任务事件中按需记录。
 	@Override
 	public void startEntity() {
-		schedule(getId(), getSchedulingInterval(), GpuCloudSimTags.GPU_VM_DATACENTER_POWER_EVENT);
 		super.startEntity();
 	}
 
@@ -140,7 +141,6 @@ public class PowerGpuDatacenter extends GpuDatacenter {
 		switch (ev.getTag()) {
 		case GpuCloudSimTags.GPU_VM_DATACENTER_POWER_EVENT:
 			updatePower(getSchedulingInterval());
-			schedule(getId(), getSchedulingInterval(), GpuCloudSimTags.GPU_VM_DATACENTER_POWER_EVENT);
 			break;
 		}
 	}

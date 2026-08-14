@@ -1,4 +1,4 @@
-#include "JNIfncs.h"
+#include "fncs_JNIfncs.h"
 #include "fncs.h"  // 假设 libfncs 提供了这个头文件
 #include <string.h>
 #include <stdlib.h>

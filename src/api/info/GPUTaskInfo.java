@@ -30,6 +30,8 @@ public class GPUTaskInfo {
 
         public Double taskOutputSize;
 
+        public Double utilization;
+
         public Integer calcuType;
     }
 
@@ -84,6 +86,8 @@ public class GPUTaskInfo {
             gpuTask.setName("Kernel_" + cloudletId + "_" + id);
             Log.printLine(gpuTask.getRequestedGddramSize() + "asa");
             gpuTask.setThreadsPerBlock(kernel.threadNum);
+            if(kernel.utilization != null)
+                gpuTask.setUtilization(kernel.utilization);
             gpuTask.calcuType = kernel.calcuType;
             gpuTask.hardware = kernel.hardware;
             gpuTasks.add(gpuTask);

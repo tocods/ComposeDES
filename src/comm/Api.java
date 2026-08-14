@@ -17,16 +17,14 @@ public class Api {
 
     public final static int RECEIVE_EVENT = FaultTolerantTags.FAULT_TAG_LAST + 1;
 
-    private static String[] topics = {"net", "net"};
+    private static String[] topics = {"cloudsim/transfer", "net"};
     public static void publish(CommType type, String value) {
         values.add(value);
         //JNIfncs.publish(topics[type.ordinal()], value);
     }
 
     public static void sendEnd() {
-        Packet p = new Packet();
-        p.txt = "end";
-        JNIfncs.publish("net",p.toString());
+        JNIfncs.publish("cloudsim/end", "end");
     }
 
 
@@ -50,6 +48,10 @@ public class Api {
 
     public static String getValue(String s) {
         return JNIfncs.get_value(s);
+    }
+
+    public static String[] getValues(String s) {
+        return JNIfncs.get_values(s);
     }
 
     public static long timeRequest(long next_time) {

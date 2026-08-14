@@ -77,12 +77,16 @@ public class JobInfo {
         job.setDeadline(deadline);
         if(!children.isEmpty()) {
             for(ChildInfo p: children) {
-                Packet packet = new Packet();
-                packet.setTxt(String.valueOf(p.size));
-                packet.setSrc(name);
-                packet.setSrc_task_name(name);
-                packet.setDst(p.child);
-                job.packets.add(packet);
+                // 只为跨主机通信创建 packet（有 src_host 和 dst_host）
+                if (p.src_host != null && !p.src_host.isEmpty()
+                        && p.dst_host != null && !p.dst_host.isEmpty()) {
+                    Packet packet = new Packet();
+                    packet.setTxt(String.valueOf(p.size));
+                    packet.setSrc(p.src_host);
+                    packet.setSrc_task_name(name);
+                    packet.setDst(p.dst_host);
+                    job.packets.add(packet);
+                }
             }
         }
         return job;

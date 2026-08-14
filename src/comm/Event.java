@@ -13,10 +13,16 @@ public class Event {
     }
 
     public static Event toEvent(String s) {
-        String[] infos = s.split("_");
+        // NS-3 response format: "task_name\0\0...=sendend" (buffer padded with nulls)
+        // Strip null bytes first, then parse
+        String cleaned = s.replace("\0", "").trim();
+        String taskPart = cleaned.split("=")[0];
+        int colonIdx = taskPart.indexOf(':');
+        String taskName = (colonIdx >= 0) ? taskPart.substring(0, colonIdx) : taskPart;
+
         Event e = new Event();
-        e.src_name = infos[0];
-        e.info = infos[1];
+        e.src_name = taskName;
+        e.info = "sendend";
         return e;
     }
 }

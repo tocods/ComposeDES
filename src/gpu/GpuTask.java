@@ -20,6 +20,8 @@ public class GpuTask {
 
 	private double d2h = 0.0;
 
+	private double utilization = 0.0;
+
 	/**
 	 * 任务名
 	 */
@@ -303,6 +305,7 @@ public class GpuTask {
 				new UtilizationModelFull(), new UtilizationModelGaussian(), new UtilizationModelFull(), false);
 		t.setName(getName());
 		t.setThreadsPerBlock(getThreadsPerBlock());
+		t.setUtilization(getUtilization());
 		t.calcuType = calcuType;
 		t.hardware = this.hardware;
 		return t;
@@ -377,6 +380,14 @@ public class GpuTask {
 
 	public void setThreadsPerBlock(int threadsPerBlock) {
 		this.threadsPerBlock = threadsPerBlock;
+	}
+
+	public double getUtilization() {
+		return utilization;
+	}
+
+	public void setUtilization(double utilization) {
+		this.utilization = Math.max(0.0, Math.min(1.0, utilization));
 	}
 
     public void reset() {
@@ -827,8 +838,6 @@ public class GpuTask {
 	 * @param newStatus the status code of this task
 	 * @throws Exception Invalid range of task status
 	 * @pre newStatus >= 0 && newStatus <= 8 @ post $none
-	 * 
-	 * @todo It has to throw an specific (unckecked) exception
 	 */
 	public void setTaskStatus(final int newStatus) throws Exception {
 		// if the new status is same as current one, then ignore the rest

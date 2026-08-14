@@ -28,7 +28,11 @@ public class GPUWorkflowFaultEngine extends GPUWorkflowEngine {
 
     @Override
     protected void processOtherEvent(SimEvent event) {
-        
+        switch (event.getTag()) {
+            default:
+                super.processOtherEvent(event);
+                break;
+        }
     }
 
     @Override
@@ -145,6 +149,8 @@ public class GPUWorkflowFaultEngine extends GPUWorkflowEngine {
             //Log.printLine("执行完成");
             getCloudletReceivedList().add(task);
         }
+        // 优化：仅处理直接子任务
+        deliverReadyChildren((GpuJob) task);
         if(ifFinish()) {
             Log.printLine("仿真结束");
             // 任务全部执行完成，仿真结束

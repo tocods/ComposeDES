@@ -15,5 +15,7 @@ public class TaskRunInfo {
 
     public String compete = "";
 
+    public String utilization = "";
+
 
 }
