@@ -13,11 +13,45 @@ python3 fncs/orchestrator/workflow_orchestrator.py jobs.json \
   --event-log output/control-plane.jsonl
 ```
 
-The workflow input is the existing jobs array. In worker mode GPUSim does not read that file; each task specification is sent in `compute.dispatch` only when its dependencies are ready.
+The workflow input may be the legacy jobs array or an object with `tasks` and
+`collectives`. In worker mode GPUSim does not read that file; each task
+specification is sent in `compute.dispatch` only when its dependencies are
+ready. The orchestrator currently expands ring `allreduce`, `allgather`,
+`reduce_scatter`, and `alltoall` operations into point-to-point ns-3 flows and
+enforces a barrier between ring steps.
+
+`bytes_per_rank` is the rank's input buffer size. Ring AllReduce and
+ReduceScatter send `ceil(bytes_per_rank / ranks)` per rank per step; AllGather
+sends one rank input buffer per step; AllToAll sends
+`ceil(bytes_per_rank / ranks)` to each non-local peer.
+
+```json
+{
+  "tasks": [],
+  "collectives": [
+    {
+      "collective_id": "allreduce0",
+      "type": "allreduce",
+      "algorithm": "ring",
+      "bytes_per_rank": 120000,
+      "participants": [
+        {"src_task_id": "pre0", "dst_task_id": "post0", "host": "host1"},
+        {"src_task_id": "pre1", "dst_task_id": "post1", "host": "host2"}
+      ]
+    }
+  ]
+}
+```
+
+Failed compute and network attempts can be retried by passing
+`--max-compute-retries N` and `--max-network-retries N`. A task may override
+the compute default with its own `max_retries` field. Every worker event must
+carry a unique `event_id`; duplicate events and dispatches are idempotent.
 
 ## Test
 
 ```bash
 python3 -m unittest discover -s fncs/orchestrator/tests -v
 tests/control_plane_smoke/run.sh
+tests/control_plane_collective/run.sh
 ```

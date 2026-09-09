@@ -16,6 +16,8 @@ SPEC.loader.exec_module(MODULE)
 
 
 class WorkflowControllerTest(unittest.TestCase):
+    event_sequence = 0
+
     def setUp(self):
         self.tasks = [
             {
@@ -63,9 +65,22 @@ class WorkflowControllerTest(unittest.TestCase):
 
     @staticmethod
     def completed(task_id, attempt=1):
+        WorkflowControllerTest.event_sequence += 1
         return {
+            "event_id": f"compute-result-{WorkflowControllerTest.event_sequence}",
             "kind": "compute.completed",
+            "correlation_id": f"task:{task_id}:attempt:{attempt}",
             "payload": {"task_id": task_id, "attempt": attempt, "status": "SUCCEEDED"},
+        }
+
+    @classmethod
+    def network_completed(cls, transfer_id, status="SUCCEEDED", event_id=None):
+        cls.event_sequence += 1
+        return {
+            "event_id": event_id or f"network-result-{cls.event_sequence}",
+            "kind": "network.completed",
+            "correlation_id": transfer_id,
+            "payload": {"transfer_id": transfer_id, "status": status},
         }
 
     def test_diamond_with_network_edge(self):
@@ -82,10 +97,7 @@ class WorkflowControllerTest(unittest.TestCase):
         transfer_id = network[0].event["payload"]["transfer_id"]
         commands = controller.handle_event(
             MODULE.NETWORK_COMPLETED,
-            {
-                "kind": "network.completed",
-                "payload": {"transfer_id": transfer_id, "status": "SUCCEEDED"},
-            },
+            self.network_completed(transfer_id),
         )
         self.assertEqual(["b"], [c.event["payload"]["task_id"] for c in commands])
 
@@ -100,8 +112,175 @@ class WorkflowControllerTest(unittest.TestCase):
         task["children"] = []
         controller = MODULE.WorkflowController([task], "test-run")
         controller.initial_commands()
-        controller.handle_event(MODULE.COMPUTE_COMPLETED, self.completed("a"))
-        self.assertEqual([], controller.handle_event(MODULE.COMPUTE_COMPLETED, self.completed("a")))
+        result = self.completed("a")
+        controller.handle_event(MODULE.COMPUTE_COMPLETED, result)
+        self.assertEqual([], controller.handle_event(MODULE.COMPUTE_COMPLETED, result))
+
+    def test_compute_failure_retries_with_new_attempt(self):
+        task = dict(self.tasks[0])
+        task["children"] = []
+        controller = MODULE.WorkflowController([task], "test-run", max_compute_retries=1)
+        controller.initial_commands()
+        failed = self.completed("a")
+        failed["payload"]["status"] = "FAILED"
+        commands = controller.handle_event(MODULE.COMPUTE_COMPLETED, failed)
+        self.assertEqual(2, commands[0].event["payload"]["attempt"])
+        controller.handle_event(MODULE.COMPUTE_COMPLETED, self.completed("a", attempt=2))
+        self.assertTrue(controller.done)
+
+    def test_network_failure_retries_without_releasing_child(self):
+        task_a = dict(self.tasks[0])
+        task_a["children"] = [dict(self.tasks[0]["children"][0])]
+        task_b = dict(self.tasks[1])
+        task_b["children"] = []
+        controller = MODULE.WorkflowController(
+            [task_a, task_b], "test-run", max_network_retries=1
+        )
+        controller.initial_commands()
+        commands = controller.handle_event(MODULE.COMPUTE_COMPLETED, self.completed("a"))
+        network = [command for command in commands if command.topic == MODULE.NETWORK_DISPATCH]
+        first_id = network[0].event["payload"]["transfer_id"]
+        retry = controller.handle_event(
+            MODULE.NETWORK_COMPLETED, self.network_completed(first_id, "FAILED")
+        )
+        self.assertEqual(1, len(retry))
+        second_id = retry[0].event["payload"]["transfer_id"]
+        self.assertNotEqual(first_id, second_id)
+        self.assertEqual("BLOCKED", controller.state["b"])
+        commands = controller.handle_event(
+            MODULE.NETWORK_COMPLETED, self.network_completed(second_id)
+        )
+        self.assertEqual(["b"], [c.event["payload"]["task_id"] for c in commands])
+
+    def test_two_rank_ring_allreduce_is_a_barrier(self):
+        tasks = [
+            {"name": "pre0", "host": "host1", "children": []},
+            {"name": "pre1", "host": "host2", "children": []},
+            {"name": "post0", "host": "host1", "children": []},
+            {"name": "post1", "host": "host2", "children": []},
+        ]
+        collectives = [
+            {
+                "collective_id": "ar0",
+                "type": "allreduce",
+                "algorithm": "ring",
+                "bytes_per_rank": 120000,
+                "participants": [
+                    {"src_task_id": "pre0", "dst_task_id": "post0", "host": "host1"},
+                    {"src_task_id": "pre1", "dst_task_id": "post1", "host": "host2"},
+                ],
+            }
+        ]
+        controller = MODULE.WorkflowController(
+            tasks, "test-run", collective_specs=collectives
+        )
+        initial = controller.initial_commands()
+        self.assertEqual(
+            ["pre0", "pre1"],
+            [command.event["payload"]["task_id"] for command in initial],
+        )
+        self.assertEqual(
+            [], controller.handle_event(MODULE.COMPUTE_COMPLETED, self.completed("pre0"))
+        )
+        first_step = controller.handle_event(
+            MODULE.COMPUTE_COMPLETED, self.completed("pre1")
+        )
+        self.assertEqual(2, len(first_step))
+        self.assertTrue(all(c.event["payload"]["bytes"] == 60000 for c in first_step))
+        self.assertTrue(all(c.event["payload"]["step"] == 0 for c in first_step))
+
+        self.assertEqual(
+            [],
+            controller.handle_event(
+                MODULE.NETWORK_COMPLETED,
+                self.network_completed(first_step[0].event["payload"]["transfer_id"]),
+            ),
+        )
+        second_step = controller.handle_event(
+            MODULE.NETWORK_COMPLETED,
+            self.network_completed(first_step[1].event["payload"]["transfer_id"]),
+        )
+        self.assertEqual(2, len(second_step))
+        self.assertTrue(all(c.event["payload"]["step"] == 1 for c in second_step))
+
+        controller.handle_event(
+            MODULE.NETWORK_COMPLETED,
+            self.network_completed(second_step[0].event["payload"]["transfer_id"]),
+        )
+        post = controller.handle_event(
+            MODULE.NETWORK_COMPLETED,
+            self.network_completed(second_step[1].event["payload"]["transfer_id"]),
+        )
+        self.assertEqual(
+            ["post0", "post1"],
+            [command.event["payload"]["task_id"] for command in post],
+        )
+        self.assertEqual("COMPLETED", controller.collective_state["ar0"])
+
+    def test_collective_cycle_is_rejected(self):
+        tasks = [
+            {"name": "a", "host": "host1", "children": []},
+            {"name": "b", "host": "host2", "children": []},
+        ]
+        collective = {
+            "id": "bad",
+            "type": "allreduce",
+            "bytes": 1,
+            "participants": [
+                {"src_task_id": "a", "dst_task_id": "a", "host": "host1"},
+                {"src_task_id": "b", "dst_task_id": "b", "host": "host2"},
+            ],
+        }
+        with self.assertRaises(MODULE.WorkflowError):
+            MODULE.WorkflowController(tasks, "test-run", collective_specs=[collective])
+
+    def test_collective_flow_sizes_match_ring_algorithms(self):
+        tasks = [
+            {"name": f"pre{rank}", "host": f"host{rank}", "children": []}
+            for rank in range(4)
+        ] + [
+            {"name": f"post{rank}", "host": f"host{rank}", "children": []}
+            for rank in range(4)
+        ]
+        participants = [
+            {
+                "src_task_id": f"pre{rank}",
+                "dst_task_id": f"post{rank}",
+                "host": f"host{rank}",
+            }
+            for rank in range(4)
+        ]
+        expected = {
+            "allreduce": (6, 250),
+            "reduce_scatter": (3, 250),
+            "allgather": (3, 1000),
+            "alltoall": (3, 250),
+        }
+        for collective_type, (step_count, bytes_per_flow) in expected.items():
+            with self.subTest(collective_type=collective_type):
+                controller = MODULE.WorkflowController(
+                    tasks,
+                    "test-run",
+                    collective_specs=[
+                        {
+                            "id": "collective0",
+                            "type": collective_type,
+                            "bytes_per_rank": 1000,
+                            "participants": participants,
+                        }
+                    ],
+                )
+                controller.initial_commands()
+                commands = []
+                for rank in range(4):
+                    commands = controller.handle_event(
+                        MODULE.COMPUTE_COMPLETED, self.completed(f"pre{rank}")
+                    )
+                self.assertEqual(step_count, controller._collective_step_count("collective0"))
+                self.assertEqual(4, len(commands))
+                self.assertTrue(
+                    all(command.event["payload"]["bytes"] == bytes_per_flow for command in commands)
+                )
 
     def test_cycle_is_rejected(self):
         tasks = [
@@ -113,7 +292,17 @@ class WorkflowControllerTest(unittest.TestCase):
 
     def test_batch_round_trip(self):
         value = MODULE.make_batch(
-            "test-run", 1, 42, [{"event_id": "e1", "kind": "compute.dispatch"}]
+            "test-run",
+            1,
+            42,
+            [
+                {
+                    "event_id": "e1",
+                    "kind": "compute.dispatch",
+                    "correlation_id": "task:a:attempt:1",
+                    "payload": {},
+                }
+            ],
         )
         parsed = MODULE.parse_batch(value, "test-run")
         self.assertEqual(42, parsed["logical_time_ns"])

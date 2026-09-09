@@ -38,20 +38,40 @@ class Command:
 
 
 class WorkflowController:
-    """Deterministic DAG state machine, independent from FNCS transport."""
+    """Deterministic DAG and collective state machine, independent from FNCS."""
 
-    def __init__(self, task_specs: Iterable[Dict[str, Any]], run_id: str) -> None:
+    SUPPORTED_COLLECTIVES = {"allreduce", "allgather", "reduce_scatter", "alltoall"}
+
+    def __init__(
+        self,
+        task_specs: Iterable[Dict[str, Any]],
+        run_id: str,
+        max_compute_retries: int = 0,
+        max_network_retries: int = 0,
+        collective_specs: Iterable[Dict[str, Any]] | None = None,
+    ) -> None:
         self.run_id = run_id
+        self.max_compute_retries = max(0, max_compute_retries)
+        self.max_network_retries = max(0, max_network_retries)
         self.tasks: Dict[str, Dict[str, Any]] = {}
         self.state: Dict[str, str] = {}
         self.parents: Dict[str, set[str]] = defaultdict(set)
         self.outgoing: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        self.graph_parents: Dict[str, set[str]] = defaultdict(set)
+        self.graph_children: Dict[str, set[str]] = defaultdict(set)
         self.pending_inputs: Dict[str, int] = {}
         self.edge_state: Dict[str, str] = {}
-        self.transfer_to_edge: Dict[str, str] = {}
+        self.collectives: Dict[str, Dict[str, Any]] = {}
+        self.collective_state: Dict[str, str] = {}
+        self.collective_step: Dict[str, int] = {}
+        self.collective_pending: Dict[str, set[str]] = defaultdict(set)
+        self.collective_inputs: Dict[str, int] = defaultdict(int)
         self.task_attempt: Dict[str, int] = defaultdict(int)
+        self.network_attempt: Dict[str, int] = defaultdict(int)
+        self.transfer_context: Dict[str, Dict[str, Any]] = {}
         self.inflight_compute: set[str] = set()
         self.inflight_network: set[str] = set()
+        self.seen_event_ids: set[str] = set()
         self.failed_reason: str | None = None
         self._event_sequence = 0
 
@@ -60,25 +80,48 @@ class WorkflowController:
             task_id = str(spec.get("name", ""))
             if not task_id or task_id in self.tasks:
                 raise WorkflowError(f"invalid or duplicate task name: {task_id!r}")
+            if not spec.get("host"):
+                raise WorkflowError(f"task {task_id} is missing host placement")
             self.tasks[task_id] = spec
             self.state[task_id] = "BLOCKED"
 
+        if not self.tasks:
+            raise WorkflowError("workflow must contain at least one task")
         self._build_edges()
+        self._build_collectives(collective_specs or [])
         self._validate_acyclic()
         for task_id in self.tasks:
-            self.pending_inputs[task_id] = len(self.parents[task_id])
+            self.pending_inputs[task_id] = (
+                len(self.parents[task_id]) + self.collective_inputs[task_id]
+            )
             if self.pending_inputs[task_id] == 0:
                 self.state[task_id] = "READY"
 
     @classmethod
-    def from_file(cls, path: str, run_id: str) -> "WorkflowController":
+    def from_file(
+        cls,
+        path: str,
+        run_id: str,
+        max_compute_retries: int = 0,
+        max_network_retries: int = 0,
+    ) -> "WorkflowController":
         with open(path, "r", encoding="utf-8") as stream:
             data = json.load(stream)
+        collectives: Iterable[Dict[str, Any]] = []
         if isinstance(data, dict):
-            data = data.get("tasks", [])
-        if not isinstance(data, list):
-            raise WorkflowError("workflow input must be a task array or an object with tasks")
-        return cls(data, run_id)
+            tasks = data.get("tasks", [])
+            collectives = data.get("collectives", [])
+        else:
+            tasks = data
+        if not isinstance(tasks, list) or not isinstance(collectives, list):
+            raise WorkflowError("workflow tasks and collectives must be arrays")
+        return cls(
+            tasks,
+            run_id,
+            max_compute_retries=max_compute_retries,
+            max_network_retries=max_network_retries,
+            collective_specs=collectives,
+        )
 
     def _build_edges(self) -> None:
         for src_id, spec in self.tasks.items():
@@ -89,27 +132,103 @@ class WorkflowController:
                 if src_id in self.parents[dst_id]:
                     raise WorkflowError(f"duplicate edge {src_id} -> {dst_id}")
                 edge_id = f"edge:{src_id}:{dst_id}:{index}"
+                size = int(child.get("size") or 0)
+                if size < 0:
+                    raise WorkflowError(f"edge {edge_id} has negative size")
                 edge = {
                     "edge_id": edge_id,
                     "src_task_id": src_id,
                     "dst_task_id": dst_id,
                     "src_host": child.get("src_host") or spec.get("host") or "",
                     "dst_host": child.get("dst_host") or self.tasks[dst_id].get("host") or "",
-                    "bytes": int(child.get("size") or 0),
+                    "bytes": size,
                 }
+                if size > 0 and (not edge["src_host"] or not edge["dst_host"]):
+                    raise WorkflowError(f"network edge {edge_id} is missing a host")
                 self.parents[dst_id].add(src_id)
+                self.graph_parents[dst_id].add(src_id)
+                self.graph_children[src_id].add(dst_id)
                 self.outgoing[src_id].append(edge)
                 self.edge_state[edge_id] = "WAIT_PRODUCER"
 
+    def _build_collectives(self, specs: Iterable[Dict[str, Any]]) -> None:
+        aliases = {
+            "allreduce": "allreduce",
+            "allgather": "allgather",
+            "reducescatter": "reduce_scatter",
+            "alltoall": "alltoall",
+        }
+        for raw_spec in specs:
+            spec = copy.deepcopy(raw_spec)
+            collective_id = str(spec.get("collective_id") or spec.get("id") or "")
+            raw_type = str(spec.get("type") or "").lower().replace("_", "")
+            collective_type = aliases.get(raw_type, raw_type)
+            if not collective_id or collective_id in self.collectives:
+                raise WorkflowError(f"invalid or duplicate collective id: {collective_id!r}")
+            if collective_type not in self.SUPPORTED_COLLECTIVES:
+                raise WorkflowError(f"unsupported collective type: {collective_type!r}")
+            if str(spec.get("algorithm") or "ring").lower() != "ring":
+                raise WorkflowError(f"collective {collective_id} only supports ring")
+
+            participants = spec.get("participants") or []
+            if not isinstance(participants, list) or len(participants) < 2:
+                raise WorkflowError(f"collective {collective_id} needs at least two ranks")
+            normalized: List[Dict[str, str]] = []
+            source_ids: set[str] = set()
+            target_ids: set[str] = set()
+            for participant in participants:
+                src_id = str(participant.get("src_task_id") or "")
+                dst_id = str(participant.get("dst_task_id") or "")
+                host = str(
+                    participant.get("host")
+                    or self.tasks.get(src_id, {}).get("host")
+                    or ""
+                )
+                if src_id not in self.tasks or dst_id not in self.tasks or not host:
+                    raise WorkflowError(
+                        f"collective {collective_id} has invalid participant {participant!r}"
+                    )
+                if src_id in source_ids or dst_id in target_ids:
+                    raise WorkflowError(
+                        f"collective {collective_id} repeats a source or target task"
+                    )
+                source_ids.add(src_id)
+                target_ids.add(dst_id)
+                normalized.append(
+                    {"src_task_id": src_id, "dst_task_id": dst_id, "host": host}
+                )
+
+            bytes_per_rank = int(spec.get("bytes_per_rank") or spec.get("bytes") or 0)
+            if bytes_per_rank <= 0:
+                raise WorkflowError(
+                    f"collective {collective_id} must have positive bytes_per_rank"
+                )
+            spec.update(
+                {
+                    "collective_id": collective_id,
+                    "type": collective_type,
+                    "algorithm": "ring",
+                    "bytes_per_rank": bytes_per_rank,
+                    "participants": normalized,
+                }
+            )
+            self.collectives[collective_id] = spec
+            self.collective_state[collective_id] = "WAIT_SOURCES"
+            self.collective_step[collective_id] = 0
+            for dst_id in target_ids:
+                self.collective_inputs[dst_id] += 1
+                for src_id in source_ids:
+                    self.graph_parents[dst_id].add(src_id)
+                    self.graph_children[src_id].add(dst_id)
+
     def _validate_acyclic(self) -> None:
-        degree = {task_id: len(self.parents[task_id]) for task_id in self.tasks}
+        degree = {task_id: len(self.graph_parents[task_id]) for task_id in self.tasks}
         ready = deque(task_id for task_id, count in degree.items() if count == 0)
         visited = 0
         while ready:
             src_id = ready.popleft()
             visited += 1
-            for edge in self.outgoing[src_id]:
-                dst_id = edge["dst_task_id"]
+            for dst_id in self.graph_children[src_id]:
                 degree[dst_id] -= 1
                 if degree[dst_id] == 0:
                     ready.append(dst_id)
@@ -157,6 +276,12 @@ class WorkflowController:
         return commands
 
     def handle_event(self, topic: str, event: Dict[str, Any]) -> List[Command]:
+        event_id = str(event.get("event_id") or "")
+        if not event_id:
+            raise WorkflowError("worker event is missing event_id")
+        if event_id in self.seen_event_ids:
+            return []
+        self.seen_event_ids.add(event_id)
         kind = event.get("kind")
         if topic == COMPUTE_COMPLETED or kind == "compute.completed":
             commands = self._handle_compute_completed(event)
@@ -164,7 +289,9 @@ class WorkflowController:
             commands = self._handle_network_completed(event)
         else:
             raise WorkflowError(f"unsupported event topic={topic!r} kind={kind!r}")
-        commands.extend(self._dispatch_ready_tasks())
+        if not self.failed_reason:
+            commands.extend(self._start_ready_collectives())
+            commands.extend(self._dispatch_ready_tasks())
         return commands
 
     def _handle_compute_completed(self, event: Dict[str, Any]) -> List[Command]:
@@ -174,6 +301,12 @@ class WorkflowController:
         status = str(payload.get("status", "SUCCEEDED")).upper()
         if task_id not in self.tasks:
             raise WorkflowError(f"completion for unknown task {task_id}")
+        expected_correlation = f"task:{task_id}:attempt:{attempt}"
+        if event.get("correlation_id") != expected_correlation:
+            raise WorkflowError(
+                f"completion correlation mismatch for task {task_id}: "
+                f"{event.get('correlation_id')!r}"
+            )
         if attempt != self.task_attempt[task_id]:
             return []
         if self.state[task_id] == "SUCCEEDED":
@@ -185,11 +318,20 @@ class WorkflowController:
 
         self.inflight_compute.discard(task_id)
         if status != "SUCCEEDED":
-            self.state[task_id] = status
-            self.failed_reason = f"task {task_id} completed with {status}"
+            retry_limit = int(
+                self.tasks[task_id].get("max_retries", self.max_compute_retries)
+            )
+            if not self.failed_reason and self.task_attempt[task_id] <= retry_limit:
+                self.state[task_id] = "READY"
+            else:
+                self.state[task_id] = status
+                if not self.failed_reason:
+                    self.failed_reason = f"task {task_id} completed with {status}"
             return []
 
         self.state[task_id] = "SUCCEEDED"
+        if self.failed_reason:
+            return []
         commands: List[Command] = []
         for edge in self.outgoing[task_id]:
             edge_id = edge["edge_id"]
@@ -197,46 +339,158 @@ class WorkflowController:
                 self.edge_state[edge_id] = "LOCAL_READY"
                 self._release_input(edge["dst_task_id"])
                 continue
-            transfer_id = f"transfer:{edge_id}"
-            self.transfer_to_edge[transfer_id] = edge_id
             self.edge_state[edge_id] = "NET_DISPATCHED"
-            self.inflight_network.add(transfer_id)
             transfer = dict(edge)
-            transfer["transfer_id"] = transfer_id
-            commands.append(
-                Command(
-                    NETWORK_DISPATCH,
-                    self._new_event("network.dispatch", transfer_id, transfer),
-                )
-            )
+            commands.append(self._dispatch_network(edge_id, transfer, "direct"))
         return commands
+
+    def _dispatch_network(
+        self,
+        operation_id: str,
+        payload: Dict[str, Any],
+        operation_kind: str,
+    ) -> Command:
+        self.network_attempt[operation_id] += 1
+        attempt = self.network_attempt[operation_id]
+        transfer_id = f"transfer:{operation_id}:attempt:{attempt}"
+        transfer = dict(payload)
+        transfer["transfer_id"] = transfer_id
+        transfer["attempt"] = attempt
+        self.transfer_context[transfer_id] = {
+            "operation_id": operation_id,
+            "operation_kind": operation_kind,
+            "payload": dict(payload),
+        }
+        self.inflight_network.add(transfer_id)
+        return Command(
+            NETWORK_DISPATCH,
+            self._new_event("network.dispatch", transfer_id, transfer),
+        )
 
     def _handle_network_completed(self, event: Dict[str, Any]) -> List[Command]:
         payload = event.get("payload") or {}
         transfer_id = str(payload.get("transfer_id", ""))
         status = str(payload.get("status", "SUCCEEDED")).upper()
-        edge_id = self.transfer_to_edge.get(transfer_id)
-        if edge_id is None:
+        if event.get("correlation_id") != transfer_id:
+            raise WorkflowError(
+                f"completion correlation mismatch for transfer {transfer_id}: "
+                f"{event.get('correlation_id')!r}"
+            )
+        context = self.transfer_context.pop(transfer_id, None)
+        if context is None or transfer_id not in self.inflight_network:
             return []
-        if self.edge_state[edge_id] == "NET_COMPLETED":
-            return []
+        self.inflight_network.discard(transfer_id)
+        operation_id = context["operation_id"]
         if status != "SUCCEEDED":
-            self.failed_reason = f"transfer {transfer_id} completed with {status}"
+            if (
+                not self.failed_reason
+                and self.network_attempt[operation_id] <= self.max_network_retries
+            ):
+                return [
+                    self._dispatch_network(
+                        operation_id,
+                        context["payload"],
+                        context["operation_kind"],
+                    )
+                ]
+            if not self.failed_reason:
+                self.failed_reason = f"transfer {transfer_id} completed with {status}"
             return []
 
-        self.inflight_network.discard(transfer_id)
-        self.edge_state[edge_id] = "NET_COMPLETED"
-        src_id, dst_id = self._edge_endpoints(edge_id)
-        del src_id
-        self._release_input(dst_id)
+        if self.failed_reason:
+            return []
+        if context["operation_kind"] == "direct":
+            if self.edge_state[operation_id] != "NET_COMPLETED":
+                self.edge_state[operation_id] = "NET_COMPLETED"
+                self._release_input(context["payload"]["dst_task_id"])
+            return []
+
+        collective_id = context["payload"]["collective_id"]
+        self.collective_pending[collective_id].discard(operation_id)
+        if self.collective_pending[collective_id]:
+            return []
+        self.collective_step[collective_id] += 1
+        if self.collective_step[collective_id] < self._collective_step_count(
+            collective_id
+        ):
+            return self._dispatch_collective_step(collective_id)
+
+        self.collective_state[collective_id] = "COMPLETED"
+        for participant in self.collectives[collective_id]["participants"]:
+            self._release_input(participant["dst_task_id"])
         return []
 
-    def _edge_endpoints(self, edge_id: str) -> tuple[str, str]:
-        for edges in self.outgoing.values():
-            for edge in edges:
-                if edge["edge_id"] == edge_id:
-                    return edge["src_task_id"], edge["dst_task_id"]
-        raise WorkflowError(f"unknown edge {edge_id}")
+    def _start_ready_collectives(self) -> List[Command]:
+        commands: List[Command] = []
+        for collective_id in sorted(self.collectives):
+            if self.collective_state[collective_id] != "WAIT_SOURCES":
+                continue
+            sources = [
+                participant["src_task_id"]
+                for participant in self.collectives[collective_id]["participants"]
+            ]
+            if all(self.state[source] == "SUCCEEDED" for source in sources):
+                self.collective_state[collective_id] = "RUNNING"
+                commands.extend(self._dispatch_collective_step(collective_id))
+        return commands
+
+    def _collective_step_count(self, collective_id: str) -> int:
+        collective = self.collectives[collective_id]
+        rank_count = len(collective["participants"])
+        if collective["type"] == "allreduce":
+            return 2 * (rank_count - 1)
+        return rank_count - 1
+
+    def _dispatch_collective_step(self, collective_id: str) -> List[Command]:
+        collective = self.collectives[collective_id]
+        participants = collective["participants"]
+        rank_count = len(participants)
+        step = self.collective_step[collective_id]
+        collective_type = collective["type"]
+        if collective_type == "alltoall":
+            peer_offset = step + 1
+            bytes_per_flow = (
+                collective["bytes_per_rank"] + rank_count - 1
+            ) // rank_count
+            phase = "alltoall"
+        elif collective_type == "allgather":
+            peer_offset = 1
+            bytes_per_flow = collective["bytes_per_rank"]
+            phase = "allgather"
+        else:
+            peer_offset = 1
+            bytes_per_flow = (
+                collective["bytes_per_rank"] + rank_count - 1
+            ) // rank_count
+            if collective_type == "allreduce":
+                phase = "reduce_scatter" if step < rank_count - 1 else "allgather"
+            else:
+                phase = collective_type
+
+        pending = self.collective_pending[collective_id]
+        pending.clear()
+        commands: List[Command] = []
+        for rank, participant in enumerate(participants):
+            peer = participants[(rank + peer_offset) % rank_count]
+            operation_id = f"collective:{collective_id}:step:{step}:rank:{rank}"
+            payload = {
+                "collective_id": collective_id,
+                "collective_type": collective_type,
+                "algorithm": collective["algorithm"],
+                "phase": phase,
+                "step": step,
+                "rank": rank,
+                "src_task_id": participant["src_task_id"],
+                "dst_task_id": peer["dst_task_id"],
+                "src_host": participant["host"],
+                "dst_host": peer["host"],
+                "bytes": bytes_per_flow,
+            }
+            pending.add(operation_id)
+            commands.append(
+                self._dispatch_network(operation_id, payload, "collective")
+            )
+        return commands
 
     def _release_input(self, task_id: str) -> None:
         if self.pending_inputs[task_id] <= 0:
@@ -250,6 +504,15 @@ class WorkflowController:
         return (
             not self.failed_reason
             and all(state == "SUCCEEDED" for state in self.state.values())
+            and all(state == "COMPLETED" for state in self.collective_state.values())
+            and not self.inflight_compute
+            and not self.inflight_network
+        )
+
+    @property
+    def terminal(self) -> bool:
+        return self.done or (
+            self.failed_reason is not None
             and not self.inflight_compute
             and not self.inflight_network
         )
@@ -264,6 +527,10 @@ class WorkflowController:
             "states": dict(sorted(counts.items())),
             "inflight_compute": len(self.inflight_compute),
             "inflight_network": len(self.inflight_network),
+            "collectives": dict(sorted(self.collective_state.items())),
+            "compute_attempts": sum(self.task_attempt.values()),
+            "network_attempts": sum(self.network_attempt.values()),
+            "processed_event_ids": len(self.seen_event_ids),
             "failed_reason": self.failed_reason,
             "done": self.done,
         }
@@ -285,6 +552,8 @@ def make_batch(run_id: str, batch_sequence: int, time_ns: int, events: List[Dict
 
 def parse_batch(value: str, expected_run_id: str) -> Dict[str, Any]:
     batch = json.loads(value)
+    if not isinstance(batch, dict):
+        raise WorkflowError("batch must be a JSON object")
     if batch.get("schema_version") != SCHEMA_VERSION:
         raise WorkflowError(f"unsupported schema version {batch.get('schema_version')!r}")
     if batch.get("run_id") != expected_run_id:
@@ -293,6 +562,16 @@ def parse_batch(value: str, expected_run_id: str) -> Dict[str, Any]:
         )
     if not isinstance(batch.get("events"), list):
         raise WorkflowError("batch events must be an array")
+    if not isinstance(batch.get("logical_time_ns"), int) or batch["logical_time_ns"] < 0:
+        raise WorkflowError("batch logical_time_ns must be a non-negative integer")
+    for event in batch["events"]:
+        if not isinstance(event, dict):
+            raise WorkflowError("batch event must be an object")
+        for field in ("event_id", "kind", "correlation_id", "payload"):
+            if field not in event:
+                raise WorkflowError(f"batch event is missing {field}")
+        if not isinstance(event["payload"], dict):
+            raise WorkflowError("batch event payload must be an object")
     return batch
 
 
@@ -329,7 +608,12 @@ class EventLog:
 
 def run(args: argparse.Namespace) -> int:
     run_id = args.run_id or f"run-{uuid.uuid4()}"
-    controller = WorkflowController.from_file(args.workflow, run_id)
+    controller = WorkflowController.from_file(
+        args.workflow,
+        run_id,
+        max_compute_retries=args.max_compute_retries,
+        max_network_retries=args.max_network_retries,
+    )
     client = FncsClient(args.fncs_library)
     event_log = EventLog(args.event_log)
     batch_sequence = 0
@@ -349,7 +633,7 @@ def run(args: argparse.Namespace) -> int:
     try:
         client.initialize()
         publish_commands(controller.initial_commands())
-        while not controller.done and not controller.failed_reason:
+        while not controller.terminal:
             current_time = client.time_request(MAX_TIME_NS)
             commands: List[Command] = []
             for topic in client.get_events():
@@ -389,6 +673,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-id", default=os.environ.get("COSIM_RUN_ID"))
     parser.add_argument("--event-log", help="JSONL control-plane event log")
     parser.add_argument("--fncs-library", help="path to libfncs")
+    parser.add_argument("--max-compute-retries", type=int, default=0)
+    parser.add_argument("--max-network-retries", type=int, default=0)
     return parser
 
 
