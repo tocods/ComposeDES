@@ -1,4 +1,36 @@
 {
+  "backend_local_chain_precision_preserved": true,
+  "backend_local_chain_validations": [
+    {
+      "baseline_dispatch_events": 29,
+      "baseline_makespan_us": 569683.0,
+      "baseline_scheduler_rounds": 651,
+      "input": "/Users/taco/Desktop/cosim/case_study_results/exp1_gpu_spec/H100",
+      "local_chain_dispatch_events": 1,
+      "local_chain_makespan_us": 569683.0,
+      "local_chain_scheduler_rounds": 602,
+      "makespan_equal": true,
+      "network_completion_trace_equal": true,
+      "network_event_count": 0,
+      "per_task_start_finish_trace_equal": true,
+      "task_count": 29
+    },
+    {
+      "baseline_dispatch_events": 29,
+      "baseline_makespan_us": 640153.312,
+      "baseline_scheduler_rounds": 729,
+      "input": "/Users/taco/Desktop/cosim/case_study_results/exp2_parallelism/TP1_PP4",
+      "local_chain_dispatch_events": 4,
+      "local_chain_makespan_us": 640153.312,
+      "local_chain_scheduler_rounds": 683,
+      "makespan_equal": true,
+      "network_completion_trace_equal": true,
+      "network_event_count": 3,
+      "per_task_start_finish_trace_equal": true,
+      "task_count": 29
+    }
+  ],
+  "backend_local_chain_version": "v2.0.0-alpha.4.2",
   "bandwidth_compute_spread_us": 0.0020000000076834112,
   "bandwidth_fit_error_us": {
     "100": 0.32400000002235174,
@@ -9,7 +41,7 @@
     "6400": -0.12375000000974978,
     "800": -0.0060000000084983185
   },
-  "checks_passed": 9,
+  "checks_passed": 12,
   "control_plane": "v2.0.0-alpha.4.1",
   "exact_contraction_preserves_makespan": true,
   "fitted_fixed_propagation_us": 336.33600000001024,

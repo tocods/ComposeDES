@@ -345,11 +345,19 @@ def run_simulation(input_dir):
             for event in batch['events']:
                 correlation = event['correlation_id']
                 if topic == 'compute/dispatch':
-                    dispatch_compute[correlation] = (
-                        record['logical_time_ns'], event['payload']['target_host']
-                    )
+                    payload = event['payload']
+                    if event['kind'] == 'compute.plan.dispatch':
+                        for task in payload['tasks']:
+                            dispatch_compute[task['correlation_id']] = (
+                                record['logical_time_ns'], task['target_host']
+                            )
+                    else:
+                        dispatch_compute[correlation] = (
+                            record['logical_time_ns'], payload['target_host']
+                        )
                 elif topic == 'compute/completed' and correlation in dispatch_compute:
                     start_ns, host = dispatch_compute[correlation]
+                    start_ns = int(event['payload'].get('start_time_ns', start_ns))
                     finish_ns = int(event['payload'].get(
                         'finish_time_ns', record['logical_time_ns']
                     ))

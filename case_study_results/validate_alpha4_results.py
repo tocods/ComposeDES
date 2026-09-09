@@ -9,6 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "case_study_results" / "all_data_alpha4.json"
 SMALL = ROOT / "tests" / "control_plane_alpha4_small" / "output" / "summary.json"
 OUTPUT = ROOT / "case_study_results" / "theory_validation_alpha4.json"
+LOCAL_GPU = ROOT / "case_study_results" / "backend_local_chain_validation.json"
+LOCAL_PP4 = ROOT / "case_study_results" / "backend_local_chain_pp4_validation.json"
 
 
 def indexed(entries):
@@ -72,10 +74,21 @@ if refinement["refined_regions"] != ["critical"] or refinement["retained_regions
     raise SystemExit(f"selective refinement chose the wrong regions: {refinement}")
 if refinement["final_gap_ns"] != 0:
     raise SystemExit(f"selective refinement did not close the certificate: {refinement}")
+if not small.get("backend_local_chain_precision_preserved"):
+    raise SystemExit("backend-local chains changed the small-case precision trace")
+local_validations = [json.loads(path.read_text()) for path in (LOCAL_GPU, LOCAL_PP4)]
+if any(
+    not result["makespan_equal"]
+    or not result["per_task_start_finish_trace_equal"]
+    or not result["network_completion_trace_equal"]
+    for result in local_validations
+):
+    raise SystemExit(f"backend-local chain precision validation failed: {local_validations}")
 
 summary = {
     "control_plane": data["control_plane"],
-    "checks_passed": 9,
+    "backend_local_chain_version": "v2.0.0-alpha.4.2",
+    "checks_passed": 12,
     "tp4_ring_flows": parallel["TP4_PP1"]["network_events"],
     "topology_communication_ratio": topology_ratio,
     "bandwidth_compute_spread_us": max(compute_values) - min(compute_values),
@@ -85,6 +98,8 @@ summary = {
     "small_flow_macro_matches_theory": True,
     "exact_contraction_preserves_makespan": True,
     "selective_refinement": refinement,
+    "backend_local_chain_precision_preserved": True,
+    "backend_local_chain_validations": local_validations,
 }
 OUTPUT.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
 print(json.dumps(summary, sort_keys=True))

@@ -1,0 +1,14 @@
+{
+  "baseline_dispatch_events": 29,
+  "baseline_makespan_us": 640153.312,
+  "baseline_scheduler_rounds": 729,
+  "input": "/Users/taco/Desktop/cosim/case_study_results/exp2_parallelism/TP1_PP4",
+  "local_chain_dispatch_events": 4,
+  "local_chain_makespan_us": 640153.312,
+  "local_chain_scheduler_rounds": 683,
+  "makespan_equal": true,
+  "network_completion_trace_equal": true,
+  "network_event_count": 3,
+  "per_task_start_finish_trace_equal": true,
+  "task_count": 29
+}

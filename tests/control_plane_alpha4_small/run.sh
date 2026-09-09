@@ -21,6 +21,7 @@ run_case() {
   local port="$2"
   local workflow="$3"
   local flow_macro="${4:-no}"
+  local local_chains="${5:-no}"
   local result="$OUTPUT_DIR/$mode"
   mkdir -p "$result"
   rm -f "$result"/*.log(N) "$result"/*.json(N) "$result"/*.jsonl(N) "$result"/*.xml(N)
@@ -56,6 +57,7 @@ run_case() {
   FNCS_CONFIG_FILE="$ROOT/fncs/orchestrator/fncs.zpl" \
   FNCS_BROKER="tcp://localhost:$port" FNCS_NAME=orchestrator FNCS_TIME_DELTA=1ns FNCS_FATAL=yes \
   COSIM_RUN_ID="alpha4-small-$mode" \
+  COSIM_BACKEND_LOCAL_CHAINS="$local_chains" \
     python3 "$ROOT/fncs/orchestrator/workflow_orchestrator.py" "$workflow" \
       --active-dependency-coordination \
       --event-log "$result/control-plane.jsonl" \
@@ -74,5 +76,6 @@ run_case baseline 5591 "$CASE_DIR/workflow-baseline.json"
 run_case optimized 5592 "$CASE_DIR/workflow-optimized.json"
 run_case flow-macro 5593 "$CASE_DIR/workflow-baseline.json" yes
 run_case refinement 5594 "$CASE_DIR/workflow-refinement.json"
+run_case local-chains 5595 "$CASE_DIR/workflow-baseline.json" no yes
 python3 "$CASE_DIR/verify.py" "$OUTPUT_DIR"
 trap - EXIT INT TERM

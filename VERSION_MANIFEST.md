@@ -4,13 +4,13 @@
 
 本文件记录 DAG 控制面重构前的组件来源和本地基线。源码 commit 以各子仓库为准；大型 trace、模型输出、构建产物和运行日志不进入 Git。
 
-| 组件 | 上游基点 | 重构前基线 | v2 alpha.3 | v2 alpha.4 | v2 alpha.4.1 | 重构分支 | 职责 |
-|---|---|---|---|---|---|---|---|
-| FNCS | `790ec3de` | `d0896f2` | `0593a82` | `3c32900` | `e3e0d95` | `cosim/dag-control-plane-v2` | broker、FNCS client library、workflow orchestrator |
-| GPUSim | `bc84bdd6` | `0b4f104` | `55476aa` | `1601a6c` | `25081e7` | `cosim/dag-control-plane-v2` | 计算仿真 worker |
-| ns-3 | `78b53d4b3` | `c4cead46f` | `72934a130` | `4f42d2468` | `2f049f0d4` | `cosim/dag-control-plane-v2` | 网络仿真 worker |
-| NeuSight | `6945927d` | 未提交本地实验改动 | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 保持当前分支 | 算子时间预测和输入生成 |
-| ATLAHS | `fb51a99f` | 上游 commit | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 保持当前分支 | validation trace 与 LogGOPSim 基准 |
+| 组件 | 上游基点 | 重构前基线 | v2 alpha.3 | v2 alpha.4 | v2 alpha.4.1 | v2 alpha.4.2 | 重构分支 | 职责 |
+|---|---|---|---|---|---|---|---|---|
+| FNCS | `790ec3de` | `d0896f2` | `0593a82` | `3c32900` | `e3e0d95` | `2df6dda` | `cosim/dag-control-plane-v2` | broker、FNCS client library、workflow orchestrator |
+| GPUSim | `bc84bdd6` | `0b4f104` | `55476aa` | `1601a6c` | `25081e7` | `09861db` | `cosim/dag-control-plane-v2` | 计算仿真 worker |
+| ns-3 | `78b53d4b3` | `c4cead46f` | `72934a130` | `4f42d2468` | `2f049f0d4` | `2f049f0d4` | `cosim/dag-control-plane-v2` | 网络仿真 worker |
+| NeuSight | `6945927d` | 未提交本地实验改动 | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 保持当前分支 | 算子时间预测和输入生成 |
+| ATLAHS | `fb51a99f` | 上游 commit | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 保持当前分支 | validation trace 与 LogGOPSim 基准 |
 
 ## 基线规则
 
@@ -19,6 +19,7 @@
 - tag `v2.0.0-alpha.3` 分别指向 FNCS `0593a82`、GPUSim `55476aa`、ns-3 `72934a130`。
 - tag `v2.0.0-alpha.4` 分别指向 FNCS `3c32900`、GPUSim `1601a6c`、ns-3 `4f42d2468`。
 - tag `v2.0.0-alpha.4.1` 分别指向 FNCS `e3e0d95`、GPUSim `25081e7`、ns-3 `2f049f0d4`。
+- tag `v2.0.0-alpha.4.2` 分别指向 FNCS `2df6dda`、GPUSim `09861db`、ns-3 `2f049f0d4`。
 - 后续提交按组件独立演进，禁止跨仓库使用同一个模糊提交说明。
 - 顶层 integration 仓库记录确切 commit 组合；端到端结果必须同时记录 manifest 版本。
 - 不提交 `build/`、`out/`、`.dylib`、`.so`、trace `.bin/.goal`、运行 XML/log 和 NeuSight 预测输出。
@@ -58,6 +59,14 @@
 - 大规模 case study 使用 flow 宏事件，packet 模式只用于小型协议栈校准；二者属于不同精度层级，结果不应直接宣称等价。
 - 小型回归：主动依赖 rounds 由 14 降为 10；精确收缩将 compute dispatch 从 3 降为 2 且 makespan 不变；选择性细化只展开关键区域并将证书 gap 收敛到 0；单流宏模型与理论值同为 146000ns。
 - 全量实验与理论校验：`python3 run_case_study.py 1 2 3 4` 和 `python3 case_study_results/validate_alpha4_results.py`。
+
+## alpha.4.2 Backend-local chain
+
+- 新增默认关闭的 `--backend-local-chains` / `COSIM_BACKEND_LOCAL_CHAINS=yes` 开关，单计划默认最多 32 个任务。
+- coordinator 只选择同主机、零通信、单入单出、不跨 collective、无重试且同主机任务全序的线性链。
+- GPUSim 不合并计算代价，仍逐个执行原始 GpuJob；链末统一回传每个原任务的 start/finish timestamp。
+- H100 29-task 对照：dispatch 29→1，scheduler rounds 651→602，逐任务起止 trace 与 569683μs makespan 不变。
+- PP4 对照：dispatch 29→4，scheduler rounds 729→683，29 个计算任务、3 个网络完成的边界 trace 与 640153.312μs makespan 不变。
 
 ## 版本发布约定
 

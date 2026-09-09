@@ -1,0 +1,14 @@
+{
+  "baseline_dispatch_events": 29,
+  "baseline_makespan_us": 569683.0,
+  "baseline_scheduler_rounds": 651,
+  "input": "/Users/taco/Desktop/cosim/case_study_results/exp1_gpu_spec/H100",
+  "local_chain_dispatch_events": 1,
+  "local_chain_makespan_us": 569683.0,
+  "local_chain_scheduler_rounds": 602,
+  "makespan_equal": true,
+  "network_completion_trace_equal": true,
+  "network_event_count": 0,
+  "per_task_start_finish_trace_equal": true,
+  "task_count": 29
+}
