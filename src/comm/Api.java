@@ -19,6 +19,8 @@ public class Api {
     private static String runId = "";
     private static long workerEventSequence = 0;
     private static long batchSequence = 0;
+    private static long currentGrantTimeNs = 0;
+    private static long currentMicrostep = 0;
     public static enum CommType {
         SEND_WITHOUT_REPLY,
         SEND_REPLY
@@ -56,6 +58,7 @@ public class Api {
                 batch.put("run_id", runId);
                 batch.put("batch_id", String.format("gpusim-batch-%09d", ++batchSequence));
                 batch.put("logical_time_ns", logicalTimeNs);
+                batch.put("microstep", logicalTimeNs == currentGrantTimeNs ? currentMicrostep : 0);
                 batch.put("events", entry.getValue());
                 JNIfncs.publish(entry.getKey(), batch.toJSONString());
             }
@@ -70,6 +73,8 @@ public class Api {
         runId = "";
         workerEventSequence = 0;
         batchSequence = 0;
+        currentGrantTimeNs = 0;
+        currentMicrostep = 0;
     }
 
     public static boolean isWorkerMode() {
@@ -92,6 +97,14 @@ public class Api {
         workerValues.computeIfAbsent(topic, ignored -> new ArrayList<>()).add(event);
     }
 
+    public static void observeWorkerBatch(JSONObject batch) {
+        long logicalTimeNs = batch.getLongValue("logical_time_ns");
+        long incomingMicrostep = batch.getLongValue("microstep");
+        if(logicalTimeNs == currentGrantTimeNs) {
+            currentMicrostep = Math.max(currentMicrostep, incomingMicrostep + 1);
+        }
+    }
+
 
     public static String[] getEvents() {
         return JNIfncs.get_events();
@@ -107,7 +120,14 @@ public class Api {
 
     public static long timeRequest(long next_time) {
         //Log.printLine("时间请求： " + next_time);
-        return JNIfncs.time_request(next_time);
+        long granted = JNIfncs.time_request(next_time);
+        if(granted == currentGrantTimeNs) {
+            currentMicrostep++;
+        } else {
+            currentMicrostep = 0;
+        }
+        currentGrantTimeNs = granted;
+        return granted;
     }
 
     public static void end() {

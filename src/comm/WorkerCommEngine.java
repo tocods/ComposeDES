@@ -77,6 +77,7 @@ public class WorkerCommEngine extends CommEngine {
         if (!"2.0".equals(schemaVersion)) {
             throw new IllegalArgumentException("Unsupported FNCS schema version: " + schemaVersion);
         }
+        Api.observeWorkerBatch(batch);
         Api.setRunId(batch.getString("run_id"));
         JSONArray events = batch.getJSONArray("events");
         if (events == null) {
