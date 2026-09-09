@@ -1,0 +1,22 @@
+sim:
+  stop: 120s
+
+nodes:
+  - id: host1
+    type: host
+  - id: host2
+    type: host
+
+links:
+  - type: p2p
+    endpoints: [host1, host2]
+    dataRate: 10Gbps
+    delay: 10us
+
+apps:
+  - type: fncs
+    node: host1
+    name: host1
+  - type: fncs
+    node: host2
+    name: host2

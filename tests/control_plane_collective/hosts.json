@@ -1,0 +1,54 @@
+[
+  {
+    "name": "host1",
+    "video_card_infos": [
+      {
+        "name": "GPU",
+        "pcie_bw": 64,
+        "gpu_infos": [
+          {
+            "cores": 1,
+            "core_per_sm": 1,
+            "max_block_per_sm": 1,
+            "gddram": 80000,
+            "flops_per_core": 1,
+            "int_flops_per_core": 1,
+            "matrix_flops_per_core": 1,
+            "bw": 64
+          }
+        ]
+      }
+    ],
+    "cpu_infos": [
+      {"cores": 1, "mips": 1, "int_mips": 1, "matrix_mips": 1}
+    ],
+    "ram": 1024,
+    "ifMaster": true
+  },
+  {
+    "name": "host2",
+    "video_card_infos": [
+      {
+        "name": "GPU",
+        "pcie_bw": 64,
+        "gpu_infos": [
+          {
+            "cores": 1,
+            "core_per_sm": 1,
+            "max_block_per_sm": 1,
+            "gddram": 80000,
+            "flops_per_core": 1,
+            "int_flops_per_core": 1,
+            "matrix_flops_per_core": 1,
+            "bw": 64
+          }
+        ]
+      }
+    ],
+    "cpu_infos": [
+      {"cores": 1, "mips": 1, "int_mips": 1, "matrix_mips": 1}
+    ],
+    "ram": 1024,
+    "ifMaster": false
+  }
+]

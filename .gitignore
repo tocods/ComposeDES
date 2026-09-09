@@ -24,3 +24,4 @@ __pycache__/
 *.pyc
 *.log
 /tests/control_plane_smoke/output/
+/tests/control_plane_collective/output/
