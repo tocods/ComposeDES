@@ -1,0 +1,30 @@
+{
+  "bandwidth_compute_spread_us": 0.0020000000076834112,
+  "bandwidth_fit_error_us": {
+    "100": 0.32400000002235174,
+    "1600": -0.17100000000937143,
+    "200": 0.0,
+    "400": 0.0,
+    "50": 0.9840000001713634,
+    "6400": -0.12375000000974978,
+    "800": -0.0060000000084983185
+  },
+  "checks_passed": 9,
+  "control_plane": "v2.0.0-alpha.4.1",
+  "exact_contraction_preserves_makespan": true,
+  "fitted_fixed_propagation_us": 336.33600000001024,
+  "fitted_infinite_bandwidth_total_us": 153980.336,
+  "selective_refinement": {
+    "final_gap_ns": 0,
+    "makespan_ns": 31000,
+    "refined_regions": [
+      "critical"
+    ],
+    "retained_regions": [
+      "side"
+    ]
+  },
+  "small_flow_macro_matches_theory": true,
+  "topology_communication_ratio": 2.0,
+  "tp4_ring_flows": 672
+}

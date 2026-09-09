@@ -14,6 +14,9 @@ import os
 import argparse
 import math
 import ast
+import copy
+import re
+from collections import defaultdict
 
 
 COMMUNICATION_OPS = {'ALLREDUCE', 'ALLREDUCE_ASYNC', 'SENDRECV'}
@@ -344,6 +347,76 @@ def add_local_child(jobs, source_task, child_name):
         if job['name'] == source_task:
             job['children'].append({'child': child_name})
             return
+
+
+def build_orchestrated_workflow(jobs, network_model=None):
+    """Convert legacy __ar_* packet markers into explicit ring collectives."""
+    tasks = copy.deepcopy(jobs)
+    indexed = {task['name']: task for task in tasks}
+    groups = defaultdict(list)
+    rank_pattern = re.compile(r'^(?P<base>.+)_r(?P<rank>\d+)(?P<replica>_dp\d+)?$')
+
+    for task in tasks:
+        retained_children = []
+        for child in task.get('children', []):
+            if not str(child.get('child', '')).startswith('__ar_'):
+                retained_children.append(child)
+                continue
+            match = rank_pattern.match(task['name'])
+            if not match:
+                raise ValueError(
+                    f'cannot infer collective rank from task {task["name"]}'
+                )
+            group_id = match.group('base') + (match.group('replica') or '')
+            groups[group_id].append({
+                'rank': int(match.group('rank')),
+                'src_task_id': task['name'],
+                'host': task['host'],
+                'legacy_transfer_bytes': int(child.get('size') or 0),
+            })
+        task['children'] = retained_children
+
+    collectives = []
+    for group_id, participants in sorted(groups.items()):
+        participants.sort(key=lambda participant: participant['rank'])
+        rank_count = len(participants)
+        if rank_count < 2:
+            raise ValueError(f'collective {group_id} has fewer than two ranks')
+        legacy_sizes = {item['legacy_transfer_bytes'] for item in participants}
+        if len(legacy_sizes) != 1 or next(iter(legacy_sizes)) <= 0:
+            raise ValueError(f'collective {group_id} has inconsistent transfer sizes')
+
+        normalized = []
+        for participant in participants:
+            source = indexed[participant['src_task_id']]
+            successors = [
+                child['child'] for child in source.get('children', [])
+                if child.get('child') in indexed
+            ]
+            if len(successors) != 1:
+                raise ValueError(
+                    f'collective source {source["name"]} needs exactly one '
+                    f'consumer, found {successors}'
+                )
+            normalized.append({
+                'src_task_id': source['name'],
+                'dst_task_id': successors[0],
+                'host': participant['host'],
+            })
+
+        legacy_transfer_bytes = next(iter(legacy_sizes))
+        collectives.append({
+            'collective_id': f'allreduce:{group_id}',
+            'type': 'allreduce',
+            'algorithm': 'ring',
+            'bytes_per_rank': math.ceil(legacy_transfer_bytes / (rank_count - 1)),
+            'participants': normalized,
+        })
+
+    workflow = {'tasks': tasks, 'collectives': collectives}
+    if network_model is not None:
+        workflow['network_model'] = copy.deepcopy(network_model)
+    return workflow
 
 
 def generate_jobs(layers, tp, pp, num_layers, hidden_dim,
@@ -720,6 +793,21 @@ def convert(csv_path, tp=1, pp=1, num_layers=32, hidden_dim=2560,
 
     with open(os.path.join(output_dir, 'jobs.json'), 'w') as fout:
         json.dump(jobs, fout, indent=2)
+
+    workflow = build_orchestrated_workflow(jobs, {
+        'abstraction': 'store_and_forward_flow',
+        'topology': topo_type,
+        'host_count': total_gpus,
+        'bandwidth_gbps': bandwidth_gbps,
+        'link_delay_ns': delay_us * 1000,
+        'switch_delay_ns': 5000 if topo_type == 'dual_switch' else delay_us * 1000,
+    })
+    with open(os.path.join(output_dir, 'workflow.json'), 'w') as fout:
+        json.dump(workflow, fout, indent=2)
+    print(
+        f'  Generated orchestrated workflow with {len(workflow["tasks"])} tasks '
+        f'and {len(workflow["collectives"])} collectives'
+    )
 
     # 4. 生成 hosts.json
     hosts = generate_hosts(total_gpus)

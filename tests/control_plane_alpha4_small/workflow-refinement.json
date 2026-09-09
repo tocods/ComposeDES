@@ -1,0 +1,54 @@
+{
+  "tasks": [
+    {
+      "name": "critical-a", "host": "host1",
+      "estimated_duration_ns": 14, "duration_bounds_ns": [14, 14],
+      "cpu_task": {"ram": 16, "pes_number": 1, "length": 14, "file_size": 0, "output_size": 0},
+      "gpu_task": {"kernels": []}, "children": [{"child": "critical-b", "size": 0}]
+    },
+    {
+      "name": "critical-b", "host": "host1",
+      "estimated_duration_ns": 16, "duration_bounds_ns": [16, 16],
+      "cpu_task": {"ram": 16, "pes_number": 1, "length": 16, "file_size": 0, "output_size": 0},
+      "gpu_task": {"kernels": []}, "children": [{"child": "join", "size": 0}]
+    },
+    {
+      "name": "side-a", "host": "host2",
+      "estimated_duration_ns": 2, "duration_bounds_ns": [2, 2],
+      "cpu_task": {"ram": 16, "pes_number": 1, "length": 2, "file_size": 0, "output_size": 0},
+      "gpu_task": {"kernels": []}, "children": [{"child": "side-b", "size": 0}]
+    },
+    {
+      "name": "side-b", "host": "host2",
+      "estimated_duration_ns": 3, "duration_bounds_ns": [3, 3],
+      "cpu_task": {"ram": 16, "pes_number": 1, "length": 3, "file_size": 0, "output_size": 0},
+      "gpu_task": {"kernels": []}, "children": [{"child": "join", "size": 0}]
+    },
+    {
+      "name": "join", "host": "host1",
+      "estimated_duration_ns": 1, "duration_bounds_ns": [1, 1],
+      "cpu_task": {"ram": 16, "pes_number": 1, "length": 1, "file_size": 0, "output_size": 0},
+      "gpu_task": {"kernels": []}, "children": []
+    }
+  ],
+  "acceleration": {
+    "enabled": true,
+    "error_budget_ns": 0,
+    "regions": [
+      {
+        "id": "critical", "mode": "approximate",
+        "members": ["critical-a", "critical-b"],
+        "duration_bounds_ns": [20, 40], "estimated_duration_ns": 30,
+        "refine_cost": 2,
+        "closure": {"causal": true, "state": true, "temporal": true, "resource_non_interference": true}
+      },
+      {
+        "id": "side", "mode": "approximate",
+        "members": ["side-a", "side-b"],
+        "duration_bounds_ns": [4, 8], "estimated_duration_ns": 5,
+        "refine_cost": 1,
+        "closure": {"causal": true, "state": true, "temporal": true, "resource_non_interference": true}
+      }
+    ]
+  }
+}

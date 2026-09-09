@@ -1,0 +1,275 @@
+{
+  "control_plane": "v2.0.0-alpha.4.1",
+  "active_dependency_coordination": true,
+  "results": {
+    "gpu_spec": [
+      [
+        "H100",
+        {
+          "total_time": 569683.0,
+          "compute_time": 569683.0,
+          "comm_time": 0.0,
+          "network_service_time": 0.0,
+          "num_tasks": 29,
+          "network_events": 0,
+          "scheduler_rounds": 651,
+          "dependency_updates": 2,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro",
+          "neusight_ms": 42.610984349094444
+        }
+      ],
+      [
+        "A100_40G",
+        {
+          "total_time": 1570941.0,
+          "compute_time": 1570941.0,
+          "comm_time": 0.0,
+          "network_service_time": 0.0,
+          "num_tasks": 29,
+          "network_events": 0,
+          "scheduler_rounds": 1638,
+          "dependency_updates": 2,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro",
+          "neusight_ms": 120.29615161961325
+        }
+      ],
+      [
+        "V100",
+        {
+          "total_time": 2076931.0,
+          "compute_time": 2076931.0,
+          "comm_time": 0.0,
+          "network_service_time": 0.0,
+          "num_tasks": 29,
+          "network_events": 0,
+          "scheduler_rounds": 2145,
+          "dependency_updates": 2,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro",
+          "neusight_ms": 159.53497059526853
+        }
+      ],
+      [
+        "T4",
+        {
+          "total_time": 7759534.0,
+          "compute_time": 7759534.0,
+          "comm_time": 0.0,
+          "network_service_time": 0.0,
+          "num_tasks": 29,
+          "network_events": 0,
+          "scheduler_rounds": 7825,
+          "dependency_updates": 2,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro",
+          "neusight_ms": 587.9535400890745
+        }
+      ],
+      [
+        "L4",
+        {
+          "total_time": 2733607.0,
+          "compute_time": 2733607.0,
+          "comm_time": 0.0,
+          "network_service_time": 0.0,
+          "num_tasks": 29,
+          "network_events": 0,
+          "scheduler_rounds": 2810,
+          "dependency_updates": 2,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro",
+          "neusight_ms": 174.97306691366248
+        }
+      ],
+      [
+        "NextGen",
+        {
+          "total_time": 363932.0,
+          "compute_time": 363932.0,
+          "comm_time": 0.0,
+          "network_service_time": 0.0,
+          "num_tasks": 29,
+          "network_events": 0,
+          "scheduler_rounds": 427,
+          "dependency_updates": 2,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro",
+          "neusight_ms": 27.07599679998293
+        }
+      ]
+    ],
+    "parallelism": [
+      [
+        "TP4_PP1",
+        {
+          "total_time": 430804.136,
+          "compute_time": 153644.0,
+          "comm_time": 277160.136,
+          "network_service_time": 1108640.544,
+          "num_tasks": 116,
+          "network_events": 672,
+          "scheduler_rounds": 895,
+          "dependency_updates": 58,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro"
+        }
+      ],
+      [
+        "TP1_PP4",
+        {
+          "total_time": 640153.312,
+          "compute_time": 142420.75025,
+          "comm_time": 70470.312,
+          "network_service_time": 70470.312,
+          "num_tasks": 29,
+          "network_events": 3,
+          "scheduler_rounds": 729,
+          "dependency_updates": 8,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro"
+        }
+      ]
+    ],
+    "topology": [
+      [
+        "star",
+        {
+          "total_time": 430804.136,
+          "compute_time": 153644.0,
+          "comm_time": 277160.136,
+          "network_service_time": 1108640.544,
+          "num_tasks": 116,
+          "network_events": 672,
+          "scheduler_rounds": 895,
+          "dependency_updates": 58,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro"
+        }
+      ],
+      [
+        "direct_p2p",
+        {
+          "total_time": 292224.068,
+          "compute_time": 153644.0,
+          "comm_time": 138580.068,
+          "network_service_time": 554320.272,
+          "num_tasks": 116,
+          "network_events": 672,
+          "scheduler_rounds": 733,
+          "dependency_updates": 58,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro"
+        }
+      ]
+    ],
+    "bandwidth": [
+      [
+        "6400Gbps",
+        {
+          "total_time": 162630.956,
+          "compute_time": 153644.001,
+          "comm_time": 8986.956,
+          "network_service_time": 35947.824,
+          "num_tasks": 116,
+          "network_events": 672,
+          "scheduler_rounds": 733,
+          "dependency_updates": 58,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro"
+        }
+      ],
+      [
+        "1600Gbps",
+        {
+          "total_time": 188583.141,
+          "compute_time": 153644.002,
+          "comm_time": 34939.14,
+          "network_service_time": 139756.56,
+          "num_tasks": 116,
+          "network_events": 672,
+          "scheduler_rounds": 733,
+          "dependency_updates": 58,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro"
+        }
+      ],
+      [
+        "800Gbps",
+        {
+          "total_time": 223186.28,
+          "compute_time": 153644.0,
+          "comm_time": 69542.28,
+          "network_service_time": 278169.12,
+          "num_tasks": 116,
+          "network_events": 672,
+          "scheduler_rounds": 733,
+          "dependency_updates": 58,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro"
+        }
+      ],
+      [
+        "400Gbps",
+        {
+          "total_time": 292392.237,
+          "compute_time": 153644.001,
+          "comm_time": 138748.236,
+          "network_service_time": 554992.944,
+          "num_tasks": 116,
+          "network_events": 672,
+          "scheduler_rounds": 733,
+          "dependency_updates": 58,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro"
+        }
+      ],
+      [
+        "200Gbps",
+        {
+          "total_time": 430804.136,
+          "compute_time": 153644.0,
+          "comm_time": 277160.136,
+          "network_service_time": 1108640.544,
+          "num_tasks": 116,
+          "network_events": 672,
+          "scheduler_rounds": 895,
+          "dependency_updates": 58,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro"
+        }
+      ],
+      [
+        "100Gbps",
+        {
+          "total_time": 707628.26,
+          "compute_time": 153644.0,
+          "comm_time": 553984.26,
+          "network_service_time": 2215937.04,
+          "num_tasks": 116,
+          "network_events": 672,
+          "scheduler_rounds": 1225,
+          "dependency_updates": 58,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro"
+        }
+      ],
+      [
+        "50Gbps",
+        {
+          "total_time": 1261276.52,
+          "compute_time": 153644.0,
+          "comm_time": 1107632.52,
+          "network_service_time": 4430530.08,
+          "num_tasks": 116,
+          "network_events": 672,
+          "scheduler_rounds": 1723,
+          "dependency_updates": 58,
+          "control_plane": "alpha.4.1-orchestrator",
+          "network_model": "flow_macro"
+        }
+      ]
+    ]
+  }
+}

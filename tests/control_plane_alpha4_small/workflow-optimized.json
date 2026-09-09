@@ -1,0 +1,57 @@
+{
+  "tasks": [
+    {
+      "name": "prepare-a",
+      "host": "host1",
+      "estimated_duration_ns": 10,
+      "duration_bounds_ns": [10, 10],
+      "cpu_task": {"ram": 16, "pes_number": 1, "length": 10, "file_size": 0, "output_size": 0},
+      "gpu_task": {"kernels": []},
+      "children": [{"child": "prepare-b", "size": 0}]
+    },
+    {
+      "name": "prepare-b",
+      "host": "host1",
+      "estimated_duration_ns": 20,
+      "duration_bounds_ns": [20, 20],
+      "cpu_task": {"ram": 16, "pes_number": 1, "length": 20, "file_size": 0, "output_size": 0},
+      "gpu_task": {"kernels": []},
+      "children": [
+        {
+          "child": "consume",
+          "size": 120000,
+          "src_host": "host1",
+          "dst_host": "host2",
+          "latency_bounds_ns": [100000, 200000]
+        }
+      ]
+    },
+    {
+      "name": "consume",
+      "host": "host2",
+      "estimated_duration_ns": 10,
+      "duration_bounds_ns": [10, 10],
+      "cpu_task": {"ram": 16, "pes_number": 1, "length": 10, "file_size": 0, "output_size": 0},
+      "gpu_task": {"kernels": []},
+      "children": []
+    }
+  ],
+  "acceleration": {
+    "enabled": true,
+    "error_budget_ns": 100000,
+    "regions": [
+      {
+        "id": "prepare",
+        "mode": "exact",
+        "members": ["prepare-a", "prepare-b"],
+        "duration_bounds_ns": [30, 30],
+        "closure": {
+          "causal": true,
+          "state": true,
+          "temporal": true,
+          "resource_non_interference": true
+        }
+      }
+    ]
+  }
+}
