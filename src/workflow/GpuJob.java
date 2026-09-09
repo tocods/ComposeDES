@@ -107,6 +107,8 @@ public class GpuJob extends GpuCloudlet {
 
     public Boolean ifHasKernel() {
         for(GpuCloudlet cl: getTasks()) {
+            if(cl.getGpuTask() == null)
+                continue;
             Log.printLine(cl.getGpuTask().hardware);
             if(Objects.equals(cl.getGpuTask().hardware, "GPU") || Objects.equals(cl.getGpuTask().hardware, "gpu"))
                 return true;

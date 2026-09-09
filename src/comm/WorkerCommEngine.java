@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 /** Compute-only FNCS worker. Workflow dependency state is owned by the orchestrator. */
 public class WorkerCommEngine extends CommEngine {
@@ -29,6 +31,8 @@ public class WorkerCommEngine extends CommEngine {
     private final List<PowerGpuHost> hosts;
     private final List<FncsMessage> pendingMessages = new ArrayList<>();
     private final Map<String, DispatchMetadata> metadata = new HashMap<>();
+    private final Set<String> seenDispatchEventIds = new HashSet<>();
+    private final Map<String, JSONObject> completionByDispatchEvent = new HashMap<>();
     private int cloudletId = 0;
     private int taskId = 0;
     private int gpuTaskId = 0;
@@ -100,10 +104,22 @@ public class WorkerCommEngine extends CommEngine {
         }
 
         String taskName = payload.getString("task_id");
-        if (metadata.containsKey(taskName)) {
-            Log.printLine("Ignoring duplicate compute.dispatch for " + taskName);
+        String dispatchEventId = event.getString("event_id");
+        if (dispatchEventId == null || dispatchEventId.isEmpty()) {
+            throw new IllegalArgumentException("compute.dispatch is missing event_id");
+        }
+        if (seenDispatchEventIds.contains(dispatchEventId)) {
+            JSONObject completion = completionByDispatchEvent.get(dispatchEventId);
+            if (completion != null) {
+                Api.publishWorkerEvent("compute/completed", completion);
+            }
+            Log.printLine("Ignoring duplicate compute.dispatch " + dispatchEventId);
             return;
         }
+        if (metadata.containsKey(taskName)) {
+            throw new IllegalStateException("Task already has an active attempt: " + taskName);
+        }
+        seenDispatchEventIds.add(dispatchEventId);
 
         JobInfo jobInfo = JSON.parseObject(taskObject.toJSONString(), JobInfo.class);
         jobInfo.children = new ArrayList<>();
@@ -129,7 +145,7 @@ public class WorkerCommEngine extends CommEngine {
 
         DispatchMetadata dispatchMetadata = new DispatchMetadata();
         dispatchMetadata.attempt = payload.getIntValue("attempt");
-        dispatchMetadata.dispatchEventId = event.getString("event_id");
+        dispatchMetadata.dispatchEventId = dispatchEventId;
         dispatchMetadata.correlationId = event.getString("correlation_id");
         metadata.put(taskName, dispatchMetadata);
 
@@ -168,6 +184,8 @@ public class WorkerCommEngine extends CommEngine {
         completed.put("kind", "compute.completed");
         completed.put("correlation_id", dispatchMetadata.correlationId);
         completed.put("payload", payload);
+        completionByDispatchEvent.put(dispatchMetadata.dispatchEventId, completed);
+        metadata.remove(job.getName());
         Api.publishWorkerEvent("compute/completed", completed);
         finishIfDrained();
     }

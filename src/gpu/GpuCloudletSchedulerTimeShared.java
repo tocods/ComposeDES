@@ -44,7 +44,7 @@ public class GpuCloudletSchedulerTimeShared extends CloudletSchedulerTimeShared 
 		HashMap<String, Boolean> hasJob = new HashMap<>();
 		for (ResCloudlet rcl : getCloudletExecList()) {
 			ResGpuCloudlet rgcl = (ResGpuCloudlet) rcl;
-			if(!rgcl.ifFromGpu)
+			if(!rgcl.ifFromGpu && rgcl.hasGpuTask())
 				toRemoves.add(rcl);
 			if(hasJob.containsKey(((GpuCloudlet)rgcl.getCloudlet()).getName())) {
 				toRemoves.add(rcl);
@@ -69,9 +69,9 @@ public class GpuCloudletSchedulerTimeShared extends CloudletSchedulerTimeShared 
 			ResGpuCloudlet cl = (ResGpuCloudlet)rcl;
 			//Log.printLine(((GpuCloudlet)cl.getCloudlet()).getName() + "将被执行");
 			double cap = getCapacity(mipsShare);
-			if(cl.getGpuTask().calcuType == 1)
+			if(cl.getGpuTask() != null && cl.getGpuTask().calcuType == 1)
 				cap = getCapacity(imipsShare);
-			if(cl.getGpuTask().calcuType == 2)
+			if(cl.getGpuTask() != null && cl.getGpuTask().calcuType == 2)
 				cap = getCapacity(mmipsShare);
 			rcl.updateCloudletFinishedSoFar((long) (cap * timeSpam * rcl.getNumberOfPes() * Consts.MILLION));
 			Log.printLine(CloudSim.clock() + ": 任务被执行， 计算能力： " + (cap  * rcl.getNumberOfPes()) + "间隔时间： " + timeSpam + " 剩余长度：" + rcl.getRemainingCloudletLength() + " 总长度：" + rcl.getCloudletTotalLength());
@@ -220,6 +220,9 @@ public class GpuCloudletSchedulerTimeShared extends CloudletSchedulerTimeShared 
 	@Override
 	public double cloudletSubmit(Cloudlet cloudlet, double fileTransferTime) {
 		ResGpuCloudlet rcl = new ResGpuCloudlet((GpuCloudlet) cloudlet);
+		if (rcl.getRemainGpuTasks().isEmpty()) {
+			return cloudletSubmitWithoutGPU(cloudlet, fileTransferTime);
+		}
 		Log.printLine(CloudSim.clock() + ":" + ((GpuCloudlet) cloudlet).getName() + "被提交到CPU的任务调度器上 " + getCloudletPausedList().size());
 		Log.printLine("！有" + getCloudletExecList().size() + "个任务正在执行队列");
 		Log.printLine("！有" + getCloudletPausedList().size() + "个任务正在等待队列");

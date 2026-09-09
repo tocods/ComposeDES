@@ -67,6 +67,9 @@ public class Api {
         workerMode = enabled;
         values.clear();
         workerValues.clear();
+        runId = "";
+        workerEventSequence = 0;
+        batchSequence = 0;
     }
 
     public static boolean isWorkerMode() {
