@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, TextIO
 
 from fncs_client import FncsClient
+from graph_optimizer import OptimizationError, optimize_workflow
 
 
 SCHEMA_VERSION = "2.0"
@@ -25,6 +26,7 @@ COMPUTE_COMPLETED = "compute/completed"
 NETWORK_DISPATCH = "network/dispatch"
 NETWORK_COMPLETED = "network/completed"
 CONTROL = "control"
+ACTIVE_DEPENDENCIES = "__fncs/active_dependencies"
 
 
 class WorkflowError(RuntimeError):
@@ -49,6 +51,7 @@ class WorkflowController:
         max_compute_retries: int = 0,
         max_network_retries: int = 0,
         collective_specs: Iterable[Dict[str, Any]] | None = None,
+        acceleration_report: Dict[str, Any] | None = None,
     ) -> None:
         self.run_id = run_id
         self.max_compute_retries = max(0, max_compute_retries)
@@ -73,6 +76,7 @@ class WorkflowController:
         self.inflight_network: set[str] = set()
         self.seen_event_ids: set[str] = set()
         self.failed_reason: str | None = None
+        self.acceleration_report = acceleration_report or {"enabled": False}
         self._event_sequence = 0
 
         for raw_spec in task_specs:
@@ -111,16 +115,25 @@ class WorkflowController:
         if isinstance(data, dict):
             tasks = data.get("tasks", [])
             collectives = data.get("collectives", [])
+            acceleration = data.get("acceleration")
         else:
             tasks = data
+            acceleration = None
         if not isinstance(tasks, list) or not isinstance(collectives, list):
             raise WorkflowError("workflow tasks and collectives must be arrays")
+        try:
+            tasks, acceleration_report = optimize_workflow(
+                tasks, collectives, acceleration
+            )
+        except OptimizationError as error:
+            raise WorkflowError(f"invalid acceleration configuration: {error}") from error
         return cls(
             tasks,
             run_id,
             max_compute_retries=max_compute_retries,
             max_network_retries=max_network_retries,
             collective_specs=collectives,
+            acceleration_report=acceleration_report,
         )
 
     def _build_edges(self) -> None:
@@ -533,16 +546,55 @@ class WorkflowController:
             "processed_event_ids": len(self.seen_event_ids),
             "failed_reason": self.failed_reason,
             "done": self.done,
+            "acceleration": self.acceleration_report,
         }
 
+    def simulator_dependencies(
+        self,
+        orchestrator: str = "orchestrator",
+        compute_worker: str = "gpusim",
+        network_worker: str = "ns3",
+    ) -> Dict[str, set[str]]:
+        dependencies = {
+            orchestrator: set(),
+            compute_worker: set(),
+            network_worker: set(),
+        }
+        if self.inflight_compute:
+            dependencies[orchestrator].add(compute_worker)
+        if self.inflight_network:
+            dependencies[orchestrator].add(network_worker)
+        # Either backend may receive a successor dispatch after any completion,
+        # so idle workers must remain behind the DAG controller until terminal.
+        if not self.terminal:
+            dependencies[compute_worker].add(orchestrator)
+            dependencies[network_worker].add(orchestrator)
+        return dependencies
 
-def make_batch(run_id: str, batch_sequence: int, time_ns: int, events: List[Dict[str, Any]]) -> str:
+
+def encode_dependency_update(
+    epoch: int, dependencies: Dict[str, set[str]]
+) -> str:
+    lines = [f"epoch={epoch}"]
+    for consumer in sorted(dependencies):
+        lines.append(f"{consumer}={','.join(sorted(dependencies[consumer]))}")
+    return "\n".join(lines)
+
+
+def make_batch(
+    run_id: str,
+    batch_sequence: int,
+    time_ns: int,
+    events: List[Dict[str, Any]],
+    microstep: int = 0,
+) -> str:
     return json.dumps(
         {
             "schema_version": SCHEMA_VERSION,
             "run_id": run_id,
             "batch_id": f"batch-{batch_sequence:09d}",
             "logical_time_ns": time_ns,
+            "microstep": microstep,
             "events": events,
         },
         separators=(",", ":"),
@@ -564,6 +616,8 @@ def parse_batch(value: str, expected_run_id: str) -> Dict[str, Any]:
         raise WorkflowError("batch events must be an array")
     if not isinstance(batch.get("logical_time_ns"), int) or batch["logical_time_ns"] < 0:
         raise WorkflowError("batch logical_time_ns must be a non-negative integer")
+    if not isinstance(batch.get("microstep", 0), int) or batch.get("microstep", 0) < 0:
+        raise WorkflowError("batch microstep must be a non-negative integer")
     for event in batch["events"]:
         if not isinstance(event, dict):
             raise WorkflowError("batch event must be an object")
@@ -607,6 +661,8 @@ class EventLog:
 
 
 def run(args: argparse.Namespace) -> int:
+    if args.idle_grant_ns <= 0:
+        raise WorkflowError("idle-grant-ns must be positive")
     run_id = args.run_id or f"run-{uuid.uuid4()}"
     controller = WorkflowController.from_file(
         args.workflow,
@@ -614,10 +670,20 @@ def run(args: argparse.Namespace) -> int:
         max_compute_retries=args.max_compute_retries,
         max_network_retries=args.max_network_retries,
     )
+    if args.optimization_report:
+        target = Path(args.optimization_report)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            json.dumps(controller.acceleration_report, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
     client = FncsClient(args.fncs_library)
     event_log = EventLog(args.event_log)
     batch_sequence = 0
     current_time = 0
+    current_microstep = 0
+    dependency_epoch = 0
+    last_dependency_signature: tuple[tuple[str, tuple[str, ...]], ...] | None = None
 
     def publish_commands(commands: List[Command]) -> None:
         nonlocal batch_sequence
@@ -626,16 +692,55 @@ def run(args: argparse.Namespace) -> int:
             grouped[command.topic].append(command.event)
         for topic in sorted(grouped):
             batch_sequence += 1
-            value = make_batch(run_id, batch_sequence, current_time, grouped[topic])
+            value = make_batch(
+                run_id,
+                batch_sequence,
+                current_time,
+                grouped[topic],
+                current_microstep,
+            )
             client.publish(topic, value)
             event_log.write("out", topic, current_time, json.loads(value))
+
+    def publish_dependencies() -> None:
+        nonlocal dependency_epoch, last_dependency_signature
+        if not args.active_dependency_coordination:
+            return
+        dependencies = controller.simulator_dependencies(
+            args.orchestrator_name,
+            args.compute_worker_name,
+            args.network_worker_name,
+        )
+        signature = tuple(
+            (consumer, tuple(sorted(producers)))
+            for consumer, producers in sorted(dependencies.items())
+        )
+        if signature == last_dependency_signature:
+            return
+        dependency_epoch += 1
+        last_dependency_signature = signature
+        value = encode_dependency_update(dependency_epoch, dependencies)
+        client.publish_anon(ACTIVE_DEPENDENCIES, value)
+        event_log.write(
+            "control",
+            ACTIVE_DEPENDENCIES,
+            current_time,
+            {"epoch": dependency_epoch, "value": value},
+        )
 
     try:
         client.initialize()
         publish_commands(controller.initial_commands())
+        publish_dependencies()
         while not controller.terminal:
-            current_time = client.time_request(MAX_TIME_NS)
+            previous_time = current_time
+            request_time = min(MAX_TIME_NS, current_time + args.idle_grant_ns)
+            current_time = client.time_request(request_time)
+            current_microstep = (
+                current_microstep + 1 if current_time == previous_time else 0
+            )
             commands: List[Command] = []
+            incoming: List[tuple[int, int, str, Dict[str, Any]]] = []
             for topic in client.get_events():
                 value = client.get_value(topic)
                 if not value:
@@ -643,8 +748,20 @@ def run(args: argparse.Namespace) -> int:
                 batch = parse_batch(value, run_id)
                 event_log.write("in", topic, current_time, batch)
                 for event in batch["events"]:
-                    commands.extend(controller.handle_event(topic, event))
+                    incoming.append(
+                        (
+                            batch["logical_time_ns"],
+                            batch.get("microstep", 0),
+                            topic,
+                            event,
+                        )
+                    )
+            for _, _, topic, event in sorted(
+                incoming, key=lambda item: (item[0], item[1], item[2], item[3]["event_id"])
+            ):
+                commands.extend(controller.handle_event(topic, event))
             publish_commands(commands)
+            publish_dependencies()
 
         batch_sequence += 1
         status = "completed" if controller.done else "failed"
@@ -654,7 +771,11 @@ def run(args: argparse.Namespace) -> int:
             {"status": status, "summary": controller.summary()},
         )
         control_value = make_batch(
-            run_id, batch_sequence, current_time, [control_event]
+            run_id,
+            batch_sequence,
+            current_time,
+            [control_event],
+            current_microstep,
         )
         client.publish(CONTROL, control_value)
         event_log.write("out", CONTROL, current_time, json.loads(control_value))
@@ -672,9 +793,25 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("workflow", help="workflow jobs JSON file")
     parser.add_argument("--run-id", default=os.environ.get("COSIM_RUN_ID"))
     parser.add_argument("--event-log", help="JSONL control-plane event log")
+    parser.add_argument("--optimization-report", help="write acceleration certificate JSON")
     parser.add_argument("--fncs-library", help="path to libfncs")
     parser.add_argument("--max-compute-retries", type=int, default=0)
     parser.add_argument("--max-network-retries", type=int, default=0)
+    parser.add_argument(
+        "--active-dependency-coordination",
+        action="store_true",
+        default=os.environ.get("COSIM_ACTIVE_DEPENDENCIES", "").lower()
+        in {"1", "true", "yes"},
+    )
+    parser.add_argument("--orchestrator-name", default="orchestrator")
+    parser.add_argument("--compute-worker-name", default="gpusim")
+    parser.add_argument("--network-worker-name", default="ns3")
+    parser.add_argument(
+        "--idle-grant-ns",
+        type=int,
+        default=int(os.environ.get("COSIM_IDLE_GRANT_NS", "1000000")),
+        help="finite lookahead used while the orchestrator waits for worker events",
+    )
     return parser
 
 

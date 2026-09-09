@@ -29,6 +29,8 @@ class FncsClient:
         lib.fncs_time_request.restype = ctypes.c_ulonglong
         lib.fncs_publish.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
         lib.fncs_publish.restype = None
+        lib.fncs_publish_anon.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+        lib.fncs_publish_anon.restype = None
         lib.fncs_finalize.argtypes = []
         lib.fncs_finalize.restype = None
         lib.fncs_get_events_size.argtypes = []
@@ -54,6 +56,9 @@ class FncsClient:
 
     def publish(self, key: str, value: str) -> None:
         self._lib.fncs_publish(key.encode("utf-8"), value.encode("utf-8"))
+
+    def publish_anon(self, key: str, value: str) -> None:
+        self._lib.fncs_publish_anon(key.encode("utf-8"), value.encode("utf-8"))
 
     def get_events(self) -> List[str]:
         size = int(self._lib.fncs_get_events_size())

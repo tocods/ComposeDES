@@ -21,6 +21,7 @@
 #include "log.hpp"
 #include "fncs.hpp"
 #include "fncs_internal.hpp"
+#include "active_dependency_scheduler.hpp"
 
 using namespace ::std;
 
@@ -33,6 +34,9 @@ class SimulatorState {
             , time_last_processed(0)
             , processing(true)
             , messages_pending(false)
+            , pending_time(ULLONG_MAX)
+            , current_grant(0)
+            , grant_count(0)
         {}
 
         string name;
@@ -41,6 +45,9 @@ class SimulatorState {
         fncs::time time_last_processed;
         bool processing;
         bool messages_pending;
+        fncs::time pending_time;
+        fncs::time current_grant;
+        unsigned long long grant_count;
         set<string> subscription_values;
 };
 
@@ -55,6 +62,90 @@ typedef map<string,TimeVec> SimTimeMap;
 static fncs::time time_real_start;
 static fncs::time time_real;
 static ofstream trace; /* the trace stream, if requested */
+
+static bool parse_dependency_update(
+        const string &value,
+        const SimIndex &name_to_index,
+        map<string,set<string> > *dependencies,
+        unsigned long long *epoch) {
+    istringstream input(value);
+    string line;
+    map<string,set<string> > parsed;
+    unsigned long long parsed_epoch = 0;
+    bool found_epoch = false;
+    while (getline(input, line)) {
+        if (line.empty()) {
+            continue;
+        }
+        size_t equals = line.find('=');
+        if (equals == string::npos) {
+            return false;
+        }
+        string consumer = line.substr(0, equals);
+        string producers = line.substr(equals + 1);
+        if (consumer == "epoch") {
+            istringstream parser(producers);
+            parser >> parsed_epoch;
+            if (!parser || !parser.eof()) {
+                return false;
+            }
+            found_epoch = true;
+            continue;
+        }
+        if (name_to_index.count(consumer) == 0) {
+            return false;
+        }
+        istringstream producer_stream(producers);
+        string producer;
+        while (getline(producer_stream, producer, ',')) {
+            if (producer.empty()) {
+                continue;
+            }
+            if (name_to_index.count(producer) == 0 || producer == consumer) {
+                return false;
+            }
+            parsed[consumer].insert(producer);
+        }
+    }
+    if (!found_epoch || parsed_epoch <= *epoch) {
+        return false;
+    }
+    *dependencies = parsed;
+    *epoch = parsed_epoch;
+    return true;
+}
+
+static void write_coordination_metrics(
+        const char *path,
+        bool active,
+        unsigned long long rounds,
+        unsigned long long dependency_updates,
+        const SimVec &simulators) {
+    if (!path || !path[0]) {
+        return;
+    }
+    ofstream output(path);
+    if (!output.is_open()) {
+        LERROR << "Could not open coordination metrics file '" << path << "'";
+        return;
+    }
+    unsigned long long total_grants = 0;
+    for (size_t i = 0; i < simulators.size(); ++i) {
+        total_grants += simulators[i].grant_count;
+    }
+    output << "{\n"
+        << "  \"mode\": \"" << (active ? "active_dependency" : "global") << "\",\n"
+        << "  \"scheduler_rounds\": " << rounds << ",\n"
+        << "  \"dependency_updates\": " << dependency_updates << ",\n"
+        << "  \"total_grants\": " << total_grants << ",\n"
+        << "  \"grants_by_simulator\": {";
+    for (size_t i = 0; i < simulators.size(); ++i) {
+        output << (i == 0 ? "\n" : ",\n")
+            << "    \"" << simulators[i].name << "\": "
+            << simulators[i].grant_count;
+    }
+    output << "\n  }\n}\n";
+}
 
 static void broker_die(const SimVec &simulators, zsock_t *server) {
     /* repeat the fatal die to all connected sims */
@@ -95,6 +186,18 @@ int main(int argc, char **argv)
     zsock_t *server = NULL;     /* the broker socket */
     bool do_trace = false;      /* whether to dump all received messages */
     fncs::time realtime_interval = 0;
+    bool active_dependency_mode = false;
+    map<string,set<string> > active_dependencies;
+    unsigned long long dependency_epoch = 0;
+    unsigned long long dependency_updates = 0;
+    unsigned long long scheduler_rounds = 0;
+    const char *coordination_metrics_path = getenv("FNCS_COORDINATION_METRICS");
+
+    {
+        const char *env_active = getenv("FNCS_ACTIVE_DEPENDENCY");
+        active_dependency_mode = env_active && string(env_active) != "0"
+            && string(env_active) != "false" && string(env_active) != "no";
+    }
 
     fncs::start_logging();
     fncs::replicate_logging(FNCSLog::ReportingLevel(),
@@ -416,7 +519,6 @@ int main(int argc, char **argv)
                     LERROR << "simulator '" << sender << "' not connected";
                     broker_die(simulators, server);
                 }
-
                 /* index of sim state */
                 index = name_to_index[sender];
 
@@ -451,6 +553,12 @@ int main(int argc, char **argv)
                         }
                         /* need to delete msg since we are breaking from loop */
                         zmsg_destroy(&msg);
+                        write_coordination_metrics(
+                            coordination_metrics_path,
+                            active_dependency_mode,
+                            scheduler_rounds,
+                            dependency_updates,
+                            simulators);
                         break;
                     }
 
@@ -495,6 +603,38 @@ int main(int argc, char **argv)
 
                 /* if all sims are done, determine next time step */
                 if (0 == n_processing) {
+                    ++scheduler_rounds;
+                    if (active_dependency_mode) {
+                        vector<fncs::ActiveTimeState> states;
+                        for (size_t i=0; i<n_sims; ++i) {
+                            fncs::ActiveTimeState state;
+                            state.name = simulators[i].name;
+                            state.requested = simulators[i].time_requested;
+                            state.pending_time = simulators[i].pending_time;
+                            state.messages_pending = simulators[i].messages_pending;
+                            state.processing = simulators[i].processing
+                                || byes.count(simulators[i].name) != 0;
+                            states.push_back(state);
+                        }
+                        vector<fncs::ActiveGrant> grants =
+                            fncs::select_active_grants(states, active_dependencies);
+                        for (size_t g=0; g<grants.size(); ++g) {
+                            size_t i = grants[g].index;
+                            fncs::time granted = grants[g].time;
+                            ++n_processing;
+                            simulators[i].processing = true;
+                            simulators[i].messages_pending = false;
+                            simulators[i].pending_time = ULLONG_MAX;
+                            simulators[i].current_grant = granted;
+                            ++simulators[i].grant_count;
+                            zstr_sendm(server, simulators[i].name.c_str());
+                            zstr_sendm(server, fncs::TIME_REQUEST);
+                            zstr_sendf(server, "%llu", granted);
+                            LDEBUG4 << "active-dependency grant " << granted
+                                << " to " << simulators[i].name;
+                        }
+                    }
+                    else {
                     vector<fncs::time> time_actionable(n_sims);
                     for (size_t i=0; i<n_sims; ++i) {
                         if (simulators[i].messages_pending) {
@@ -530,6 +670,9 @@ int main(int argc, char **argv)
                             ++n_processing;
                             simulators[i].processing = true;
                             simulators[i].messages_pending = false;
+                            simulators[i].pending_time = ULLONG_MAX;
+                            simulators[i].current_grant = time_granted;
+                            ++simulators[i].grant_count;
                             zstr_sendm(server, simulators[i].name.c_str());
                             zstr_sendm(server, fncs::TIME_REQUEST);
                             zstr_sendf(server, "%llu", time_granted);
@@ -539,6 +682,7 @@ int main(int argc, char **argv)
                             fncs::time jump = (time_granted - simulators[i].time_last_processed) / simulators[i].time_delta;
                             simulators[i].time_last_processed += simulators[i].time_delta * jump;
                         }
+                    }
                     }
                 }
             }
@@ -553,6 +697,7 @@ int main(int argc, char **argv)
                     LERROR << "simulator '" << sender << "' not connected";
                     broker_die(simulators, server);
                 }
+                size_t sender_index = name_to_index[sender];
 
                 /* next frame is topic */
                 frame = zmsg_next(msg);
@@ -564,6 +709,25 @@ int main(int argc, char **argv)
 
                 LDEBUG4 << "PUBLISH received topic " << topic;
 
+                if (topic == "__fncs/active_dependencies") {
+                    frame = zmsg_next(msg);
+                    if (!frame) {
+                        LERROR << "active dependency update missing payload";
+                        broker_die(simulators, server);
+                    }
+                    string value = fncs::to_string(frame);
+                    if (sender != "orchestrator" || !parse_dependency_update(
+                            value, name_to_index, &active_dependencies,
+                            &dependency_epoch)) {
+                        LERROR << "invalid active dependency update from " << sender;
+                        broker_die(simulators, server);
+                    }
+                    ++dependency_updates;
+                    LDEBUG4 << "installed active dependency epoch " << dependency_epoch;
+                    zmsg_destroy(&msg);
+                    continue;
+                }
+
                 if (do_trace) {
                     /* next frame is value payload */
                     frame = zmsg_next(msg);
@@ -572,7 +736,7 @@ int main(int argc, char **argv)
                         broker_die(simulators, server);
                     }
                     string value = fncs::to_string(frame);
-                    trace << time_granted
+                    trace << simulators[sender_index].current_grant
                         << "\t" << topic
                         << "\t" << value
                         << endl;
@@ -596,9 +760,20 @@ int main(int argc, char **argv)
                                 simulators[i].name.c_str(),
                                 simulators[i].name.size());
                         /* send it on */
-                        zmsg_send(&msg_copy, server);
-                        found_one = true;
-                        simulators[i].messages_pending = true;
+									zmsg_send(&msg_copy, server);
+									found_one = true;
+									fncs::time message_time =
+									    simulators[sender_index].current_grant;
+									if (message_time < simulators[i].time_last_processed) {
+										LERROR << "causality violation: message from " << sender
+										    << " at " << message_time << " targets "
+										    << simulators[i].name << " at "
+										    << simulators[i].time_last_processed;
+										broker_die(simulators, server);
+									}
+									simulators[i].messages_pending = true;
+									simulators[i].pending_time = std::min(
+									    simulators[i].pending_time, message_time);
                         LDEBUG4 << "pub to " << simulators[i].name;
                     }
                 }
@@ -621,10 +796,23 @@ int main(int argc, char **argv)
 										simulators[i].name.c_str(),
 										simulators[i].name.size());
 								/* send it on */
-								zmsg_send(&msg_copy, server);
-								found_one = true;
-								simulators[i].messages_pending = true;
-								LDEBUG4 << "pub to " << simulators[i].name;
+                                    zmsg_send(&msg_copy, server);
+                                    found_one = true;
+                                    fncs::time message_time =
+                                        simulators[sender_index].current_grant;
+                                    fncs::time recipient_frontier = simulators[i].processing
+                                        ? simulators[i].current_grant
+                                        : simulators[i].time_last_processed;
+                                    if (message_time < recipient_frontier) {
+                                        LERROR << "causality violation: message from " << sender
+                                            << " at " << message_time << " targets "
+                                            << simulators[i].name << " at " << recipient_frontier;
+                                        broker_die(simulators, server);
+                                    }
+                                    simulators[i].messages_pending = true;
+                                    simulators[i].pending_time = std::min(
+                                        simulators[i].pending_time, message_time);
+                                    LDEBUG4 << "pub to " << simulators[i].name;
 							}
                         }
                     }
@@ -694,4 +882,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-

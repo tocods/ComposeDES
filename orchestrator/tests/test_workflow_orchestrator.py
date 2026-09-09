@@ -1,3 +1,4 @@
+import copy
 import importlib.util
 import sys
 import unittest
@@ -306,7 +307,57 @@ class WorkflowControllerTest(unittest.TestCase):
         )
         parsed = MODULE.parse_batch(value, "test-run")
         self.assertEqual(42, parsed["logical_time_ns"])
+        self.assertEqual(0, parsed["microstep"])
         self.assertEqual("e1", parsed["events"][0]["event_id"])
+
+    def test_batch_preserves_microstep(self):
+        event = {
+            "event_id": "e1",
+            "kind": "compute.dispatch",
+            "correlation_id": "task:a:attempt:1",
+            "payload": {},
+        }
+        parsed = MODULE.parse_batch(
+            MODULE.make_batch("test-run", 1, 7, [event], microstep=3),
+            "test-run",
+        )
+        self.assertEqual(3, parsed["microstep"])
+
+    def test_active_dependencies_follow_inflight_owners(self):
+        task = copy.deepcopy(self.tasks[0])
+        task["children"] = []
+        controller = MODULE.WorkflowController([task], "test-run")
+        controller.initial_commands()
+        self.assertEqual(
+            {
+                "orchestrator": {"gpusim"},
+                "gpusim": {"orchestrator"},
+                "ns3": {"orchestrator"},
+            },
+            controller.simulator_dependencies(),
+        )
+        controller.handle_event(MODULE.COMPUTE_COMPLETED, self.completed("a"))
+        self.assertEqual(
+            {"orchestrator": set(), "gpusim": set(), "ns3": set()},
+            controller.simulator_dependencies(),
+        )
+
+    def test_dependency_update_is_deterministic_and_atomic(self):
+        encoded = MODULE.encode_dependency_update(
+            9,
+            {
+                "ns3": {"orchestrator"},
+                "orchestrator": {"ns3", "gpusim"},
+                "gpusim": {"orchestrator"},
+            },
+        )
+        self.assertEqual(
+            "epoch=9\n"
+            "gpusim=orchestrator\n"
+            "ns3=orchestrator\n"
+            "orchestrator=gpusim,ns3",
+            encoded,
+        )
 
 
 if __name__ == "__main__":

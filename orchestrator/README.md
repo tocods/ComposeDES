@@ -10,6 +10,7 @@ Start a broker for three federates, then start ns-3 and GPUSim with their `fncs.
 FNCS_CONFIG_FILE=fncs/orchestrator/fncs.zpl \
 COSIM_RUN_ID=my-run \
 python3 fncs/orchestrator/workflow_orchestrator.py jobs.json \
+  --active-dependency-coordination \
   --event-log output/control-plane.jsonl
 ```
 
@@ -48,10 +49,29 @@ Failed compute and network attempts can be retried by passing
 the compute default with its own `max_retries` field. Every worker event must
 carry a unique `event_id`; duplicate events and dispatches are idempotent.
 
+## Coordination and acceleration
+
+With `FNCS_ACTIVE_DEPENDENCY=yes`, the broker accepts atomic dependency graph
+updates from the orchestrator on the reserved `__fncs/active_dependencies`
+topic. A federate can advance to the transitive lower bound of only the
+federates that can currently affect it; the broker falls back to conservative
+global-min scheduling if no usable graph has been published. Set
+`FNCS_COORDINATION_METRICS=/path/metrics.json` to record grants and rounds.
+
+An object workflow may contain an `acceleration` section. Regions are eligible
+for contraction only when all four closure declarations (`causal`, `state`,
+`temporal`, and `resource_non_interference`) are true, the members form a
+single-host linear chain, and the region contains no network or collective
+boundary. Exact regions must match the detailed duration exactly. Approximate
+regions carry lower/upper duration bounds; the optimizer refines only regions
+whose upper path can still affect the critical path until the requested
+`error_budget_ns` is met. `--optimization-report` writes the certificate and
+the selected refinements.
+
 ## Test
 
 ```bash
 python3 -m unittest discover -s fncs/orchestrator/tests -v
-tests/control_plane_smoke/run.sh
-tests/control_plane_collective/run.sh
+tests/active_dependency_smoke/run.sh
+tests/control_plane_alpha4_small/run.sh
 ```
