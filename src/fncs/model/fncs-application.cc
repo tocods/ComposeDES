@@ -48,6 +48,7 @@ using namespace std;
 
 #include <algorithm>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -74,6 +75,30 @@ static uint64_t& GetWorkerBatchSequence() {
   return sequence;
 }
 
+static std::set<std::string>& GetActiveWorkerTransfers() {
+  static std::set<std::string> active;
+  return active;
+}
+
+static std::map<std::string, WorkerCompletion>& GetCompletedWorkerTransfers() {
+  static std::map<std::string, WorkerCompletion> completed;
+  return completed;
+}
+
+bool BeginWorkerTransfer (const std::string& runId, const std::string& transferId) {
+  const std::string key = runId + "|" + transferId;
+  auto completed = GetCompletedWorkerTransfers().find(key);
+  if (completed != GetCompletedWorkerTransfers().end()) {
+    GetWorkerFinishBuffer().push_back(completed->second);
+    return false;
+  }
+  if (GetActiveWorkerTransfers().count(key) != 0) {
+    return false;
+  }
+  GetActiveWorkerTransfers().insert(key);
+  return true;
+}
+
 void FlushFinishBuffer() {
   auto& buf = GetFinishBuffer();
   if (!buf.empty()) {
@@ -88,21 +113,24 @@ void FlushFinishBuffer() {
 
   auto& workerBuf = GetWorkerFinishBuffer();
   if (workerBuf.empty()) return;
-  std::map<std::pair<std::string, uint64_t>, std::vector<WorkerCompletion>> grouped;
+  std::map<std::string, std::vector<WorkerCompletion>> grouped;
   for (const auto& completion : workerBuf) {
-    grouped[{completion.runId, completion.finishTimeNs}].push_back(completion);
+    grouped[completion.runId].push_back(completion);
   }
   for (const auto& entry : grouped) {
+    uint64_t batchTimeNs = 0;
+    for (const auto& completion : entry.second) {
+      batchTimeNs = std::max(batchTimeNs, completion.finishTimeNs);
+    }
     nlohmann::json batch;
     batch["schema_version"] = "2.0";
-    batch["run_id"] = entry.first.first;
+    batch["run_id"] = entry.first;
     batch["batch_id"] = "ns3-batch-" + std::to_string(++GetWorkerBatchSequence());
-    batch["logical_time_ns"] = entry.first.second;
+    batch["logical_time_ns"] = batchTimeNs;
     batch["events"] = nlohmann::json::array();
     for (const auto& completion : entry.second) {
       nlohmann::json event;
-      event["event_id"] = "ns3-event-" + std::to_string(GetWorkerBatchSequence())
-                            + "-" + std::to_string(batch["events"].size());
+      event["event_id"] = "network-completed:" + completion.transferId;
       event["kind"] = "network.completed";
       event["correlation_id"] = completion.transferId;
       event["payload"] = {
@@ -387,7 +415,9 @@ FncsApplication::Send (Ptr<FncsApplication> to, std::string topic, std::string v
           p = Create<Packet>(buffer.data(), buffer.size());
           m_txTrace(p);
           int (Socket::*sendTo)(Ptr<Packet>, uint32_t, const Address&) = &Socket::SendTo;
-          Simulator::Schedule(NanoSeconds(delayNs), sendTo, m_socket, p, 0, address);
+          // A one-nanosecond per-segment offset interleaves flows dispatched in
+          // the same FNCS batch instead of draining one complete flow first.
+          Simulator::Schedule(NanoSeconds(delayNs + index), sendTo, m_socket, p, 0, address);
           ++m_sent;
         }
       return;
@@ -663,9 +693,13 @@ FncsApplication::HandleRead (Ptr<Socket> socket)
           uint64_t received = ++receivedSegments[key];
           if (received == expected)
             {
-              GetWorkerFinishBuffer().push_back(
-                  {fields[0], fields[1],
-                   static_cast<uint64_t>(Simulator::Now().GetNanoSeconds())});
+              WorkerCompletion completion = {
+                  fields[0], fields[1],
+                  static_cast<uint64_t>(Simulator::Now().GetNanoSeconds())};
+              GetWorkerFinishBuffer().push_back(completion);
+              const std::string transferKey = fields[0] + "|" + fields[1];
+              GetActiveWorkerTransfers().erase(transferKey);
+              GetCompletedWorkerTransfers()[transferKey] = completion;
               receivedSegments.erase(key);
             }
         }

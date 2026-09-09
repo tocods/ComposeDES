@@ -33,6 +33,8 @@
 
 namespace ns3 {
 
+bool BeginWorkerTransfer (const std::string& runId, const std::string& transferId);
+
 class Socket;
 class Packet;
 class InetSocketAddress;

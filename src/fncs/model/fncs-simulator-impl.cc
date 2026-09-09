@@ -389,6 +389,13 @@ FncsSimulatorImpl::Run (void)
                   const std::string to = payload.at("dst_host").get<std::string>();
                   const std::string transferId = payload.at("transfer_id").get<std::string>();
                   const uint64_t bytes = payload.at("bytes").get<uint64_t>();
+                  if (bytes == 0) {
+                    NS_FATAL_ERROR("network.dispatch requires a positive byte count");
+                  }
+                  if (!BeginWorkerTransfer(runId, transferId)) {
+                    NS_LOG_INFO("Ignoring duplicate network.dispatch " << transferId);
+                    continue;
+                  }
                   Ptr<FncsApplication> fromApp =
                       Names::Find<FncsApplication>("fncs_" + from);
                   Ptr<FncsApplication> toApp =
