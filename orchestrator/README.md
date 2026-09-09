@@ -68,10 +68,22 @@ whose upper path can still affect the critical path until the requested
 `error_budget_ns` is met. `--optimization-report` writes the certificate and
 the selected refinements.
 
+Backend-local chains are disabled by default. Enable them with
+`--backend-local-chains` or `COSIM_BACKEND_LOCAL_CHAINS=yes`; limit one plan
+with `--backend-local-chain-max-tasks N` or
+`COSIM_BACKEND_LOCAL_CHAIN_MAX_TASKS` (default 32, 0 means unlimited). The
+coordinator only creates a plan for a same-host, zero-network, single-entry
+linear chain when every task using that host is statically ordered. Collective
+participants and tasks with retries are excluded. GPUSim still executes every
+original `GpuJob` in order and returns every task's original start/finish
+timestamp in one boundary batch, so this option removes coordination traffic
+without replacing the compute model or changing the boundary trace.
+
 ## Test
 
 ```bash
 python3 -m unittest discover -s fncs/orchestrator/tests -v
 tests/active_dependency_smoke/run.sh
 tests/control_plane_alpha4_small/run.sh
+python3 tests/backend_local_chain_gpu_compare.py
 ```

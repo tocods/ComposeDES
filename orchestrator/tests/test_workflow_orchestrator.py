@@ -342,6 +342,62 @@ class WorkflowControllerTest(unittest.TestCase):
             controller.simulator_dependencies(),
         )
 
+    def test_backend_local_chain_dispatch_preserves_task_completions(self):
+        tasks = [
+            {
+                "name": "a",
+                "host": "host1",
+                "cpu_task": {"pes_number": 1, "length": 10, "ram": 0},
+                "gpu_task": {"kernels": []},
+                "children": [{"child": "b", "size": 0}],
+            },
+            {
+                "name": "b",
+                "host": "host1",
+                "cpu_task": {"pes_number": 1, "length": 20, "ram": 0},
+                "gpu_task": {"kernels": []},
+                "children": [],
+            },
+        ]
+        controller = MODULE.WorkflowController(
+            tasks, "test-run", backend_local_chains=True
+        )
+        commands = controller.initial_commands()
+        self.assertEqual(1, len(commands))
+        self.assertEqual("compute.plan.dispatch", commands[0].event["kind"])
+        self.assertEqual(
+            ["a", "b"],
+            [item["task_id"] for item in commands[0].event["payload"]["tasks"]],
+        )
+        self.assertEqual([], controller.handle_event(
+            MODULE.COMPUTE_COMPLETED, self.completed("a")
+        ))
+        self.assertEqual("DISPATCHED", controller.state["b"])
+        self.assertEqual([], controller.handle_event(
+            MODULE.COMPUTE_COMPLETED, self.completed("b")
+        ))
+        self.assertTrue(controller.done)
+        self.assertEqual(1, controller.summary()["backend_local_chains"]["dispatches"])
+
+    def test_backend_local_chain_rejects_possible_host_interleaving(self):
+        tasks = [
+            {
+                "name": name,
+                "host": "host1",
+                "cpu_task": {"pes_number": 1, "length": 10, "ram": 0},
+                "gpu_task": {"kernels": []},
+                "children": [],
+            }
+            for name in ("independent-a", "independent-b")
+        ]
+        controller = MODULE.WorkflowController(
+            tasks, "test-run", backend_local_chains=True
+        )
+        commands = controller.initial_commands()
+        self.assertEqual(2, len(commands))
+        self.assertTrue(all(command.event["kind"] == "compute.dispatch" for command in commands))
+        self.assertEqual({}, controller.local_plans)
+
     def test_dependency_update_is_deterministic_and_atomic(self):
         encoded = MODULE.encode_dependency_update(
             9,

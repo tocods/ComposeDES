@@ -52,6 +52,8 @@ class WorkflowController:
         max_network_retries: int = 0,
         collective_specs: Iterable[Dict[str, Any]] | None = None,
         acceleration_report: Dict[str, Any] | None = None,
+        backend_local_chains: bool = False,
+        backend_local_chain_max_tasks: int = 32,
     ) -> None:
         self.run_id = run_id
         self.max_compute_retries = max(0, max_compute_retries)
@@ -77,6 +79,12 @@ class WorkflowController:
         self.seen_event_ids: set[str] = set()
         self.failed_reason: str | None = None
         self.acceleration_report = acceleration_report or {"enabled": False}
+        self.backend_local_chains = backend_local_chains
+        self.backend_local_chain_max_tasks = max(0, backend_local_chain_max_tasks)
+        self.local_plans: Dict[str, List[str]] = {}
+        self.local_plan_by_entry: Dict[str, str] = {}
+        self.local_plan_by_task: Dict[str, str] = {}
+        self.local_plan_dispatches = 0
         self._event_sequence = 0
 
         for raw_spec in task_specs:
@@ -94,6 +102,8 @@ class WorkflowController:
         self._build_edges()
         self._build_collectives(collective_specs or [])
         self._validate_acyclic()
+        if self.backend_local_chains:
+            self._build_backend_local_chains()
         for task_id in self.tasks:
             self.pending_inputs[task_id] = (
                 len(self.parents[task_id]) + self.collective_inputs[task_id]
@@ -108,6 +118,8 @@ class WorkflowController:
         run_id: str,
         max_compute_retries: int = 0,
         max_network_retries: int = 0,
+        backend_local_chains: bool = False,
+        backend_local_chain_max_tasks: int = 32,
     ) -> "WorkflowController":
         with open(path, "r", encoding="utf-8") as stream:
             data = json.load(stream)
@@ -134,7 +146,82 @@ class WorkflowController:
             max_network_retries=max_network_retries,
             collective_specs=collectives,
             acceleration_report=acceleration_report,
+            backend_local_chains=backend_local_chains,
+            backend_local_chain_max_tasks=backend_local_chain_max_tasks,
         )
+
+    def _path_exists(self, source: str, destination: str) -> bool:
+        pending = [source]
+        visited: set[str] = set()
+        while pending:
+            current = pending.pop()
+            if current == destination:
+                return True
+            if current in visited:
+                continue
+            visited.add(current)
+            pending.extend(self.graph_children[current] - visited)
+        return False
+
+    def _build_backend_local_chains(self) -> None:
+        """Find exact local chains whose host resources cannot interleave."""
+        collective_members = {
+            participant[field]
+            for collective in self.collectives.values()
+            for participant in collective["participants"]
+            for field in ("src_task_id", "dst_task_id")
+        }
+        tasks_by_host: Dict[str, List[str]] = defaultdict(list)
+        for task_id, task in self.tasks.items():
+            tasks_by_host[str(task["host"])].append(task_id)
+
+        safe_hosts: set[str] = set()
+        for host, host_tasks in tasks_by_host.items():
+            if all(
+                self._path_exists(left, right) or self._path_exists(right, left)
+                for index, left in enumerate(host_tasks)
+                for right in host_tasks[index + 1 :]
+            ):
+                safe_hosts.add(host)
+
+        eligible_next: Dict[str, str] = {}
+        eligible_previous: Dict[str, str] = {}
+        for source, edges in self.outgoing.items():
+            if len(edges) != 1 or source in collective_members:
+                continue
+            edge = edges[0]
+            destination = edge["dst_task_id"]
+            host = str(self.tasks[source]["host"])
+            if (
+                edge["bytes"] == 0
+                and edge["src_host"] == edge["dst_host"] == host
+                and host in safe_hosts
+                and destination not in collective_members
+                and self.parents[destination] == {source}
+                and int(self.tasks[source].get("max_retries") or 0) == 0
+                and int(self.tasks[destination].get("max_retries") or 0) == 0
+            ):
+                eligible_next[source] = destination
+                eligible_previous[destination] = source
+
+        sequence = 0
+        for start in sorted(eligible_next):
+            if start in eligible_previous:
+                continue
+            chain = [start]
+            while chain[-1] in eligible_next:
+                chain.append(eligible_next[chain[-1]])
+            chunk_size = self.backend_local_chain_max_tasks or len(chain)
+            for offset in range(0, len(chain), chunk_size):
+                members = chain[offset : offset + chunk_size]
+                if len(members) < 2:
+                    continue
+                sequence += 1
+                plan_id = f"local-plan-{sequence:06d}"
+                self.local_plans[plan_id] = members
+                self.local_plan_by_entry[members[0]] = plan_id
+                for task_id in members:
+                    self.local_plan_by_task[task_id] = plan_id
 
     def _build_edges(self) -> None:
         for src_id, spec in self.tasks.items():
@@ -267,6 +354,10 @@ class WorkflowController:
         for task_id in sorted(self.tasks):
             if self.state[task_id] != "READY":
                 continue
+            plan_id = self.local_plan_by_entry.get(task_id)
+            if plan_id:
+                commands.append(self._dispatch_local_plan(plan_id))
+                continue
             self.task_attempt[task_id] += 1
             attempt = self.task_attempt[task_id]
             task_spec = copy.deepcopy(self.tasks[task_id])
@@ -287,6 +378,43 @@ class WorkflowController:
             self.state[task_id] = "DISPATCHED"
             self.inflight_compute.add(task_id)
         return commands
+
+    def _dispatch_local_plan(self, plan_id: str) -> Command:
+        members = self.local_plans[plan_id]
+        plan_tasks: List[Dict[str, Any]] = []
+        for task_id in members:
+            if self.state[task_id] not in {"READY", "BLOCKED"}:
+                raise WorkflowError(
+                    f"local plan {plan_id} member {task_id} is {self.state[task_id]}"
+                )
+            self.task_attempt[task_id] += 1
+            attempt = self.task_attempt[task_id]
+            task_spec = copy.deepcopy(self.tasks[task_id])
+            task_spec["children"] = []
+            plan_tasks.append(
+                {
+                    "task_id": task_id,
+                    "attempt": attempt,
+                    "target_host": task_spec["host"],
+                    "correlation_id": f"task:{task_id}:attempt:{attempt}",
+                    "task": task_spec,
+                }
+            )
+            self.state[task_id] = "DISPATCHED"
+            self.inflight_compute.add(task_id)
+        self.local_plan_dispatches += 1
+        return Command(
+            COMPUTE_DISPATCH,
+            self._new_event(
+                "compute.plan.dispatch",
+                f"plan:{plan_id}:attempt:1",
+                {
+                    "plan_id": plan_id,
+                    "target_host": plan_tasks[0]["target_host"],
+                    "tasks": plan_tasks,
+                },
+            ),
+        )
 
     def handle_event(self, topic: str, event: Dict[str, Any]) -> List[Command]:
         event_id = str(event.get("event_id") or "")
@@ -346,8 +474,15 @@ class WorkflowController:
         if self.failed_reason:
             return []
         commands: List[Command] = []
+        local_plan_id = self.local_plan_by_task.get(task_id)
         for edge in self.outgoing[task_id]:
             edge_id = edge["edge_id"]
+            if (
+                local_plan_id
+                and self.local_plan_by_task.get(edge["dst_task_id"]) == local_plan_id
+            ):
+                self.edge_state[edge_id] = "LOCAL_COMPLETED"
+                continue
             if edge["src_host"] == edge["dst_host"] or edge["bytes"] <= 0:
                 self.edge_state[edge_id] = "LOCAL_READY"
                 self._release_input(edge["dst_task_id"])
@@ -547,6 +682,12 @@ class WorkflowController:
             "failed_reason": self.failed_reason,
             "done": self.done,
             "acceleration": self.acceleration_report,
+            "backend_local_chains": {
+                "enabled": self.backend_local_chains,
+                "plan_count": len(self.local_plans),
+                "dispatches": self.local_plan_dispatches,
+                "planned_tasks": sum(len(plan) for plan in self.local_plans.values()),
+            },
         }
 
     def simulator_dependencies(
@@ -669,7 +810,11 @@ def run(args: argparse.Namespace) -> int:
         run_id,
         max_compute_retries=args.max_compute_retries,
         max_network_retries=args.max_network_retries,
+        backend_local_chains=args.backend_local_chains,
+        backend_local_chain_max_tasks=args.backend_local_chain_max_tasks,
     )
+    if args.backend_local_chains and args.max_compute_retries:
+        raise WorkflowError("backend-local-chains requires max-compute-retries=0")
     if args.optimization_report:
         target = Path(args.optimization_report)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -797,6 +942,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--fncs-library", help="path to libfncs")
     parser.add_argument("--max-compute-retries", type=int, default=0)
     parser.add_argument("--max-network-retries", type=int, default=0)
+    parser.add_argument(
+        "--backend-local-chains",
+        action="store_true",
+        default=os.environ.get("COSIM_BACKEND_LOCAL_CHAINS", "").lower()
+        in {"1", "true", "yes"},
+        help="dispatch proven exact same-owner linear chains as backend-local plans",
+    )
+    parser.add_argument(
+        "--backend-local-chain-max-tasks",
+        type=int,
+        default=int(os.environ.get("COSIM_BACKEND_LOCAL_CHAIN_MAX_TASKS", "32")),
+        help="maximum tasks per local plan; 0 keeps the full proven chain",
+    )
     parser.add_argument(
         "--active-dependency-coordination",
         action="store_true",
