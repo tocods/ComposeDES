@@ -75,6 +75,21 @@ static uint64_t& GetWorkerBatchSequence() {
   return sequence;
 }
 
+static uint64_t& GetWorkerLogicalTimeNs() {
+  static uint64_t logicalTimeNs = 0;
+  return logicalTimeNs;
+}
+
+static uint64_t& GetWorkerMicrostep() {
+  static uint64_t microstep = 0;
+  return microstep;
+}
+
+void SetWorkerSuperdenseTime (uint64_t logicalTimeNs, uint64_t microstep) {
+  GetWorkerLogicalTimeNs() = logicalTimeNs;
+  GetWorkerMicrostep() = microstep;
+}
+
 static std::set<std::string>& GetActiveWorkerTransfers() {
   static std::set<std::string> active;
   return active;
@@ -99,6 +114,18 @@ bool BeginWorkerTransfer (const std::string& runId, const std::string& transferI
   return true;
 }
 
+void CompleteWorkerTransfer (const std::string& runId, const std::string& transferId) {
+  const std::string key = runId + "|" + transferId;
+  if (GetActiveWorkerTransfers().erase(key) == 0) {
+    return;
+  }
+  WorkerCompletion completion = {
+      runId, transferId,
+      static_cast<uint64_t>(Simulator::Now().GetNanoSeconds())};
+  GetWorkerFinishBuffer().push_back(completion);
+  GetCompletedWorkerTransfers()[key] = completion;
+}
+
 void FlushFinishBuffer() {
   auto& buf = GetFinishBuffer();
   if (!buf.empty()) {
@@ -113,20 +140,20 @@ void FlushFinishBuffer() {
 
   auto& workerBuf = GetWorkerFinishBuffer();
   if (workerBuf.empty()) return;
-  std::map<std::string, std::vector<WorkerCompletion>> grouped;
+  typedef std::pair<std::string, uint64_t> CompletionTime;
+  std::map<CompletionTime, std::vector<WorkerCompletion>> grouped;
   for (const auto& completion : workerBuf) {
-    grouped[completion.runId].push_back(completion);
+    grouped[CompletionTime(completion.runId, completion.finishTimeNs)].push_back(completion);
   }
   for (const auto& entry : grouped) {
-    uint64_t batchTimeNs = 0;
-    for (const auto& completion : entry.second) {
-      batchTimeNs = std::max(batchTimeNs, completion.finishTimeNs);
-    }
+    const uint64_t batchTimeNs = entry.first.second;
     nlohmann::json batch;
     batch["schema_version"] = "2.0";
-    batch["run_id"] = entry.first;
+    batch["run_id"] = entry.first.first;
     batch["batch_id"] = "ns3-batch-" + std::to_string(++GetWorkerBatchSequence());
     batch["logical_time_ns"] = batchTimeNs;
+    batch["microstep"] = batchTimeNs == GetWorkerLogicalTimeNs()
+        ? GetWorkerMicrostep() : 0;
     batch["events"] = nlohmann::json::array();
     for (const auto& completion : entry.second) {
       nlohmann::json event;
@@ -693,13 +720,7 @@ FncsApplication::HandleRead (Ptr<Socket> socket)
           uint64_t received = ++receivedSegments[key];
           if (received == expected)
             {
-              WorkerCompletion completion = {
-                  fields[0], fields[1],
-                  static_cast<uint64_t>(Simulator::Now().GetNanoSeconds())};
-              GetWorkerFinishBuffer().push_back(completion);
-              const std::string transferKey = fields[0] + "|" + fields[1];
-              GetActiveWorkerTransfers().erase(transferKey);
-              GetCompletedWorkerTransfers()[transferKey] = completion;
+              CompleteWorkerTransfer(fields[0], fields[1]);
               receivedSegments.erase(key);
             }
         }

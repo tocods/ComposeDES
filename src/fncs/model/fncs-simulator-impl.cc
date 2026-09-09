@@ -39,6 +39,7 @@
 #include <utility>
 #include <vector>
 #include <limits>
+#include <map>
 
 #ifdef FNCS
 #include <fncs.hpp>
@@ -96,6 +97,8 @@ FncsSimulatorImpl::FncsSimulatorImpl ()
   // before ::Run is entered, the m_currentUid will be zero
   m_currentUid = 0;
   m_currentTs = 0;
+  m_currentMicrostep = 0;
+  SetWorkerSuperdenseTime (m_currentTs, m_currentMicrostep);
   m_currentContext = 0xffffffff;
   m_unscheduledEvents = 0;
   m_events = 0;
@@ -167,7 +170,12 @@ FncsSimulatorImpl::ProcessOneEvent (void)
   m_unscheduledEvents--;
   m_eventCount++;
   NS_LOG_LOGIC ("handle " << next.key.m_ts);
+  if (m_currentTs != next.key.m_ts)
+    {
+      m_currentMicrostep = 0;
+    }
   m_currentTs = next.key.m_ts;
+  SetWorkerSuperdenseTime (m_currentTs, m_currentMicrostep);
   m_currentContext = next.key.m_context;
   m_currentUid = next.key.m_uid;
   next.impl->Invoke ();
@@ -319,6 +327,135 @@ PublishFinish(const std::string& finishPayload)
   NS_LOG_INFO("Publishing synthetic finish payload: " << finishPayload.substr(0, 120));
   fncs::publish("finish", finishPayload);
 }
+
+static bool
+UseWorkerFlowMacro()
+{
+  const char* value = std::getenv("COSIM_NS3_FLOW_MACRO");
+  return value != nullptr && (std::string(value) == "yes" || std::string(value) == "1");
+}
+
+static double
+GetWorkerFlowBandwidthBitsPerNs()
+{
+  const char* value = std::getenv("COSIM_NS3_BANDWIDTH_GBPS");
+  if (value == nullptr)
+    {
+      return 400.0;
+    }
+  const double bandwidth = std::stod(value);
+  if (bandwidth <= 0.0)
+    {
+      NS_FATAL_ERROR("COSIM_NS3_BANDWIDTH_GBPS must be positive");
+    }
+  return bandwidth;
+}
+
+static uint64_t
+GetWorkerFlowPropagationNs(const std::string& link)
+{
+  if (link.find("s0->s1") != std::string::npos ||
+      link.find("s1->s0") != std::string::npos)
+    {
+      const char* switchValue = std::getenv("COSIM_NS3_SWITCH_DELAY_NS");
+      if (switchValue != nullptr)
+        {
+          return static_cast<uint64_t>(std::stoull(switchValue));
+        }
+    }
+  const char* value = std::getenv("COSIM_NS3_DELAY_NS");
+  if (value == nullptr)
+    {
+      return 1000;
+    }
+  return static_cast<uint64_t>(std::stoull(value));
+}
+
+static uint32_t
+WorkerHostIndex(const std::string& host)
+{
+  if (host.rfind("host", 0) != 0)
+    {
+      NS_FATAL_ERROR("flow macro requires host<N> endpoint names, got " << host);
+    }
+  return static_cast<uint32_t>(std::stoul(host.substr(4)));
+}
+
+static std::vector<std::string>
+WorkerFlowPath(const std::string& from, const std::string& to)
+{
+  const char* topologyValue = std::getenv("COSIM_NS3_TOPOLOGY");
+  const std::string topology = topologyValue == nullptr ? "direct_p2p" : topologyValue;
+  std::vector<std::string> path;
+  if (topology == "direct_p2p")
+    {
+      path.push_back(from + "->" + to);
+      return path;
+    }
+  if (topology == "star")
+    {
+      const char* hostCountValue = std::getenv("COSIM_NS3_HOST_COUNT");
+      if (hostCountValue != nullptr && std::stoul(hostCountValue) <= 2)
+        {
+          path.push_back(from + "->" + to);
+          return path;
+        }
+      path.push_back(from + "->s0");
+      path.push_back("s0->" + to);
+      return path;
+    }
+  if (topology == "dual_switch")
+    {
+      const char* hostCountValue = std::getenv("COSIM_NS3_HOST_COUNT");
+      if (hostCountValue == nullptr)
+        {
+          NS_FATAL_ERROR("dual_switch flow macro requires COSIM_NS3_HOST_COUNT");
+        }
+      const uint32_t half = static_cast<uint32_t>(std::stoul(hostCountValue)) / 2;
+      const std::string fromSwitch = WorkerHostIndex(from) <= half ? "s0" : "s1";
+      const std::string toSwitch = WorkerHostIndex(to) <= half ? "s0" : "s1";
+      path.push_back(from + "->" + fromSwitch);
+      if (fromSwitch != toSwitch)
+        {
+          path.push_back(fromSwitch + "->" + toSwitch);
+        }
+      path.push_back(toSwitch + "->" + to);
+      return path;
+    }
+  if (topology == "chain")
+    {
+      uint32_t current = WorkerHostIndex(from);
+      const uint32_t destination = WorkerHostIndex(to);
+      while (current != destination)
+        {
+          const uint32_t next = current < destination ? current + 1 : current - 1;
+          path.push_back("host" + std::to_string(current) + "->host" +
+                         std::to_string(next));
+          current = next;
+        }
+      return path;
+    }
+  NS_FATAL_ERROR("unsupported COSIM_NS3_TOPOLOGY " << topology);
+  return path;
+}
+
+static uint64_t
+ReserveWorkerFlow(const std::string& from, const std::string& to, uint64_t bytes)
+{
+  static std::map<std::string, uint64_t> linkAvailableNs;
+  const uint64_t now = static_cast<uint64_t>(Simulator::Now().GetNanoSeconds());
+  uint64_t arrival = now;
+  const uint64_t serialization = std::max<uint64_t>(
+      1, static_cast<uint64_t>(std::ceil(bytes * 8.0 /
+                                        GetWorkerFlowBandwidthBitsPerNs())));
+  for (const std::string& link : WorkerFlowPath(from, to))
+    {
+      const uint64_t transmissionStart = std::max(arrival, linkAvailableNs[link]);
+      linkAvailableNs[link] = transmissionStart + serialization;
+      arrival = linkAvailableNs[link] + GetWorkerFlowPropagationNs(link);
+    }
+  return std::max<uint64_t>(1, arrival - now);
+}
 #endif
 
 void
@@ -338,6 +475,7 @@ FncsSimulatorImpl::Run (void)
       if (nextTime > m_grantedTime || IsLocalFinished () )
         {
           // 在请求新时间前，把缓冲的 finish 消息一次性发出
+          SetWorkerSuperdenseTime (m_currentTs, m_currentMicrostep);
           void FlushFinishBuffer();
           FlushFinishBuffer();
           NS_LOG_INFO ("Requesting new time from FNCS");
@@ -346,9 +484,18 @@ FncsSimulatorImpl::Run (void)
           fncs::time granted = fncs::time_request(requested);
           NS_LOG_LOGIC ("granted " << granted);
           uint64_t grantedTs = static_cast<uint64_t> (granted);
+          if (grantedTs == m_currentTs)
+            {
+              ++m_currentMicrostep;
+            }
+          else
+            {
+              m_currentMicrostep = 0;
+            }
           m_grantedTime = TimeStep (grantedTs);
           NS_LOG_LOGIC ("m_grantedTime " << m_grantedTime);
           m_currentTs = grantedTs;
+          SetWorkerSuperdenseTime (m_currentTs, m_currentMicrostep);
           if (m_grantedTime.GetTimeStep() == GetMaximumSimulationTime ().GetTimeStep()) {
             NS_LOG_INFO("Simulation has reached maximum time, stopping.");
             Stop();
@@ -369,6 +516,13 @@ FncsSimulatorImpl::Run (void)
               }
               else if (topic == "control") {
                 nlohmann::json batch = nlohmann::json::parse(fncs::get_value(*it));
+                uint64_t batchTime = batch.at("logical_time_ns").get<uint64_t>();
+                uint64_t batchMicrostep = batch.count("microstep")
+                    ? batch.at("microstep").get<uint64_t>() : 0;
+                if (batchTime == m_currentTs) {
+                  m_currentMicrostep = std::max(m_currentMicrostep, batchMicrostep + 1);
+                  SetWorkerSuperdenseTime (m_currentTs, m_currentMicrostep);
+                }
                 for (const auto& event : batch.at("events")) {
                   if (event.at("kind").get<std::string>() == "control.end") {
                     NS_LOG_INFO("Received orchestrator end, stopping network worker.");
@@ -382,6 +536,13 @@ FncsSimulatorImpl::Run (void)
                 if (batch.at("schema_version").get<std::string>() != "2.0") {
                   NS_FATAL_ERROR("Unsupported network dispatch schema version");
                 }
+                uint64_t batchTime = batch.at("logical_time_ns").get<uint64_t>();
+                uint64_t batchMicrostep = batch.count("microstep")
+                    ? batch.at("microstep").get<uint64_t>() : 0;
+                if (batchTime == m_currentTs) {
+                  m_currentMicrostep = std::max(m_currentMicrostep, batchMicrostep + 1);
+                  SetWorkerSuperdenseTime (m_currentTs, m_currentMicrostep);
+                }
                 const std::string runId = batch.at("run_id").get<std::string>();
                 for (const auto& event : batch.at("events")) {
                   const auto& payload = event.at("payload");
@@ -394,6 +555,12 @@ FncsSimulatorImpl::Run (void)
                   }
                   if (!BeginWorkerTransfer(runId, transferId)) {
                     NS_LOG_INFO("Ignoring duplicate network.dispatch " << transferId);
+                    continue;
+                  }
+                  if (UseWorkerFlowMacro()) {
+                    const uint64_t delay = ReserveWorkerFlow(from, to, bytes);
+                    Simulator::Schedule(NanoSeconds(delay), &CompleteWorkerTransfer,
+                                        runId, transferId);
                     continue;
                   }
                   Ptr<FncsApplication> fromApp =

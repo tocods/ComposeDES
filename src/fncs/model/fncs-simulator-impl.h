@@ -80,6 +80,7 @@ private:
   uint32_t m_uid;
   uint32_t m_currentUid;
   uint64_t m_currentTs;
+  uint64_t m_currentMicrostep;
   uint32_t m_currentContext;
   uint64_t m_eventCount;
   // number of events that have been inserted but not yet scheduled,

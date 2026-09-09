@@ -29,11 +29,14 @@
 
 #include "ns3/boolean.h"
 
+#include <cstdint>
 #include <string>
 
 namespace ns3 {
 
 bool BeginWorkerTransfer (const std::string& runId, const std::string& transferId);
+void CompleteWorkerTransfer (const std::string& runId, const std::string& transferId);
+void SetWorkerSuperdenseTime (uint64_t logicalTimeNs, uint64_t microstep);
 
 class Socket;
 class Packet;

@@ -559,7 +559,9 @@ int main (int argc, char *argv[])
 
             PointToPointHelper p2p;
             p2p.SetDeviceAttribute ("DataRate", StringValue (l.dataRate));
+            p2p.SetDeviceAttribute ("Mtu", UintegerValue (64000));
             p2p.SetChannelAttribute ("Delay", StringValue (l.delay));
+            p2p.SetQueue ("ns3::DropTailQueue", "MaxSize", StringValue ("20000p"));
 
             NetDeviceContainer devices = p2p.Install (nodesById[a], nodesById[b]);
             Ipv4AddressHelper address;
@@ -582,6 +584,8 @@ int main (int argc, char *argv[])
             CsmaHelper csma;
             csma.SetChannelAttribute ("DataRate", StringValue (l.dataRate));
             csma.SetChannelAttribute ("Delay", TimeValue (ParseTimeOrDie (l.delay, "links.delay")));
+            csma.SetDeviceAttribute ("Mtu", UintegerValue (64000));
+            csma.SetQueue ("ns3::DropTailQueue", "MaxSize", StringValue ("20000p"));
 
             if (!switchId.empty () && l.endpoints.size () == 2)
               {
