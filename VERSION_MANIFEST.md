@@ -1,6 +1,6 @@
 # 协同仿真组件版本清单
 
-更新日期：2026-09-09
+更新日期：2026-09-10
 
 本文件记录 DAG 控制面重构前的组件来源和本地基线。源码 commit 以各子仓库为准；大型 trace、模型输出、构建产物和运行日志不进入 Git。
 
@@ -22,6 +22,8 @@
 - tag `v2.0.0-alpha.4.2` 分别指向 FNCS `2df6dda`、GPUSim `09861db`、ns-3 `2f049f0d4`。
 - 后续提交按组件独立演进，禁止跨仓库使用同一个模糊提交说明。
 - 顶层 integration 仓库记录确切 commit 组合；端到端结果必须同时记录 manifest 版本。
+- `ComposeDES` 的 `main` 通过 Git submodule 固定三个核心组件；组件历史分别保存在
+  `components/fncs`、`components/gpusim`、`components/ns3` 分支。
 - 不提交 `build/`、`out/`、`.dylib`、`.so`、trace `.bin/.goal`、运行 XML/log 和 NeuSight 预测输出。
 
 ## 当前可复现基线

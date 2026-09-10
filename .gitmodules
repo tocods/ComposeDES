@@ -1,0 +1,12 @@
+[submodule "fncs"]
+	path = fncs
+	url = https://github.com/tocods/ComposeDES.git
+	branch = components/fncs
+[submodule "GPUsim"]
+	path = GPUsim
+	url = https://github.com/tocods/ComposeDES.git
+	branch = components/gpusim
+[submodule "ns3"]
+	path = ns3
+	url = https://github.com/tocods/ComposeDES.git
+	branch = components/ns3
