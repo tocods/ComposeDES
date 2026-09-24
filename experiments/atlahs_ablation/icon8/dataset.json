@@ -1,0 +1,23 @@
+{
+  "accelerated_compute_tasks": 128,
+  "bandwidth_gbps": 56.0,
+  "baseline_compute_tasks": 1024,
+  "events_per_phase": 8,
+  "exact_regions": 128,
+  "link_delay_ns": 1000,
+  "modeled_network_edges": 707,
+  "modeled_send_bytes": 4303891888,
+  "num_ranks": 8,
+  "phases_per_rank": 16,
+  "preparation_wall_seconds": 0.4766026999859605,
+  "source": "/home/sdic/atlahs/data/hpc/icon/icon_8/icon_8.goal",
+  "source_bytes": 15278290,
+  "source_operation_kinds": {
+    "calc": 160856,
+    "recv": 67108,
+    "send": 67108
+  },
+  "source_operations": 295072,
+  "source_sha256": "46b5ac70e60d099e3457f6ad2153cebb4a0ba63c8fbbc83edd8672c07eee9885",
+  "trace_send_bytes": 4584272208
+}

@@ -9,7 +9,7 @@
   "modeled_send_bytes": 5747240448,
   "num_ranks": 64,
   "phases_per_rank": 16,
-  "preparation_wall_seconds": 16.7197122790094,
+  "preparation_wall_seconds": 16.87977125798352,
   "source": "/home/sdic/atlahs/data/hpc/lulesh/lulesh_64/lulesh_64.goal",
   "source_bytes": 665077560,
   "source_operation_kinds": {

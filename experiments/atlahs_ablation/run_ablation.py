@@ -17,6 +17,7 @@ network boundary.
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import math
@@ -624,6 +625,47 @@ def summarize(output: Path, results: list[dict[str, Any]]) -> dict[str, Any]:
         },
     }
     json_dump(output / "summary.json", summary)
+    with (output / "results.csv").open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.writer(stream, lineterminator="\n")
+        writer.writerow(
+            [
+                "vertical_optimization",
+                "horizontal_optimization",
+                "samples",
+                "wall_clock_median_seconds",
+                "wall_clock_mean_seconds",
+                "wall_clock_stdev_seconds",
+                "speedup_vs_both_off",
+                "compute_dispatch_events",
+                "scheduler_rounds_median",
+                "total_grants_median",
+                "network_completion_count",
+                "simulated_makespan_ns",
+            ]
+        )
+        for label in (
+            "accel_off__active_off",
+            "accel_off__active_on",
+            "accel_on__active_off",
+            "accel_on__active_on",
+        ):
+            cell = cells[label]
+            writer.writerow(
+                [
+                    label.startswith("accel_on"),
+                    label.endswith("active_on"),
+                    cell["samples"],
+                    cell["wall_clock_median_seconds"],
+                    cell["wall_clock_mean_seconds"],
+                    cell["wall_clock_stdev_seconds"],
+                    cell["wall_clock_speedup_vs_all_off"],
+                    cell["compute_dispatch_events"],
+                    cell["scheduler_rounds_median"],
+                    cell["total_grants_median"],
+                    cell["network_completion_count"],
+                    cell["simulated_makespans_ns"][0],
+                ]
+            )
     return summary
 
 

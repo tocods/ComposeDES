@@ -68,6 +68,10 @@ Grok-256 rank-visible 主消融中，纵向单开为 2.121×，横向单开为 2
 时间线。若要把横向收益带回完整模型，需要按 rank 或分区拆分 DAG 控制器，并为跨分区边
 增加显式完成消息或安全时间 lease。
 
+当前版本还统一重跑了三个 HPC 应用：LULESH-64、HPCG-8 和 ICON-8。纵向单开分别达到
+2.234×、1.305× 和 1.290×；横向单开分别为 0.996×、1.000× 和 1.023×。连同
+Grok-314B-256，完整协同仿真补充实验形成“三个超算 + 一个大模型训练”工作负载组合。
+
 ## 正确性边界
 
 - 事件聚合不能跨越网络、collective、资源竞争或未声明状态边界。
@@ -86,4 +90,5 @@ Grok-256 rank-visible 主消融中，纵向单开为 2.121×，横向单开为 2
 - rank-visible 扩展实验：`experiments/active_dependency_scaling/run_scaling.py`
 
 验证覆盖 Python 编排器测试、C++ Active-dependency 调度器测试、小型控制面端到端测试，
-以及 LULESH-64 和 Grok-256 的重复实验。完整结果索引见 `experiments/README.md`。
+以及 LULESH-64、HPCG-8、ICON-8 和 Grok-256 的重复实验。完整结果索引见
+`experiments/README.md`。

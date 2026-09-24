@@ -10,7 +10,7 @@
 | GPUSim | `bc84bdd6` | `0b4f104` | `55476aa` | `1601a6c` | `25081e7` | `09861db` | `09861db` | `components/gpusim` | 计算仿真 worker |
 | ns-3 | `78b53d4b3` | `c4cead46f` | `72934a130` | `4f42d2468` | `2f049f0d4` | `2f049f0d4` | `2f049f0d4` | `components/ns3` | 网络仿真 worker |
 | NeuSight | `6945927d` | 未提交本地实验改动 | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 保持当前分支 | 算子时间预测和输入生成 |
-| ATLAHS | `fb51a99f` | 上游 commit | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 提供 LULESH/Grok traces | 保持当前分支 | validation trace 与 LogGOPSim 基准 |
+| ATLAHS | `fb51a99f` | 上游 commit | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 提供 LULESH/HPCG/ICON/Grok traces | 保持当前分支 | validation trace 与 LogGOPSim 基准 |
 
 ## 基线规则
 

@@ -1,0 +1,238 @@
+{
+  "cells": {
+    "accel_off__active_off": {
+      "compute_dispatch_events": 1024,
+      "compute_plan_dispatch_events": 0,
+      "control_plane_records": [
+        3002
+      ],
+      "dependency_updates": [
+        0
+      ],
+      "network_completion_count": 840,
+      "network_dispatch_events": 840,
+      "network_identity_hashes": [
+        "4a8fa2a8ac223837e6643c04c571b63118a2e63874ac7aade9c7a6690f2edbf7"
+      ],
+      "network_semantic_hashes": [
+        "3a54014000fb6764d3527fdb1a4dd0ab2d94c0637d5e58e79afa524d74e45408"
+      ],
+      "network_trace_hashes": [
+        "3915ed0a21138a181bcefa15971364f93e3cb2e87c4161bd5abc71d379974f50"
+      ],
+      "samples": 3,
+      "scheduler_rounds": [
+        9315,
+        9315,
+        9315
+      ],
+      "scheduler_rounds_median": 9315,
+      "simulated_makespans_ns": [
+        4711358190
+      ],
+      "total_grants": [
+        9435,
+        9435,
+        9435
+      ],
+      "total_grants_median": 9435,
+      "wall_clock_mean_seconds": 1.9315544423200965,
+      "wall_clock_median_seconds": 1.9305856229912024,
+      "wall_clock_seconds": [
+        1.9305472459818702,
+        1.9305856229912024,
+        1.9335304579872172
+      ],
+      "wall_clock_speedup_vs_all_off": 1.0,
+      "wall_clock_stdev_seconds": 0.001711387342550166
+    },
+    "accel_off__active_on": {
+      "compute_dispatch_events": 1024,
+      "compute_plan_dispatch_events": 0,
+      "control_plane_records": [
+        3192
+      ],
+      "dependency_updates": [
+        190
+      ],
+      "network_completion_count": 840,
+      "network_dispatch_events": 840,
+      "network_identity_hashes": [
+        "4a8fa2a8ac223837e6643c04c571b63118a2e63874ac7aade9c7a6690f2edbf7"
+      ],
+      "network_semantic_hashes": [
+        "3a54014000fb6764d3527fdb1a4dd0ab2d94c0637d5e58e79afa524d74e45408"
+      ],
+      "network_trace_hashes": [
+        "22560319a8d203c3ae0468ac06c25e4ac878d7b5a087839f40caedd1b8e5602b"
+      ],
+      "samples": 3,
+      "scheduler_rounds": [
+        9307,
+        9307,
+        9307
+      ],
+      "scheduler_rounds_median": 9307,
+      "simulated_makespans_ns": [
+        4711358120
+      ],
+      "total_grants": [
+        9324,
+        9324,
+        9324
+      ],
+      "total_grants_median": 9324,
+      "wall_clock_mean_seconds": 1.9307121356541757,
+      "wall_clock_median_seconds": 1.9306163229921367,
+      "wall_clock_seconds": [
+        1.930920258979313,
+        1.9305998249910772,
+        1.9306163229921367
+      ],
+      "wall_clock_speedup_vs_all_off": 0.9999840983417737,
+      "wall_clock_stdev_seconds": 0.00018042875286226583
+    },
+    "accel_on__active_off": {
+      "compute_dispatch_events": 128,
+      "compute_plan_dispatch_events": 0,
+      "control_plane_records": [
+        1210
+      ],
+      "dependency_updates": [
+        0
+      ],
+      "network_completion_count": 840,
+      "network_dispatch_events": 840,
+      "network_identity_hashes": [
+        "332ede12db88a8db68d652168f054a442f0125beee628c5e937712498029f815"
+      ],
+      "network_semantic_hashes": [
+        "3a54014000fb6764d3527fdb1a4dd0ab2d94c0637d5e58e79afa524d74e45408"
+      ],
+      "network_trace_hashes": [
+        "9decae49e7cf24ebe61aae43e237678907064296683436fa838ab6ed8ce40ea9"
+      ],
+      "samples": 3,
+      "scheduler_rounds": [
+        7898,
+        7898,
+        7898
+      ],
+      "scheduler_rounds_median": 7898,
+      "simulated_makespans_ns": [
+        4711358182
+      ],
+      "total_grants": [
+        7913,
+        7913,
+        7913
+      ],
+      "total_grants_median": 7913,
+      "wall_clock_mean_seconds": 1.4631864773400594,
+      "wall_clock_median_seconds": 1.4797335600014776,
+      "wall_clock_seconds": [
+        1.4797335600014776,
+        1.4300454189942684,
+        1.479780453024432
+      ],
+      "wall_clock_speedup_vs_all_off": 1.3046846237570462,
+      "wall_clock_stdev_seconds": 0.02870100801275524
+    },
+    "accel_on__active_on": {
+      "compute_dispatch_events": 128,
+      "compute_plan_dispatch_events": 0,
+      "control_plane_records": [
+        1400
+      ],
+      "dependency_updates": [
+        190
+      ],
+      "network_completion_count": 840,
+      "network_dispatch_events": 840,
+      "network_identity_hashes": [
+        "332ede12db88a8db68d652168f054a442f0125beee628c5e937712498029f815"
+      ],
+      "network_semantic_hashes": [
+        "3a54014000fb6764d3527fdb1a4dd0ab2d94c0637d5e58e79afa524d74e45408"
+      ],
+      "network_trace_hashes": [
+        "0ca2d63a2c3f34805a83e5ba8bed9d2a592700cbd2be9c7270af2dc001fd525b"
+      ],
+      "samples": 3,
+      "scheduler_rounds": [
+        7897,
+        7897,
+        7897
+      ],
+      "scheduler_rounds_median": 7897,
+      "simulated_makespans_ns": [
+        4711358120
+      ],
+      "total_grants": [
+        7913,
+        7913,
+        7913
+      ],
+      "total_grants_median": 7913,
+      "wall_clock_mean_seconds": 1.4800036486703902,
+      "wall_clock_median_seconds": 1.4800192489929032,
+      "wall_clock_seconds": [
+        1.4801300930266734,
+        1.4800192489929032,
+        1.4798616039915942
+      ],
+      "wall_clock_speedup_vs_all_off": 1.3044327797120832,
+      "wall_clock_stdev_seconds": 0.00013492263722714417
+    }
+  },
+  "dataset": {
+    "accelerated_compute_tasks": 128,
+    "bandwidth_gbps": 56.0,
+    "baseline_compute_tasks": 1024,
+    "events_per_phase": 8,
+    "exact_regions": 128,
+    "link_delay_ns": 1000,
+    "modeled_network_edges": 840,
+    "modeled_send_bytes": 344933504,
+    "num_ranks": 8,
+    "phases_per_rank": 16,
+    "preparation_wall_seconds": 0.9008893450081814,
+    "source": "/home/sdic/atlahs/data/hpc/hpcg/hpcg_8/hpcg_8.goal",
+    "source_bytes": 30785016,
+    "source_operation_kinds": {
+      "calc": 402680,
+      "recv": 111768,
+      "send": 111768
+    },
+    "source_operations": 626216,
+    "source_sha256": "3e9c5aff427e3173264cceee411081f4d9046c7bd870be1c362f8505e80d5ce9",
+    "trace_send_bytes": 367445568
+  },
+  "validation": {
+    "network_completion_identity_preserved": false,
+    "network_completion_semantics_preserved": true,
+    "network_completion_trace_preserved": false,
+    "network_identity_hashes": [
+      "332ede12db88a8db68d652168f054a442f0125beee628c5e937712498029f815",
+      "4a8fa2a8ac223837e6643c04c571b63118a2e63874ac7aade9c7a6690f2edbf7"
+    ],
+    "network_semantic_hashes": [
+      "3a54014000fb6764d3527fdb1a4dd0ab2d94c0637d5e58e79afa524d74e45408"
+    ],
+    "network_trace_hashes": [
+      "0ca2d63a2c3f34805a83e5ba8bed9d2a592700cbd2be9c7270af2dc001fd525b",
+      "22560319a8d203c3ae0468ac06c25e4ac878d7b5a087839f40caedd1b8e5602b",
+      "3915ed0a21138a181bcefa15971364f93e3cb2e87c4161bd5abc71d379974f50",
+      "9decae49e7cf24ebe61aae43e237678907064296683436fa838ab6ed8ce40ea9"
+    ],
+    "simulated_makespan_preserved": false,
+    "simulated_makespan_relative_span": 1.4857711338649037e-08,
+    "simulated_makespan_span_ns": 70,
+    "simulated_makespan_within_1ppm": true,
+    "simulated_makespans_ns": [
+      4711358120,
+      4711358182,
+      4711358190
+    ]
+  }
+}

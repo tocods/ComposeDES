@@ -36,15 +36,15 @@
         64834
       ],
       "total_grants_median": 64834,
-      "wall_clock_mean_seconds": 14.04631073367394,
-      "wall_clock_median_seconds": 13.94668649500818,
+      "wall_clock_mean_seconds": 13.730556744994828,
+      "wall_clock_median_seconds": 13.597163388010813,
       "wall_clock_seconds": [
-        13.94668649500818,
-        13.945677973999409,
-        14.246567732014228
+        13.597163388010813,
+        13.596036286995513,
+        13.99847055997816
       ],
       "wall_clock_speedup_vs_all_off": 1.0,
-      "wall_clock_stdev_seconds": 0.17342838094398824
+      "wall_clock_stdev_seconds": 0.2320208541992862
     },
     "accel_off__active_on": {
       "compute_dispatch_events": 8192,
@@ -82,15 +82,15 @@
         64101
       ],
       "total_grants_median": 64101,
-      "wall_clock_mean_seconds": 13.962833993001064,
-      "wall_clock_median_seconds": 13.896147805993678,
+      "wall_clock_mean_seconds": 13.763324834338468,
+      "wall_clock_median_seconds": 13.646432384004584,
       "wall_clock_seconds": [
-        13.896147805993678,
-        13.895784189982805,
-        14.096569983026711
+        13.646432384004584,
+        13.997163902007742,
+        13.646378217003075
       ],
-      "wall_clock_speedup_vs_all_off": 1.0036368848201733,
-      "wall_clock_stdev_seconds": 0.1158189074601193
+      "wall_clock_speedup_vs_all_off": 0.9963896061177484,
+      "wall_clock_stdev_seconds": 0.20251057480991655
     },
     "accel_on__active_off": {
       "compute_dispatch_events": 1024,
@@ -128,15 +128,15 @@
         51989
       ],
       "total_grants_median": 51989,
-      "wall_clock_mean_seconds": 8.090571350670265,
-      "wall_clock_median_seconds": 8.08916986300028,
+      "wall_clock_mean_seconds": 6.070010973334623,
+      "wall_clock_median_seconds": 6.086879565002164,
       "wall_clock_seconds": [
-        8.08916986300028,
-        8.139447349007241,
-        8.043096840003273
+        6.035992274002638,
+        6.086879565002164,
+        6.087161080999067
       ],
-      "wall_clock_speedup_vs_all_off": 1.7241183868322605,
-      "wall_clock_stdev_seconds": 0.04819054131360026
+      "wall_clock_speedup_vs_all_off": 2.233847941758312,
+      "wall_clock_stdev_seconds": 0.02946139407757437
     },
     "accel_on__active_on": {
       "compute_dispatch_events": 1024,
@@ -174,15 +174,15 @@
         52034
       ],
       "total_grants_median": 52034,
-      "wall_clock_mean_seconds": 8.206067650656527,
-      "wall_clock_median_seconds": 8.189491697994526,
+      "wall_clock_mean_seconds": 6.086573577670303,
+      "wall_clock_median_seconds": 6.086395260004792,
       "wall_clock_seconds": [
-        8.189491697994526,
-        8.28924157898291,
-        8.139469674992142
+        6.086183484992944,
+        6.0871419880131725,
+        6.086395260004792
       ],
-      "wall_clock_speedup_vs_all_off": 1.702997818341216,
-      "wall_clock_stdev_seconds": 0.07624944236677796
+      "wall_clock_speedup_vs_all_off": 2.234025692902519,
+      "wall_clock_stdev_seconds": 0.0005035175293093355
     }
   },
   "dataset": {
@@ -196,7 +196,7 @@
     "modeled_send_bytes": 5747240448,
     "num_ranks": 64,
     "phases_per_rank": 16,
-    "preparation_wall_seconds": 16.7197122790094,
+    "preparation_wall_seconds": 16.87977125798352,
     "source": "/home/sdic/atlahs/data/hpc/lulesh/lulesh_64/lulesh_64.goal",
     "source_bytes": 665077560,
     "source_operation_kinds": {

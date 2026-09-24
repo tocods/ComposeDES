@@ -327,7 +327,9 @@ rank-visible 切分与 Active-dependency 减少 Federate 之间不必要的时�
 网络在途或终止状态变化时发布依赖 epoch；broker 将依赖图编译为整数索引和传递闭包，并在
 调度轮之间复用状态与缓冲区。有限 idle lookahead 继续作为动态任务派发的因果安全边界。
 
-实验使用 ATLAHS LULESH-64 和 Grok-256。Grok-256 rank-visible 二因素主消融结果为：纵向
+完整模型补充实验使用三个 HPC 应用（LULESH-64、HPCG-8、ICON-8）和一个大模型训练负载
+（Grok-314B-256）。纵向单开加速分别为 2.234×、1.305×、1.290× 和 2.081×。
+Grok-256 rank-visible 二因素主消融结果为：纵向
 单开 2.121×，横向单开 2.153×，双开 2.615×。在三 Federate 完整模型中，纵向单开
 2.081×，横向单开 1.005×；差异表明横向收益需要将逐-rank 时间线暴露给 broker。
 
