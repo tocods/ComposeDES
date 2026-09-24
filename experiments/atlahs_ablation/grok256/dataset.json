@@ -1,0 +1,23 @@
+{
+  "accelerated_compute_tasks": 4096,
+  "bandwidth_gbps": 56.0,
+  "baseline_compute_tasks": 32768,
+  "events_per_phase": 8,
+  "exact_regions": 4096,
+  "link_delay_ns": 1000,
+  "modeled_network_edges": 4758,
+  "modeled_send_bytes": 9487384518016,
+  "num_ranks": 256,
+  "phases_per_rank": 16,
+  "preparation_wall_seconds": 160.35424600198166,
+  "source": "/home/sdic/atlahs/data/ai/grok/Grok314B_N64_GPU256_TP4_PP1_CP1_VP1_EP8_ETP4_GBS512/grok.goal",
+  "source_bytes": 8410598614,
+  "source_operation_kinds": {
+    "calc": 59710454,
+    "recv": 27145148,
+    "send": 27145148
+  },
+  "source_operations": 114000750,
+  "source_sha256": "dec250a489ef317757de0aa58c1d0becb7063c8b7d2927bf349d6b2d54830c06",
+  "trace_send_bytes": 10481131527552
+}

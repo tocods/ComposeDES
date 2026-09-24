@@ -1,0 +1,9 @@
+federation_granularity,execution_model,event_acceleration,active_dependency,compute_events,scheduler_rounds,total_grants,wall_median_seconds,speedup_within_execution_model
+centralized_3_federates,full_cosimulation,false,false,32768,1117671,1119194,101.87154007700155,1.0
+centralized_3_federates,full_cosimulation,false,true,32768,1111667,1111885,101.32013592898147,1.0054421970812057
+centralized_3_federates,full_cosimulation,true,false,4096,1069305,1069493,48.94576397098717,2.0813147412999085
+centralized_3_federates,full_cosimulation,true,true,4096,1066834,1067048,49.192638556996826,2.0708696070239974
+rank_visible_256_federates,coordination_upper_bound,false,false,32768,32654,33024,1.826238188019488,1.0
+rank_visible_256_federates,coordination_upper_bound,false,true,32768,129,33024,0.8482740230101626,2.1528870842218506
+rank_visible_256_federates,coordination_upper_bound,true,false,4096,4090,4352,0.8608683449856471,2.1213908011101696
+rank_visible_256_federates,coordination_upper_bound,true,true,4096,17,4352,0.6983951739966869,2.6149066545928785

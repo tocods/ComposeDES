@@ -23,5 +23,14 @@
 __pycache__/
 *.pyc
 *.log
+/deps/
 /tests/control_plane_smoke/output/
 /tests/control_plane_collective/output/
+
+# Reproducible experiment outputs kept local. Commit scripts, reports, and
+# compact summaries; do not commit generated inputs or per-run artifacts.
+/experiments/**/input/
+/experiments/**/runs*/
+/experiments/**/ranks_*/
+/experiments/**/smoke/
+/experiments/**/smoke_factorial/

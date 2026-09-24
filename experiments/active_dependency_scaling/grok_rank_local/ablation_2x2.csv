@@ -1,0 +1,5 @@
+vertical_optimization,horizontal_optimization,compute_events,scheduler_rounds,total_grants,wall_median_seconds,speedup_vs_both_off
+False,False,32768,32654,33024,1.826238188019488,1.0
+False,True,32768,129,33024,0.8482740230101626,2.1528870842218506
+True,False,4096,4090,4352,0.8608683449856471,2.1213908011101696
+True,True,4096,17,4352,0.6983951739966869,2.6149066545928785

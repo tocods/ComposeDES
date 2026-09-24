@@ -1,0 +1,23 @@
+{
+  "accelerated_compute_tasks": 1024,
+  "bandwidth_gbps": 56.0,
+  "baseline_compute_tasks": 8192,
+  "events_per_phase": 8,
+  "exact_regions": 1024,
+  "link_delay_ns": 1000,
+  "modeled_network_edges": 17032,
+  "modeled_send_bytes": 5747240448,
+  "num_ranks": 64,
+  "phases_per_rank": 16,
+  "preparation_wall_seconds": 16.7197122790094,
+  "source": "/home/sdic/atlahs/data/hpc/lulesh/lulesh_64/lulesh_64.goal",
+  "source_bytes": 665077560,
+  "source_operation_kinds": {
+    "calc": 7284064,
+    "recv": 2076999,
+    "send": 2076999
+  },
+  "source_operations": 11438062,
+  "source_sha256": "d6f955de615cf2c4a57dc95b1c88c5828f03cfd31b75cc50ad044242284b9a3f",
+  "trace_send_bytes": 6131284152
+}

@@ -2,6 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+JAVA_BIN="${JAVA_BIN:-$(command -v java)}"
+export LD_LIBRARY_PATH="$ROOT/fncs/builds/local/lib:$ROOT/deps/local/lib:${LD_LIBRARY_PATH:-}"
+export FNCS_LIBRARY="$ROOT/fncs/builds/local/lib/libfncs.so"
 CASE_DIR="$ROOT/tests/control_plane_alpha4_small"
 OUTPUT_DIR="$CASE_DIR/output"
 HOSTS="$ROOT/tests/control_plane_smoke/hosts.json"
@@ -46,8 +49,7 @@ run_case() {
 
   FNCS_CONFIG_FILE="$ROOT/GPUsim/fncs.worker.zpl" \
   FNCS_BROKER="tcp://localhost:$port" FNCS_NAME=gpusim FNCS_TIME_DELTA=1ns FNCS_FATAL=yes \
-  PATH="/opt/homebrew/opt/openjdk/bin:$PATH" \
-    /opt/homebrew/opt/openjdk/bin/java --enable-native-access=ALL-UNNAMED \
+    "$JAVA_BIN" --enable-native-access=ALL-UNNAMED \
     -Djava.library.path="$ROOT/GPUsim/lib" \
     -cp "$ROOT/GPUsim/out/production/gpuworkflowsim:$ROOT/GPUsim/jars/*" \
     backend.SimEngine "$result" "$HOSTS" "$EMPTY" "$EMPTY" -1 true false 0 worker \

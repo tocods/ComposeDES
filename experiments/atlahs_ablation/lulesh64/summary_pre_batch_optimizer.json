@@ -1,0 +1,154 @@
+{
+  "cells": {
+    "accel_off__active_off": {
+      "compute_dispatch_events": 8192,
+      "compute_plan_dispatch_events": 0,
+      "network_completion_count": 17032,
+      "network_dispatch_events": 17032,
+      "network_trace_hashes": [
+        "a134b27199e406831b235491209b2f2464809aa5528698371482e62d0af646a4"
+      ],
+      "samples": 1,
+      "scheduler_rounds": [
+        64051
+      ],
+      "scheduler_rounds_median": 64051,
+      "simulated_makespans_ns": [
+        5617370535
+      ],
+      "total_grants": [
+        64834
+      ],
+      "total_grants_median": 64834,
+      "wall_clock_mean_seconds": 13.946046233002562,
+      "wall_clock_median_seconds": 13.946046233002562,
+      "wall_clock_seconds": [
+        13.946046233002562
+      ],
+      "wall_clock_speedup_vs_all_off": 1.0,
+      "wall_clock_stdev_seconds": 0.0
+    },
+    "accel_off__active_on": {
+      "compute_dispatch_events": 8192,
+      "compute_plan_dispatch_events": 0,
+      "network_completion_count": 17032,
+      "network_dispatch_events": 17032,
+      "network_trace_hashes": [
+        "d0b86c4f2c218a8ded32fef11c002f400f2f9078d237bc7d361dcca176f58d9c"
+      ],
+      "samples": 1,
+      "scheduler_rounds": [
+        64083
+      ],
+      "scheduler_rounds_median": 64083,
+      "simulated_makespans_ns": [
+        5617368443
+      ],
+      "total_grants": [
+        64101
+      ],
+      "total_grants_median": 64101,
+      "wall_clock_mean_seconds": 14.062359884992475,
+      "wall_clock_median_seconds": 14.062359884992475,
+      "wall_clock_seconds": [
+        14.062359884992475
+      ],
+      "wall_clock_speedup_vs_all_off": 0.9917287245568189,
+      "wall_clock_stdev_seconds": 0.0
+    },
+    "accel_on__active_off": {
+      "compute_dispatch_events": 1024,
+      "compute_plan_dispatch_events": 0,
+      "network_completion_count": 17032,
+      "network_dispatch_events": 17032,
+      "network_trace_hashes": [
+        "879cf1ecaf8b6e27e81a241ecceb49c11af648d8b5debaba057a574f0d327a08"
+      ],
+      "samples": 1,
+      "scheduler_rounds": [
+        51974
+      ],
+      "scheduler_rounds_median": 51974,
+      "simulated_makespans_ns": [
+        5617369518
+      ],
+      "total_grants": [
+        51989
+      ],
+      "total_grants_median": 51989,
+      "wall_clock_mean_seconds": 265.14884948698455,
+      "wall_clock_median_seconds": 265.14884948698455,
+      "wall_clock_seconds": [
+        265.14884948698455
+      ],
+      "wall_clock_speedup_vs_all_off": 0.05259704599882541,
+      "wall_clock_stdev_seconds": 0.0
+    },
+    "accel_on__active_on": {
+      "compute_dispatch_events": 1024,
+      "compute_plan_dispatch_events": 0,
+      "network_completion_count": 17032,
+      "network_dispatch_events": 17032,
+      "network_trace_hashes": [
+        "187a3c7dc4abbd890e6e4c249383e9123b8f7a8812255f6a9ee04da1f36df651"
+      ],
+      "samples": 1,
+      "scheduler_rounds": [
+        52018
+      ],
+      "scheduler_rounds_median": 52018,
+      "simulated_makespans_ns": [
+        5617368443
+      ],
+      "total_grants": [
+        52034
+      ],
+      "total_grants_median": 52034,
+      "wall_clock_mean_seconds": 264.2472153369745,
+      "wall_clock_median_seconds": 264.2472153369745,
+      "wall_clock_seconds": [
+        264.2472153369745
+      ],
+      "wall_clock_speedup_vs_all_off": 0.05277651162839398,
+      "wall_clock_stdev_seconds": 0.0
+    }
+  },
+  "dataset": {
+    "accelerated_compute_tasks": 1024,
+    "bandwidth_gbps": 56.0,
+    "baseline_compute_tasks": 8192,
+    "events_per_phase": 8,
+    "exact_regions": 1024,
+    "link_delay_ns": 1000,
+    "modeled_network_edges": 17032,
+    "modeled_send_bytes": 5747240448,
+    "num_ranks": 64,
+    "phases_per_rank": 16,
+    "preparation_wall_seconds": 16.7197122790094,
+    "source": "/home/sdic/atlahs/data/hpc/lulesh/lulesh_64/lulesh_64.goal",
+    "source_bytes": 665077560,
+    "source_operation_kinds": {
+      "calc": 7284064,
+      "recv": 2076999,
+      "send": 2076999
+    },
+    "source_operations": 11438062,
+    "source_sha256": "d6f955de615cf2c4a57dc95b1c88c5828f03cfd31b75cc50ad044242284b9a3f",
+    "trace_send_bytes": 6131284152
+  },
+  "validation": {
+    "network_completion_trace_preserved": false,
+    "network_trace_hashes": [
+      "187a3c7dc4abbd890e6e4c249383e9123b8f7a8812255f6a9ee04da1f36df651",
+      "879cf1ecaf8b6e27e81a241ecceb49c11af648d8b5debaba057a574f0d327a08",
+      "a134b27199e406831b235491209b2f2464809aa5528698371482e62d0af646a4",
+      "d0b86c4f2c218a8ded32fef11c002f400f2f9078d237bc7d361dcca176f58d9c"
+    ],
+    "simulated_makespan_preserved": false,
+    "simulated_makespans_ns": [
+      5617368443,
+      5617369518,
+      5617370535
+    ]
+  }
+}

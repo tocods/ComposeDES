@@ -1,6 +1,6 @@
 # 协同仿真 DAG 控制面重构方案
 
-## 实施状态（2026-09-09）
+## 实施状态（2026-09-24）
 
 v2 alpha.4 已经实现并完成三联邦端到端验证：
 
@@ -17,6 +17,11 @@ v2 alpha.4 已经实现并完成三联邦端到端验证：
 - GPUSim worker 已补齐无 GPU kernel 任务的 CPU 执行路径，DAG 仍完全由 orchestrator 控制。
 
 当前仍保留 legacy 模式用于旧实验回归。60KB 分段保证每个字节经过真实 ns-3 链路、队列和路由，但对数十 GB trace 会产生大量数据报；超大通信的可扩展 flow 模型仍未实现，不能用 alpha.4 直接完成此类大规模实验。
+
+第二项性能工作已经在该控制面上完成：认证的本地事件链通过批量图收缩实现纵向优化；
+rank-visible Federate 切分和 Active-dependency 实现横向优化。broker 在依赖 epoch 更新时
+建立整数索引和传递闭包，普通调度轮复用缓冲区。完整设计、因果边界和 Grok-256 二因素
+实验见 `docs/WORK_2_DESIGN.md` 与 `experiments/README.md`。
 
 ## 1. 决策摘要
 
@@ -190,7 +195,8 @@ GPUSim 启动时只加载 hosts/resource 配置；task spec 随 dispatch 下发�
 
 1. 所有 publish 必须发生在本联邦成员已获得的逻辑时间上。
 2. 联邦成员先批量 publish 当前时间产生的结果，再调用 `fncs::time_request(next_local_event)`。
-3. orchestrator 没有内部定时事件时请求无穷大，由 worker 的更早完成事件将其唤醒。
+3. orchestrator 没有内部定时事件时使用有限 idle lookahead。它不能提前请求无穷大：动态
+   worker completion 仍可能触发新的任务派发，而目标 Federate 不能在收到任务前先到达终点。
 4. orchestrator 获得时间 `T` 后，先消费所有输入批次，再一次性完成状态迁移，最后批量发布 `T` 时刻的新命令。
 5. worker 收到 dispatch 后，只在本地事件队列中安排执行；完成前不得代替中间件解锁 DAG 后继。
 6. 对同一时间的连锁事件采用 FNCS barrier 轮次，不通过篡改时间戳绕过因果关系。若 FNCS 2.3.2 无法稳定处理零时间反馈，则协议明确使用 `time_delta=1ns` 形成最小因果间隔。

@@ -1,0 +1,3 @@
+configuration,pre_optimization_median_s,optimized_median_s,implementation_speedup,time_reduction_percent
+accel_off__active_on,110.62472435997915,101.32013592898147,1.0918336,8.4109
+accel_on__active_on,55.74824139600969,49.192638556996826,1.1332639,11.7593

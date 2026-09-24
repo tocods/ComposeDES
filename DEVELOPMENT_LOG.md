@@ -315,3 +315,21 @@ java --enable-native-access=ALL-UNNAMED -Djava.library.path=GPUsim/lib \
 
 5. **NS-3 RDMA 模型**：当前 p2p 链路的协议栈开销 ~1.4ms >> 真实 RDMA ~1μs。可用 NS-3 的 RDMA 模块改善。
 6. **多请求推理场景**：当前为单次前向传播，未涉及 Continuous Batching / KV Cache。
+
+---
+
+## 八、第二项工作：纵向与横向性能优化（2026-09-24）
+
+本阶段将性能机制统一为两个优化轴：纵向事件聚合减少 Federate 内部事件，横向
+rank-visible 切分与 Active-dependency 减少 Federate 之间不必要的时间同步。
+
+实现方面，工作流优化器改为一次遍历批量收缩所有互不重叠的认证区域；编排器只在计算在途、
+网络在途或终止状态变化时发布依赖 epoch；broker 将依赖图编译为整数索引和传递闭包，并在
+调度轮之间复用状态与缓冲区。有限 idle lookahead 继续作为动态任务派发的因果安全边界。
+
+实验使用 ATLAHS LULESH-64 和 Grok-256。Grok-256 rank-visible 二因素主消融结果为：纵向
+单开 2.121×，横向单开 2.153×，双开 2.615×。在三 Federate 完整模型中，纵向单开
+2.081×，横向单开 1.005×；差异表明横向收益需要将逐-rank 时间线暴露给 broker。
+
+设计文档位于 `docs/WORK_2_DESIGN.md`，实验索引位于 `experiments/README.md`。原始 GOAL、
+生成输入、逐次运行日志和本机构建产物不进入 Git。

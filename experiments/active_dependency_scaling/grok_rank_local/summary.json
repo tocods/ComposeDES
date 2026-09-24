@@ -1,0 +1,593 @@
+{
+  "cells": {
+    "ranks_128__aggregated__active": {
+      "dependency_updates": [
+        1
+      ],
+      "event_mode": "aggregated",
+      "events_per_rank": 16,
+      "horizontal_optimization": true,
+      "horizontal_speedup": 1.2036140970714209,
+      "mode": "active",
+      "rank_count": 128,
+      "round_reduction_fraction": 0.9916911045943304,
+      "samples": 3,
+      "scheduler_rounds": [
+        17
+      ],
+      "speedup_vs_both_off": 1.9824121593000974,
+      "total_events": 2048,
+      "total_grants": [
+        2176
+      ],
+      "vertical_optimization": true,
+      "wall_mean_seconds": 0.4625447236661178,
+      "wall_median_seconds": 0.4618904700037092,
+      "wall_seconds": [
+        0.4618904700037092,
+        0.4500715319882147,
+        0.4756721690064296
+      ],
+      "wall_stdev_seconds": 0.012812852524932934
+    },
+    "ranks_128__aggregated__global": {
+      "dependency_updates": [
+        0
+      ],
+      "event_mode": "aggregated",
+      "events_per_rank": 16,
+      "horizontal_optimization": false,
+      "mode": "global",
+      "rank_count": 128,
+      "samples": 3,
+      "scheduler_rounds": [
+        2046
+      ],
+      "speedup_vs_both_off": 1.6470496350313713,
+      "total_events": 2048,
+      "total_grants": [
+        2176
+      ],
+      "vertical_optimization": true,
+      "wall_mean_seconds": 0.560573843336897,
+      "wall_median_seconds": 0.5559378809994087,
+      "wall_seconds": [
+        0.5703428480192088,
+        0.5554408009920735,
+        0.5559378809994087
+      ],
+      "wall_stdev_seconds": 0.008463856183542777
+    },
+    "ranks_128__baseline__active": {
+      "dependency_updates": [
+        1
+      ],
+      "event_mode": "baseline",
+      "events_per_rank": 128,
+      "horizontal_optimization": true,
+      "horizontal_speedup": 1.6267293860188443,
+      "mode": "active",
+      "rank_count": 128,
+      "round_reduction_fraction": 0.9921096091504068,
+      "samples": 3,
+      "scheduler_rounds": [
+        129
+      ],
+      "speedup_vs_both_off": 1.6267293860188443,
+      "total_events": 16384,
+      "total_grants": [
+        16512
+      ],
+      "vertical_optimization": false,
+      "wall_mean_seconds": 0.5648641703301109,
+      "wall_median_seconds": 0.5628823649894912,
+      "wall_seconds": [
+        0.5550976250087842,
+        0.5628823649894912,
+        0.5766125209920574
+      ],
+      "wall_stdev_seconds": 0.010893500429102101
+    },
+    "ranks_128__baseline__global": {
+      "dependency_updates": [
+        0
+      ],
+      "event_mode": "baseline",
+      "events_per_rank": 128,
+      "horizontal_optimization": false,
+      "mode": "global",
+      "rank_count": 128,
+      "samples": 3,
+      "scheduler_rounds": [
+        16349
+      ],
+      "speedup_vs_both_off": 1.0,
+      "total_events": 16384,
+      "total_grants": [
+        16512
+      ],
+      "vertical_optimization": false,
+      "wall_mean_seconds": 0.9126771140048126,
+      "wall_median_seconds": 0.91565728400019,
+      "wall_seconds": [
+        0.9056972920079716,
+        0.916676766006276,
+        0.91565728400019
+      ],
+      "wall_stdev_seconds": 0.0060661579455922494
+    },
+    "ranks_256__aggregated__active": {
+      "dependency_updates": [
+        1
+      ],
+      "event_mode": "aggregated",
+      "events_per_rank": 16,
+      "horizontal_optimization": true,
+      "horizontal_speedup": 1.232637877577503,
+      "mode": "active",
+      "rank_count": 256,
+      "round_reduction_fraction": 0.9958435207823961,
+      "samples": 3,
+      "scheduler_rounds": [
+        17
+      ],
+      "speedup_vs_both_off": 2.6149066545928785,
+      "total_events": 4096,
+      "total_grants": [
+        4352
+      ],
+      "vertical_optimization": true,
+      "wall_mean_seconds": 0.7014054879934216,
+      "wall_median_seconds": 0.6983951739966869,
+      "wall_seconds": [
+        0.6937110690050758,
+        0.6983951739966869,
+        0.7121102209785022
+      ],
+      "wall_stdev_seconds": 0.009561835132677844
+    },
+    "ranks_256__aggregated__global": {
+      "dependency_updates": [
+        0
+      ],
+      "event_mode": "aggregated",
+      "events_per_rank": 16,
+      "horizontal_optimization": false,
+      "mode": "global",
+      "rank_count": 256,
+      "samples": 3,
+      "scheduler_rounds": [
+        4090
+      ],
+      "speedup_vs_both_off": 2.1213908011101696,
+      "total_events": 4096,
+      "total_grants": [
+        4352
+      ],
+      "vertical_optimization": true,
+      "wall_mean_seconds": 0.8499948966588514,
+      "wall_median_seconds": 0.8608683449856471,
+      "wall_seconds": [
+        0.860997303010663,
+        0.8608683449856471,
+        0.8281190419802442
+      ],
+      "wall_stdev_seconds": 0.018945155607244576
+    },
+    "ranks_256__baseline__active": {
+      "dependency_updates": [
+        1
+      ],
+      "event_mode": "baseline",
+      "events_per_rank": 128,
+      "horizontal_optimization": true,
+      "horizontal_speedup": 2.1528870842218506,
+      "mode": "active",
+      "rank_count": 256,
+      "round_reduction_fraction": 0.9960494885772034,
+      "samples": 3,
+      "scheduler_rounds": [
+        129
+      ],
+      "speedup_vs_both_off": 2.1528870842218506,
+      "total_events": 32768,
+      "total_grants": [
+        33024
+      ],
+      "vertical_optimization": false,
+      "wall_mean_seconds": 0.8575382260023616,
+      "wall_median_seconds": 0.8482740230101626,
+      "wall_seconds": [
+        0.8482740230101626,
+        0.8403692569991108,
+        0.8839713979978114
+      ],
+      "wall_stdev_seconds": 0.023230492197285537
+    },
+    "ranks_256__baseline__global": {
+      "dependency_updates": [
+        0
+      ],
+      "event_mode": "baseline",
+      "events_per_rank": 128,
+      "horizontal_optimization": false,
+      "mode": "global",
+      "rank_count": 256,
+      "samples": 3,
+      "scheduler_rounds": [
+        32654
+      ],
+      "speedup_vs_both_off": 1.0,
+      "total_events": 32768,
+      "total_grants": [
+        33024
+      ],
+      "vertical_optimization": false,
+      "wall_mean_seconds": 1.8123020913432508,
+      "wall_median_seconds": 1.826238188019488,
+      "wall_seconds": [
+        1.826238188019488,
+        1.778655964997597,
+        1.8320121210126672
+      ],
+      "wall_stdev_seconds": 0.029281067929691366
+    },
+    "ranks_32__aggregated__active": {
+      "dependency_updates": [
+        1
+      ],
+      "event_mode": "aggregated",
+      "events_per_rank": 16,
+      "horizontal_optimization": true,
+      "horizontal_speedup": 0.9964233105368725,
+      "mode": "active",
+      "rank_count": 32,
+      "round_reduction_fraction": 0.9668615984405458,
+      "samples": 3,
+      "scheduler_rounds": [
+        17
+      ],
+      "speedup_vs_both_off": 1.3741547055142096,
+      "total_events": 512,
+      "total_grants": [
+        544
+      ],
+      "vertical_optimization": true,
+      "wall_mean_seconds": 0.2728221443442938,
+      "wall_median_seconds": 0.2728713350079488,
+      "wall_seconds": [
+        0.2733075860014651,
+        0.2728713350079488,
+        0.27228751202346757
+      ],
+      "wall_stdev_seconds": 0.0005118129748160332
+    },
+    "ranks_32__aggregated__global": {
+      "dependency_updates": [
+        0
+      ],
+      "event_mode": "aggregated",
+      "events_per_rank": 16,
+      "horizontal_optimization": false,
+      "mode": "global",
+      "rank_count": 32,
+      "samples": 3,
+      "scheduler_rounds": [
+        513
+      ],
+      "speedup_vs_both_off": 1.379087272430244,
+      "total_events": 512,
+      "total_grants": [
+        544
+      ],
+      "vertical_optimization": true,
+      "wall_mean_seconds": 0.27421820233576,
+      "wall_median_seconds": 0.27189535897923633,
+      "wall_seconds": [
+        0.27189535897923633,
+        0.27177697300794534,
+        0.2789822750200983
+      ],
+      "wall_stdev_seconds": 0.004126232569280784
+    },
+    "ranks_32__baseline__active": {
+      "dependency_updates": [
+        1
+      ],
+      "event_mode": "baseline",
+      "events_per_rank": 128,
+      "horizontal_optimization": true,
+      "horizontal_speedup": 1.1418808864941723,
+      "mode": "active",
+      "rank_count": 32,
+      "round_reduction_fraction": 0.968505859375,
+      "samples": 3,
+      "scheduler_rounds": [
+        129
+      ],
+      "speedup_vs_both_off": 1.1418808864941723,
+      "total_events": 4096,
+      "total_grants": [
+        4128
+      ],
+      "vertical_optimization": false,
+      "wall_mean_seconds": 0.32672631566917215,
+      "wall_median_seconds": 0.3283770080015529,
+      "wall_seconds": [
+        0.32169184600934386,
+        0.3283770080015529,
+        0.33011009299661964
+      ],
+      "wall_stdev_seconds": 0.004445256962969622
+    },
+    "ranks_32__baseline__global": {
+      "dependency_updates": [
+        0
+      ],
+      "event_mode": "baseline",
+      "events_per_rank": 128,
+      "horizontal_optimization": false,
+      "mode": "global",
+      "rank_count": 32,
+      "samples": 3,
+      "scheduler_rounds": [
+        4096
+      ],
+      "speedup_vs_both_off": 1.0,
+      "total_events": 4096,
+      "total_grants": [
+        4128
+      ],
+      "vertical_optimization": false,
+      "wall_mean_seconds": 0.3767341626614022,
+      "wall_median_seconds": 0.3749674290011171,
+      "wall_seconds": [
+        0.37269422798999585,
+        0.3749674290011171,
+        0.38254083099309355
+      ],
+      "wall_stdev_seconds": 0.005155570632329782
+    },
+    "ranks_64__aggregated__active": {
+      "dependency_updates": [
+        1
+      ],
+      "event_mode": "aggregated",
+      "events_per_rank": 16,
+      "horizontal_optimization": true,
+      "horizontal_speedup": 0.996571749194062,
+      "mode": "active",
+      "rank_count": 64,
+      "round_reduction_fraction": 0.9833822091886608,
+      "samples": 3,
+      "scheduler_rounds": [
+        17
+      ],
+      "speedup_vs_both_off": 1.5460579016282223,
+      "total_events": 1024,
+      "total_grants": [
+        1088
+      ],
+      "vertical_optimization": true,
+      "wall_mean_seconds": 0.3589520580135286,
+      "wall_median_seconds": 0.3674101160140708,
+      "wall_seconds": [
+        0.33810979302506894,
+        0.3674101160140708,
+        0.371336265001446
+      ],
+      "wall_stdev_seconds": 0.018156367171178404
+    },
+    "ranks_64__aggregated__global": {
+      "dependency_updates": [
+        0
+      ],
+      "event_mode": "aggregated",
+      "events_per_rank": 16,
+      "horizontal_optimization": false,
+      "mode": "global",
+      "rank_count": 64,
+      "samples": 3,
+      "scheduler_rounds": [
+        1023
+      ],
+      "speedup_vs_both_off": 1.551376409052871,
+      "total_events": 1024,
+      "total_grants": [
+        1088
+      ],
+      "vertical_optimization": true,
+      "wall_mean_seconds": 0.3678276783321053,
+      "wall_median_seconds": 0.3661505419877358,
+      "wall_seconds": [
+        0.3661505419877358,
+        0.3712027450092137,
+        0.3661297479993664
+      ],
+      "wall_stdev_seconds": 0.0029229119733039798
+    },
+    "ranks_64__baseline__active": {
+      "dependency_updates": [
+        1
+      ],
+      "event_mode": "baseline",
+      "events_per_rank": 128,
+      "horizontal_optimization": true,
+      "horizontal_speedup": 1.5313246261155473,
+      "mode": "active",
+      "rank_count": 64,
+      "round_reduction_fraction": 0.9842413877351576,
+      "samples": 3,
+      "scheduler_rounds": [
+        129
+      ],
+      "speedup_vs_both_off": 1.5313246261155473,
+      "total_events": 8192,
+      "total_grants": [
+        8256
+      ],
+      "vertical_optimization": false,
+      "wall_mean_seconds": 0.37240164234147716,
+      "wall_median_seconds": 0.37094506502035074,
+      "wall_seconds": [
+        0.3679122650064528,
+        0.37094506502035074,
+        0.378347596997628
+      ],
+      "wall_stdev_seconds": 0.005367983938204918
+    },
+    "ranks_64__baseline__global": {
+      "dependency_updates": [
+        0
+      ],
+      "event_mode": "baseline",
+      "events_per_rank": 128,
+      "horizontal_optimization": false,
+      "mode": "global",
+      "rank_count": 64,
+      "samples": 3,
+      "scheduler_rounds": [
+        8186
+      ],
+      "speedup_vs_both_off": 1.0,
+      "total_events": 8192,
+      "total_grants": [
+        8256
+      ],
+      "vertical_optimization": false,
+      "wall_mean_seconds": 0.5677269450000798,
+      "wall_median_seconds": 0.568037313001696,
+      "wall_seconds": [
+        0.5692207170068286,
+        0.568037313001696,
+        0.5659228049917147
+      ],
+      "wall_stdev_seconds": 0.0016707190479487374
+    },
+    "ranks_8__aggregated__active": {
+      "dependency_updates": [
+        1
+      ],
+      "event_mode": "aggregated",
+      "events_per_rank": 16,
+      "horizontal_optimization": true,
+      "horizontal_speedup": 1.0021306699483574,
+      "mode": "active",
+      "rank_count": 8,
+      "round_reduction_fraction": 0.8682170542635659,
+      "samples": 3,
+      "scheduler_rounds": [
+        17
+      ],
+      "speedup_vs_both_off": 1.0004115436405245,
+      "total_events": 128,
+      "total_grants": [
+        136
+      ],
+      "vertical_optimization": true,
+      "wall_mean_seconds": 0.2565863063306703,
+      "wall_median_seconds": 0.2658745830121916,
+      "wall_seconds": [
+        0.23401400598231703,
+        0.26987032999750227,
+        0.2658745830121916
+      ],
+      "wall_stdev_seconds": 0.01965001414133986
+    },
+    "ranks_8__aggregated__global": {
+      "dependency_updates": [
+        0
+      ],
+      "event_mode": "aggregated",
+      "events_per_rank": 16,
+      "horizontal_optimization": false,
+      "mode": "global",
+      "rank_count": 8,
+      "samples": 3,
+      "scheduler_rounds": [
+        129
+      ],
+      "speedup_vs_both_off": 0.9982845287951106,
+      "total_events": 128,
+      "total_grants": [
+        136
+      ],
+      "vertical_optimization": true,
+      "wall_mean_seconds": 0.2662300109999099,
+      "wall_median_seconds": 0.2664410739962477,
+      "wall_seconds": [
+        0.2664410739962477,
+        0.2656694739998784,
+        0.2665794850036036
+      ],
+      "wall_stdev_seconds": 0.0004903475278234526
+    },
+    "ranks_8__baseline__active": {
+      "dependency_updates": [
+        1
+      ],
+      "event_mode": "baseline",
+      "events_per_rank": 128,
+      "horizontal_optimization": true,
+      "horizontal_speedup": 1.0016355432921782,
+      "mode": "active",
+      "rank_count": 8,
+      "round_reduction_fraction": 0.8741463414634146,
+      "samples": 3,
+      "scheduler_rounds": [
+        129
+      ],
+      "speedup_vs_both_off": 1.0016355432921782,
+      "total_events": 1024,
+      "total_grants": [
+        1032
+      ],
+      "vertical_optimization": false,
+      "wall_mean_seconds": 0.2655964420021822,
+      "wall_median_seconds": 0.2655496840015985,
+      "wall_seconds": [
+        0.2652562989969738,
+        0.2659833430079743,
+        0.2655496840015985
+      ],
+      "wall_stdev_seconds": 0.0003657703944373828
+    },
+    "ranks_8__baseline__global": {
+      "dependency_updates": [
+        0
+      ],
+      "event_mode": "baseline",
+      "events_per_rank": 128,
+      "horizontal_optimization": false,
+      "mode": "global",
+      "rank_count": 8,
+      "samples": 3,
+      "scheduler_rounds": [
+        1025
+      ],
+      "speedup_vs_both_off": 1.0,
+      "total_events": 1024,
+      "total_grants": [
+        1032
+      ],
+      "vertical_optimization": false,
+      "wall_mean_seconds": 0.2658682293452633,
+      "wall_median_seconds": 0.26598400200600736,
+      "wall_seconds": [
+        0.26549090701155365,
+        0.26598400200600736,
+        0.2661297790182289
+      ],
+      "wall_stdev_seconds": 0.00033480119766830097
+    }
+  },
+  "description": "Grok rank-local compute schedules without cross-rank edges; two-factor vertical event aggregation x horizontal Active-dependency coordination ablation",
+  "factors": {
+    "horizontal_optimization": "enable Active-dependency coordination over the fixed rank-visible federate partition",
+    "vertical_optimization": "aggregate 128 local compute events per rank into 16 exact phase events"
+  },
+  "fixed_conditions": {
+    "cross_rank_network": "excluded",
+    "federation_partition": "one FNCS federate per rank"
+  }
+}
