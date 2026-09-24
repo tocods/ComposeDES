@@ -25,75 +25,190 @@ struct ActiveGrant {
     fncs::time time;
 };
 
-/** Select a causally safe set of federates to grant concurrently. */
-inline std::vector<ActiveGrant> select_active_grants(
-        const std::vector<ActiveTimeState>& states,
-        const std::map<std::string, std::set<std::string> >& dependencies) {
-    const fncs::time infinity = ULLONG_MAX;
-    std::map<std::string, size_t> indexes;
-    std::vector<fncs::time> actionable(states.size(), infinity);
-    std::vector<fncs::time> lower_bound(states.size(), infinity);
+struct ActiveDependencyGraph {
+    std::vector<std::vector<size_t> > direct;
+    std::vector<std::vector<size_t> > closure;
 
-    for (size_t i = 0; i < states.size(); ++i) {
-        indexes[states[i].name] = i;
-        if (!states[i].processing) {
-            actionable[i] = states[i].messages_pending
-                ? states[i].pending_time : states[i].requested;
-            lower_bound[i] = actionable[i];
-        }
+    void reset(size_t size) {
+        direct.assign(size, std::vector<size_t>());
+        closure.assign(size, std::vector<size_t>());
     }
 
-    // Propagate wake-up bounds transitively.  For example, compute may wake
-    // the orchestrator, which may then dispatch network work at the same time.
-    for (size_t pass = 0; pass < states.size(); ++pass) {
-        bool changed = false;
-        for (size_t i = 0; i < states.size(); ++i) {
-            if (states[i].processing) {
-                continue;
-            }
-            std::map<std::string, std::set<std::string> >::const_iterator dep =
-                dependencies.find(states[i].name);
-            if (dep == dependencies.end()) {
-                continue;
-            }
-            fncs::time candidate = lower_bound[i];
-            for (std::set<std::string>::const_iterator producer = dep->second.begin();
-                    producer != dep->second.end(); ++producer) {
-                std::map<std::string, size_t>::const_iterator found = indexes.find(*producer);
-                if (found != indexes.end()) {
-                    candidate = std::min(candidate, lower_bound[found->second]);
+    void rebuild_closure() {
+        const size_t size = direct.size();
+        std::vector<std::vector<bool> > reachable(
+            size, std::vector<bool>(size, false));
+        for (size_t consumer = 0; consumer < size; ++consumer) {
+            for (size_t edge = 0; edge < direct[consumer].size(); ++edge) {
+                size_t producer = direct[consumer][edge];
+                if (producer < size && producer != consumer) {
+                    reachable[consumer][producer] = true;
                 }
             }
-            if (candidate < lower_bound[i]) {
-                lower_bound[i] = candidate;
-                changed = true;
+        }
+        for (size_t via = 0; via < size; ++via) {
+            for (size_t consumer = 0; consumer < size; ++consumer) {
+                if (!reachable[consumer][via]) {
+                    continue;
+                }
+                for (size_t producer = 0; producer < size; ++producer) {
+                    if (reachable[via][producer]) {
+                        reachable[consumer][producer] = true;
+                    }
+                }
             }
         }
-        if (!changed) {
-            break;
+        closure.assign(size, std::vector<size_t>());
+        for (size_t consumer = 0; consumer < size; ++consumer) {
+            for (size_t producer = 0; producer < size; ++producer) {
+                if (producer != consumer && reachable[consumer][producer]) {
+                    closure[consumer].push_back(producer);
+                }
+            }
+        }
+    }
+};
+
+struct ActiveSchedulerScratch {
+    std::vector<fncs::time> actionable;
+    std::vector<fncs::time> lower_bound;
+    std::vector<ActiveGrant> grants;
+
+    void resize(size_t size) {
+        actionable.resize(size);
+        lower_bound.resize(size);
+        grants.reserve(size);
+    }
+};
+
+inline ActiveDependencyGraph index_active_dependencies(
+        const std::vector<ActiveTimeState>& states,
+        const std::map<std::string, std::set<std::string> >& dependencies) {
+    ActiveDependencyGraph indexed;
+    indexed.reset(states.size());
+    std::map<std::string, size_t> indexes;
+    for (size_t i = 0; i < states.size(); ++i) {
+        indexes[states[i].name] = i;
+    }
+    for (size_t i = 0; i < states.size(); ++i) {
+        std::map<std::string, std::set<std::string> >::const_iterator dep =
+            dependencies.find(states[i].name);
+        if (dep == dependencies.end()) {
+            continue;
+        }
+        for (std::set<std::string>::const_iterator producer = dep->second.begin();
+                producer != dep->second.end(); ++producer) {
+            std::map<std::string, size_t>::const_iterator found =
+                indexes.find(*producer);
+            if (found != indexes.end() && found->second != i) {
+                indexed.direct[i].push_back(found->second);
+            }
+        }
+    }
+    indexed.rebuild_closure();
+    return indexed;
+}
+
+/** Select a causally safe set using a pre-indexed dependency graph. */
+inline const std::vector<ActiveGrant>& select_active_grants(
+        const std::vector<ActiveTimeState>& states,
+        const ActiveDependencyGraph& dependencies,
+        ActiveSchedulerScratch *scratch) {
+    const fncs::time infinity = ULLONG_MAX;
+    const size_t size = states.size();
+    if (scratch->actionable.size() != size) {
+        scratch->resize(size);
+    }
+    std::fill(scratch->actionable.begin(), scratch->actionable.end(), infinity);
+    std::fill(scratch->lower_bound.begin(), scratch->lower_bound.end(), infinity);
+    scratch->grants.clear();
+    bool has_processing = false;
+
+    for (size_t i = 0; i < size; ++i) {
+        if (!states[i].processing) {
+            scratch->actionable[i] = states[i].messages_pending
+                ? states[i].pending_time : states[i].requested;
+            scratch->lower_bound[i] = scratch->actionable[i];
+        }
+        else {
+            has_processing = true;
         }
     }
 
-    std::vector<ActiveGrant> grants;
-    for (size_t i = 0; i < states.size(); ++i) {
-        if (!states[i].processing && actionable[i] == lower_bound[i]) {
-            grants.push_back(ActiveGrant{i, actionable[i]});
+    if (!has_processing && dependencies.closure.size() == size) {
+        // The transitive closure is rebuilt only when a new dependency epoch
+        // arrives.  Normal scheduling rounds become a compact indexed scan.
+        for (size_t i = 0; i < size; ++i) {
+            fncs::time candidate = scratch->actionable[i];
+            for (size_t edge = 0; edge < dependencies.closure[i].size(); ++edge) {
+                candidate = std::min(
+                    candidate,
+                    scratch->actionable[dependencies.closure[i][edge]]);
+            }
+            scratch->lower_bound[i] = candidate;
+        }
+    }
+    else {
+        // Preserve the original behavior while disconnected/processing
+        // federates are present: dependencies do not propagate through them.
+        for (size_t pass = 0; pass < size; ++pass) {
+            bool changed = false;
+            for (size_t i = 0; i < size; ++i) {
+                if (states[i].processing || i >= dependencies.direct.size()) {
+                    continue;
+                }
+                fncs::time candidate = scratch->lower_bound[i];
+                for (size_t edge = 0; edge < dependencies.direct[i].size(); ++edge) {
+                    size_t producer = dependencies.direct[i][edge];
+                    if (producer < size) {
+                        candidate = std::min(
+                            candidate, scratch->lower_bound[producer]);
+                    }
+                }
+                if (candidate < scratch->lower_bound[i]) {
+                    scratch->lower_bound[i] = candidate;
+                    changed = true;
+                }
+            }
+            if (!changed) {
+                break;
+            }
+        }
+    }
+
+    for (size_t i = 0; i < size; ++i) {
+        if (!states[i].processing
+                && scratch->actionable[i] == scratch->lower_bound[i]) {
+            ActiveGrant grant = {i, scratch->actionable[i]};
+            scratch->grants.push_back(grant);
         }
     }
 
     // Invalid or cyclic equal-time dependencies must not deadlock the broker.
     // The original global-minimum rule is always a conservative fallback.
-    if (grants.empty()) {
+    if (scratch->grants.empty()) {
         fncs::time minimum = infinity;
-        for (size_t i = 0; i < actionable.size(); ++i) {
-            minimum = std::min(minimum, actionable[i]);
+        for (size_t i = 0; i < size; ++i) {
+            minimum = std::min(minimum, scratch->actionable[i]);
         }
-        for (size_t i = 0; i < actionable.size(); ++i) {
-            if (!states[i].processing && actionable[i] == minimum) {
-                grants.push_back(ActiveGrant{i, minimum});
+        for (size_t i = 0; i < size; ++i) {
+            if (!states[i].processing && scratch->actionable[i] == minimum) {
+                ActiveGrant grant = {i, minimum};
+                scratch->grants.push_back(grant);
             }
         }
     }
+    return scratch->grants;
+}
+
+/** Compatibility wrapper for callers that keep name-based dependencies. */
+inline std::vector<ActiveGrant> select_active_grants(
+        const std::vector<ActiveTimeState>& states,
+        const std::map<std::string, std::set<std::string> >& dependencies) {
+    ActiveDependencyGraph indexed = index_active_dependencies(states, dependencies);
+    ActiveSchedulerScratch scratch;
+    const std::vector<ActiveGrant>& grants =
+        select_active_grants(states, indexed, &scratch);
     return grants;
 }
 

@@ -131,6 +131,7 @@ def _validate_region(
     region: Dict[str, Any],
     tasks: Dict[str, Dict[str, Any]],
     collective_members: set[str],
+    incoming_by_destination: Dict[str, List[str]],
 ) -> None:
     region_id = str(region.get("id") or "")
     members = region.get("members")
@@ -152,17 +153,22 @@ def _validate_region(
     internal_edges: List[Tuple[str, str]] = []
     incoming: List[Tuple[str, str]] = []
     outgoing: List[Tuple[str, str]] = []
-    for src, task in tasks.items():
+    for src in members:
+        task = tasks[src]
         for child in task.get("children") or []:
             dst = str(child.get("child") or "")
-            if src in member_set and dst in member_set:
+            if dst in member_set:
                 if int(child.get("size") or 0) != 0:
                     raise OptimizationError(f"region {region_id} contains network communication")
                 internal_edges.append((src, dst))
-            elif src not in member_set and dst in member_set:
-                incoming.append((src, dst))
-            elif src in member_set and dst not in member_set:
+            else:
                 outgoing.append((src, dst))
+    for dst in members:
+        incoming.extend(
+            (src, dst)
+            for src in incoming_by_destination.get(dst, [])
+            if src not in member_set
+        )
     expected = list(zip(members, members[1:]))
     if internal_edges != expected:
         raise OptimizationError(f"region {region_id} is not the declared linear chain")
@@ -238,6 +244,46 @@ def _contract(tasks_list: Sequence[Dict[str, Any]], region: Dict[str, Any]) -> L
     return result
 
 
+def _contract_regions(
+    tasks_list: Sequence[Dict[str, Any]],
+    regions: Sequence[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Contract disjoint regions in one graph pass.
+
+    Region validation guarantees that external edges enter only at a region's
+    first member and leave only from its last member.  Rewriting every edge
+    against the complete member-to-macro map is therefore equivalent to
+    applying ``_contract`` repeatedly, while avoiding one full graph copy and
+    index construction per region.
+    """
+    tasks = _index_tasks(tasks_list)
+    member_to_macro: Dict[str, str] = {}
+    macros: List[Dict[str, Any]] = []
+    for region in regions:
+        macro = _merge_native_tasks(region, tasks)
+        macros.append(macro)
+        for member in region["members"]:
+            member_to_macro[member] = macro["name"]
+
+    def rewrite_children(task: Dict[str, Any]) -> Dict[str, Any]:
+        rewritten = copy.deepcopy(task)
+        for child in rewritten.get("children") or []:
+            destination = str(child.get("child") or "")
+            macro_name = member_to_macro.get(destination)
+            if macro_name is not None:
+                child["child"] = macro_name
+                child["dst_host"] = tasks[destination]["host"]
+        return rewritten
+
+    result = [
+        rewrite_children(task)
+        for name, task in tasks.items()
+        if name not in member_to_macro
+    ]
+    result.extend(rewrite_children(macro) for macro in macros)
+    return result
+
+
 def optimize_workflow(
     tasks_list: Sequence[Dict[str, Any]],
     collectives: Sequence[Dict[str, Any]],
@@ -253,6 +299,10 @@ def optimize_workflow(
         raise OptimizationError("acceleration regions must be an array")
 
     original = _index_tasks(tasks_list)
+    incoming_by_destination: Dict[str, List[str]] = defaultdict(list)
+    for src, task in original.items():
+        for child in task.get("children") or []:
+            incoming_by_destination[str(child.get("child") or "")].append(src)
     collective_members = {
         str(participant.get(field) or "")
         for collective in collectives
@@ -262,7 +312,9 @@ def optimize_workflow(
     occupied: set[str] = set()
     by_id: Dict[str, Dict[str, Any]] = {}
     for region in regions:
-        _validate_region(region, original, collective_members)
+        _validate_region(
+            region, original, collective_members, incoming_by_destination
+        )
         region_id = str(region["id"])
         if region_id in by_id or occupied.intersection(region["members"]):
             raise OptimizationError(f"region {region_id} is duplicate or overlaps another region")
@@ -299,10 +351,8 @@ def optimize_workflow(
     refined: List[str] = []
 
     def materialize() -> List[Dict[str, Any]]:
-        graph = list(copy.deepcopy(tasks_list))
-        for region_id in sorted(retained):
-            graph = _contract(graph, by_id[region_id])
-        return graph
+        regions_to_contract = [by_id[region_id] for region_id in sorted(retained)]
+        return _contract_regions(tasks_list, regions_to_contract)
 
     graph = materialize()
     initial = longest_path_certificate(graph)

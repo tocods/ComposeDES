@@ -68,5 +68,22 @@ int main() {
     assert(grants.size() == 1);
     assert(grants[0].index == 0);
 
+    // The broker uses an indexed graph and reuses its scratch buffers across
+    // scheduling rounds.  It must produce the same grants after state changes.
+    fncs::ActiveDependencyGraph indexed =
+        fncs::index_active_dependencies(chained, chain);
+    fncs::ActiveSchedulerScratch scratch;
+    const std::vector<ActiveGrant>& indexed_grants =
+        fncs::select_active_grants(chained, indexed, &scratch);
+    assert(indexed_grants.size() == 2);
+    assert(indexed_grants[0].index == 0);
+    assert(indexed_grants[1].index == 1);
+    chained[1].messages_pending = false;
+    chained[1].pending_time = ULLONG_MAX;
+    const std::vector<ActiveGrant>& reused_grants =
+        fncs::select_active_grants(chained, indexed, &scratch);
+    assert(reused_grants.size() == 1);
+    assert(reused_grants[0].index == 0);
+
     return 0;
 }

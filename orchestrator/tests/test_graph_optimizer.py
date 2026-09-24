@@ -108,6 +108,46 @@ class GraphOptimizerTest(unittest.TestCase):
         self.assertIn("macro:side", names)
         self.assertNotIn("macro:critical", names)
 
+    def test_multiple_adjacent_regions_are_contracted_in_one_pass(self):
+        tasks = [
+            task("pre", 1, [{"child": "a", "size": 0}]),
+            task("a", 2, [{"child": "b", "size": 0}]),
+            task("b", 3, [{"child": "c", "size": 0}]),
+            task("c", 5, [{"child": "d", "size": 0}]),
+            task("d", 7, [{"child": "post", "size": 0}]),
+            task("post", 11),
+        ]
+        optimized, report = optimize_workflow(
+            tasks,
+            [],
+            {
+                "error_budget_ns": 0,
+                "regions": [
+                    {
+                        "id": "left",
+                        "mode": "exact",
+                        "members": ["a", "b"],
+                        "closure": closure(),
+                        "duration_bounds_ns": [5, 5],
+                    },
+                    {
+                        "id": "right",
+                        "mode": "exact",
+                        "members": ["c", "d"],
+                        "closure": closure(),
+                        "duration_bounds_ns": [12, 12],
+                    },
+                ],
+            },
+        )
+        indexed = {item["name"]: item for item in optimized}
+        self.assertEqual("macro:left", indexed["pre"]["children"][0]["child"])
+        self.assertEqual(
+            "macro:right", indexed["macro:left"]["children"][0]["child"]
+        )
+        self.assertEqual("post", indexed["macro:right"]["children"][0]["child"])
+        self.assertEqual(29, report["final_certificate"]["lower_ns"])
+
     def test_rejects_interior_boundary_edge(self):
         tasks = [
             task("external", 1, [{"child": "b", "size": 0}]),

@@ -66,11 +66,12 @@ static ofstream trace; /* the trace stream, if requested */
 static bool parse_dependency_update(
         const string &value,
         const SimIndex &name_to_index,
-        map<string,set<string> > *dependencies,
+        fncs::ActiveDependencyGraph *dependencies,
         unsigned long long *epoch) {
     istringstream input(value);
     string line;
-    map<string,set<string> > parsed;
+    fncs::ActiveDependencyGraph parsed;
+    parsed.reset(name_to_index.size());
     unsigned long long parsed_epoch = 0;
     bool found_epoch = false;
     while (getline(input, line)) {
@@ -95,6 +96,7 @@ static bool parse_dependency_update(
         if (name_to_index.count(consumer) == 0) {
             return false;
         }
+        size_t consumer_index = name_to_index.find(consumer)->second;
         istringstream producer_stream(producers);
         string producer;
         while (getline(producer_stream, producer, ',')) {
@@ -104,12 +106,18 @@ static bool parse_dependency_update(
             if (name_to_index.count(producer) == 0 || producer == consumer) {
                 return false;
             }
-            parsed[consumer].insert(producer);
+            size_t producer_index = name_to_index.find(producer)->second;
+            if (find(parsed.direct[consumer_index].begin(),
+                    parsed.direct[consumer_index].end(), producer_index)
+                    == parsed.direct[consumer_index].end()) {
+                parsed.direct[consumer_index].push_back(producer_index);
+            }
         }
     }
     if (!found_epoch || parsed_epoch <= *epoch) {
         return false;
     }
+    parsed.rebuild_closure();
     *dependencies = parsed;
     *epoch = parsed_epoch;
     return true;
@@ -187,7 +195,9 @@ int main(int argc, char **argv)
     bool do_trace = false;      /* whether to dump all received messages */
     fncs::time realtime_interval = 0;
     bool active_dependency_mode = false;
-    map<string,set<string> > active_dependencies;
+    fncs::ActiveDependencyGraph active_dependencies;
+    vector<fncs::ActiveTimeState> active_states;
+    fncs::ActiveSchedulerScratch active_scheduler_scratch;
     unsigned long long dependency_epoch = 0;
     unsigned long long dependency_updates = 0;
     unsigned long long scheduler_rounds = 0;
@@ -434,6 +444,12 @@ int main(int argc, char **argv)
 
                 /* if all sims have connected, send the go-ahead */
                 if (simulators.size() == n_sims) {
+                    active_dependencies.reset(n_sims);
+                    active_states.resize(n_sims);
+                    active_scheduler_scratch.resize(n_sims);
+                    for (size_t i=0; i<n_sims; ++i) {
+                        active_states[i].name = simulators[i].name;
+                    }
                     time_real_start = fncs::timer_ft();
                     time_real = 0;
                     if (realtime_interval) {
@@ -605,19 +621,19 @@ int main(int argc, char **argv)
                 if (0 == n_processing) {
                     ++scheduler_rounds;
                     if (active_dependency_mode) {
-                        vector<fncs::ActiveTimeState> states;
                         for (size_t i=0; i<n_sims; ++i) {
-                            fncs::ActiveTimeState state;
-                            state.name = simulators[i].name;
-                            state.requested = simulators[i].time_requested;
-                            state.pending_time = simulators[i].pending_time;
-                            state.messages_pending = simulators[i].messages_pending;
-                            state.processing = simulators[i].processing
+                            active_states[i].requested = simulators[i].time_requested;
+                            active_states[i].pending_time = simulators[i].pending_time;
+                            active_states[i].messages_pending =
+                                simulators[i].messages_pending;
+                            active_states[i].processing = simulators[i].processing
                                 || byes.count(simulators[i].name) != 0;
-                            states.push_back(state);
                         }
-                        vector<fncs::ActiveGrant> grants =
-                            fncs::select_active_grants(states, active_dependencies);
+                        const vector<fncs::ActiveGrant> &grants =
+                            fncs::select_active_grants(
+                                active_states,
+                                active_dependencies,
+                                &active_scheduler_scratch);
                         for (size_t g=0; g<grants.size(); ++g) {
                             size_t i = grants[g].index;
                             fncs::time granted = grants[g].time;

@@ -58,6 +58,31 @@ federates that can currently affect it; the broker falls back to conservative
 global-min scheduling if no usable graph has been published. Set
 `FNCS_COORDINATION_METRICS=/path/metrics.json` to record grants and rounds.
 
+ComposeDES describes these mechanisms along two optimization axes:
+
+- **Vertical optimization** contracts certified local event chains inside one
+  federate. It reduces the number of compute events, dispatches, and grants.
+- **Horizontal optimization** exposes independent timelines through federate
+  partitioning and uses Active-dependency coordination to advance them without
+  waiting for unrelated federates.
+
+Federate partitioning exposes concurrency; Active-dependency exploits that
+concurrency. They belong to the same horizontal axis but remain separate
+architecture and scheduling decisions. A controlled Active-dependency ablation
+must therefore hold the partition fixed.
+
+The orchestrator publishes a new dependency epoch only when a worker event
+changes one of three relevant states: compute in flight, network in flight, or
+terminal status. The broker translates federate names to integer indexes and
+builds the transitive dependency closure once per epoch. Normal scheduling
+rounds reuse indexed state and scratch buffers. Invalid or cyclic graphs retain
+the conservative global-minimum fallback.
+
+The orchestrator keeps a finite idle request horizon. Requesting terminal time
+while it has no current work is unsafe because a later worker completion may
+cause it to dispatch another task to a federate that has already reached the
+terminal grant.
+
 An object workflow may contain an `acceleration` section. Regions are eligible
 for contraction only when all four closure declarations (`causal`, `state`,
 `temporal`, and `resource_non_interference`) are true, the members form a

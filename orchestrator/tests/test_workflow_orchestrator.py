@@ -328,6 +328,7 @@ class WorkflowControllerTest(unittest.TestCase):
         task["children"] = []
         controller = MODULE.WorkflowController([task], "test-run")
         controller.initial_commands()
+        self.assertEqual((True, False, True), controller.simulator_dependency_state())
         self.assertEqual(
             {
                 "orchestrator": {"gpusim"},
@@ -337,6 +338,7 @@ class WorkflowControllerTest(unittest.TestCase):
             controller.simulator_dependencies(),
         )
         controller.handle_event(MODULE.COMPUTE_COMPLETED, self.completed("a"))
+        self.assertEqual((False, False, False), controller.simulator_dependency_state())
         self.assertEqual(
             {"orchestrator": set(), "gpusim": set(), "ns3": set()},
             controller.simulator_dependencies(),

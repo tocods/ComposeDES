@@ -696,21 +696,30 @@ class WorkflowController:
         compute_worker: str = "gpusim",
         network_worker: str = "ns3",
     ) -> Dict[str, set[str]]:
+        compute_active, network_active, running = self.simulator_dependency_state()
         dependencies = {
             orchestrator: set(),
             compute_worker: set(),
             network_worker: set(),
         }
-        if self.inflight_compute:
+        if compute_active:
             dependencies[orchestrator].add(compute_worker)
-        if self.inflight_network:
+        if network_active:
             dependencies[orchestrator].add(network_worker)
         # Either backend may receive a successor dispatch after any completion,
         # so idle workers must remain behind the DAG controller until terminal.
-        if not self.terminal:
+        if running:
             dependencies[compute_worker].add(orchestrator)
             dependencies[network_worker].add(orchestrator)
         return dependencies
+
+    def simulator_dependency_state(self) -> tuple[bool, bool, bool]:
+        """Return the minimal state that determines simulator dependencies."""
+        return (
+            bool(self.inflight_compute),
+            bool(self.inflight_network),
+            not self.terminal,
+        )
 
 
 def encode_dependency_update(
@@ -828,7 +837,7 @@ def run(args: argparse.Namespace) -> int:
     current_time = 0
     current_microstep = 0
     dependency_epoch = 0
-    last_dependency_signature: tuple[tuple[str, tuple[str, ...]], ...] | None = None
+    last_dependency_state: tuple[bool, bool, bool] | None = None
 
     def publish_commands(commands: List[Command]) -> None:
         nonlocal batch_sequence
@@ -848,22 +857,19 @@ def run(args: argparse.Namespace) -> int:
             event_log.write("out", topic, current_time, json.loads(value))
 
     def publish_dependencies() -> None:
-        nonlocal dependency_epoch, last_dependency_signature
+        nonlocal dependency_epoch, last_dependency_state
         if not args.active_dependency_coordination:
+            return
+        state = controller.simulator_dependency_state()
+        if state == last_dependency_state:
             return
         dependencies = controller.simulator_dependencies(
             args.orchestrator_name,
             args.compute_worker_name,
             args.network_worker_name,
         )
-        signature = tuple(
-            (consumer, tuple(sorted(producers)))
-            for consumer, producers in sorted(dependencies.items())
-        )
-        if signature == last_dependency_signature:
-            return
         dependency_epoch += 1
-        last_dependency_signature = signature
+        last_dependency_state = state
         value = encode_dependency_update(dependency_epoch, dependencies)
         client.publish_anon(ACTIVE_DEPENDENCIES, value)
         event_log.write(
@@ -906,7 +912,11 @@ def run(args: argparse.Namespace) -> int:
             ):
                 commands.extend(controller.handle_event(topic, event))
             publish_commands(commands)
-            publish_dependencies()
+            # Dependency state can only change while handling a worker event.
+            # Most time grants contain no event, so avoid rebuilding even the
+            # compact dependency state on those polling iterations.
+            if incoming:
+                publish_dependencies()
 
         batch_sequence += 1
         status = "completed" if controller.done else "failed"
