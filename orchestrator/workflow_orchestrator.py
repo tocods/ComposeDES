@@ -8,6 +8,7 @@ import copy
 import json
 import os
 import sys
+import time
 import uuid
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -951,8 +952,9 @@ def parse_batch(value: str, expected_run_id: str) -> Dict[str, Any]:
 
 
 class EventLog:
-    def __init__(self, path: str | None) -> None:
+    def __init__(self, path: str | None, flush_each: bool = False) -> None:
         self._stream: TextIO | None = None
+        self._flush_each = flush_each
         if path:
             target = Path(path)
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -978,7 +980,12 @@ class EventLog:
             )
             + "\n"
         )
-        self._stream.flush()
+        terminal = any(
+            event.get("kind") == "control.end"
+            for event in (value.get("events", []) if isinstance(value, dict) else [])
+        )
+        if self._flush_each or terminal:
+            self._stream.flush()
 
     def close(self) -> None:
         if self._stream:
@@ -988,6 +995,8 @@ class EventLog:
 def run(args: argparse.Namespace) -> int:
     if args.idle_grant_ns <= 0:
         raise WorkflowError("idle-grant-ns must be positive")
+    if args.frontier_update_quantum_ns < 0:
+        raise WorkflowError("frontier-update-quantum-ns must be non-negative")
     if args.frontier_compute_safety_margin_ns < 0:
         raise WorkflowError("frontier-compute-safety-margin-ns must be non-negative")
     if args.safe_frontier_coordination and not args.active_dependency_coordination:
@@ -1040,7 +1049,7 @@ def run(args: argparse.Namespace) -> int:
             encoding="utf-8",
         )
     client = FncsClient(args.fncs_library)
-    event_log = EventLog(args.event_log)
+    event_log = EventLog(args.event_log, args.sync_event_log)
     batch_encoder = BatchEncoder(run_id)
     batch_sequence = 0
     current_time = 0
@@ -1114,6 +1123,12 @@ def run(args: argparse.Namespace) -> int:
         if not args.active_dependency_coordination:
             return
         frontier = certified_input_frontier()
+        if frontier is not None and args.frontier_update_quantum_ns:
+            frontier = (
+                frontier // args.frontier_update_quantum_ns
+            ) * args.frontier_update_quantum_ns
+            if frontier <= current_time:
+                frontier = None
         state = (
             *controller.simulator_dependency_state(compute_worker_by_host),
             frontier if args.safe_frontier_coordination and frontier is not None else 0,
@@ -1147,6 +1162,10 @@ def run(args: argparse.Namespace) -> int:
         client.initialize()
         publish_commands(controller.initial_commands())
         publish_dependencies()
+        if args.steady_start_marker:
+            marker = Path(args.steady_start_marker)
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text(str(time.monotonic_ns()), encoding="ascii")
         while not controller.terminal:
             previous_time = current_time
             request_time = (
@@ -1229,6 +1248,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("workflow", help="workflow jobs JSON file")
     parser.add_argument("--run-id", default=os.environ.get("COSIM_RUN_ID"))
     parser.add_argument("--event-log", help="JSONL control-plane event log")
+    parser.add_argument(
+        "--sync-event-log",
+        action="store_true",
+        help="flush every event-log record (slower; terminal records always flush)",
+    )
+    parser.add_argument(
+        "--steady-start-marker",
+        help="write a marker after FNCS initialization and initial dispatch",
+    )
     parser.add_argument("--optimization-report", help="write acceleration certificate JSON")
     parser.add_argument("--fncs-library", help="path to libfncs")
     parser.add_argument("--max-compute-retries", type=int, default=0)
@@ -1267,6 +1295,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "amount subtracted from each compute duration lower bound to "
             "cover backend floating-point time conversion"
+        ),
+    )
+    parser.add_argument(
+        "--frontier-update-quantum-ns",
+        type=int,
+        default=int(os.environ.get("COSIM_FRONTIER_UPDATE_QUANTUM_NS", "0")),
+        help=(
+            "round certified frontiers down to this quantum before publishing; "
+            "zero preserves every exact frontier update"
         ),
     )
     parser.add_argument("--orchestrator-name", default="orchestrator")

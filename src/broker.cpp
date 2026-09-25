@@ -816,11 +816,22 @@ int main(int argc, char **argv)
                     TopicMap::iterator iter = topic_to_indexes.find(topic);
                     if (iter != topic_to_indexes.end()) {
                         IndexVec &iv = iter->second;
+                        size_t recipients = 0;
+                        for (IndexVec::iterator candidate=iv.begin(); candidate!=iv.end(); ++candidate) {
+                            if (0 == byes.count(simulators[*candidate].name)) {
+                                ++recipients;
+                            }
+                        }
+                        size_t delivered = 0;
                         IndexVec::iterator index;
                         for (index=iv.begin(); index!=iv.end(); index++) {
                             size_t i = *index;
 							if (0 == byes.count(simulators[i].name)) {
-								zmsg_t *msg_copy = zmsg_dup(msg);
+								/* Transfer the original message to the last recipient.
+								 * Most ComposeDES topics have one subscriber, so this
+								 * avoids a zmsg_dup for the common directed-dispatch path. */
+								++delivered;
+								zmsg_t *msg_copy = delivered == recipients ? msg : zmsg_dup(msg);
 								if (!msg_copy) {
 									LERROR << "failed to copy pub message";
 									broker_die(simulators, server);
@@ -831,6 +842,9 @@ int main(int argc, char **argv)
 										simulators[i].name.size());
 								/* send it on */
                                     zmsg_send(&msg_copy, server);
+								if (delivered == recipients) {
+									msg = NULL;
+								}
                                     found_one = true;
                                     fncs::time message_time =
                                         simulators[sender_index].current_grant;
