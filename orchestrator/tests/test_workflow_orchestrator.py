@@ -453,6 +453,54 @@ class WorkflowControllerTest(unittest.TestCase):
             encoded,
         )
 
+        bounded = MODULE.encode_dependency_update(
+            10,
+            {"orchestrator": {"worker"}, "worker": {"orchestrator"}},
+            {"worker": 123456},
+        )
+        self.assertEqual(
+            "epoch=10\n"
+            "orchestrator=worker\n"
+            "worker=orchestrator\n"
+            "frontier.worker=123456",
+            bounded,
+        )
+
+    def test_command_completion_lower_bounds_use_certificates(self):
+        compute = MODULE.Command(
+            MODULE.COMPUTE_DISPATCH,
+            {
+                "kind": "compute.dispatch",
+                "payload": {
+                    "task_id": "task-a",
+                    "task": {"duration_bounds_ns": [50, 80]},
+                },
+            },
+        )
+        self.assertEqual(
+            {"compute:task-a": 150},
+            MODULE.command_completion_lower_bounds(compute, 100),
+        )
+        self.assertEqual(
+            {"compute:task-a": 140},
+            MODULE.command_completion_lower_bounds(compute, 100, 10),
+        )
+
+        network = MODULE.Command(
+            MODULE.NETWORK_DISPATCH,
+            {
+                "kind": "network.dispatch",
+                "payload": {
+                    "transfer_id": "transfer-a",
+                    "latency_bounds_ns": [20, 40],
+                },
+            },
+        )
+        self.assertEqual(
+            {"network:transfer-a": 120},
+            MODULE.command_completion_lower_bounds(network, 100),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

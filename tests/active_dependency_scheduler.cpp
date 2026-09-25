@@ -43,6 +43,21 @@ int main() {
     assert(grants[0].index == 0);
     assert(grants[0].time == 10);
 
+    // A controller-issued frontier certifies that b cannot receive a message
+    // before 100, so b may reach its local event without waiting at a's
+    // earlier request. The certificate must not alter b's producer bound for
+    // downstream consumers.
+    fncs::ActiveDependencyGraph bounded =
+        fncs::index_active_dependencies(chained, chain);
+    bounded.frontier[1] = 100;
+    fncs::ActiveSchedulerScratch bounded_scratch;
+    const std::vector<ActiveGrant>& bounded_grants =
+        fncs::select_active_grants(chained, bounded, &bounded_scratch);
+    assert(bounded_grants.size() == 2);
+    assert(bounded_grants[0].index == 0);
+    assert(bounded_grants[1].index == 1);
+    assert(bounded_grants[1].time == 100);
+
     // A consumer may safely run before its producer's advertised lower bound.
     chained[1].requested = 5;
     grants = fncs::select_active_grants(chained, chain);

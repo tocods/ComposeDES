@@ -93,6 +93,24 @@ static bool parse_dependency_update(
             found_epoch = true;
             continue;
         }
+        const string frontier_prefix = "frontier.";
+        if (consumer.compare(0, frontier_prefix.size(), frontier_prefix) == 0) {
+            string simulator = consumer.substr(frontier_prefix.size());
+            if (name_to_index.count(simulator) == 0
+                    || producers.empty()
+                    || producers.find_first_not_of("0123456789") != string::npos) {
+                return false;
+            }
+            fncs::time parsed_frontier = 0;
+            istringstream parser(producers);
+            parser >> parsed_frontier;
+            if (!parser || !parser.eof() || parsed_frontier == 0) {
+                return false;
+            }
+            parsed.frontier[name_to_index.find(simulator)->second] =
+                parsed_frontier;
+            continue;
+        }
         if (name_to_index.count(consumer) == 0) {
             return false;
         }

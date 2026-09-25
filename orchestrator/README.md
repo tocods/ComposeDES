@@ -78,10 +78,22 @@ builds the transitive dependency closure once per epoch. Normal scheduling
 rounds reuse indexed state and scratch buffers. Invalid or cyclic graphs retain
 the conservative global-minimum fallback.
 
-The orchestrator keeps a finite idle request horizon. Requesting terminal time
-while it has no current work is unsafe because a later worker completion may
-cause it to dispatch another task to a federate that has already reached the
-terminal grant.
+With `--safe-frontier-coordination`, the orchestrator derives a conservative
+earliest completion time from every in-flight compute and network command and
+publishes the minimum as `frontier.<federate>`. A frontier certifies that the
+named consumer cannot receive a new dispatch before that time. The broker may
+therefore grant an idle consumer up to the frontier even when its controller
+dependency has an earlier request. The certificate is local to the consumer
+and is never propagated as that consumer's producer bound.
+
+In this mode workers and the orchestrator request the maximum FNCS time as a
+cancellable lease. Active dependencies still wake the orchestrator at the
+first producer completion, while frontiers let unrelated idle workers skip
+short polling rounds. Compute certificates subtract the configurable
+`--frontier-compute-safety-margin-ns` (10 microseconds by default) to cover the
+GPUSim/CloudSim floating-point time conversion. If any in-flight command lacks
+a lower bound, the orchestrator withdraws all explicit frontiers and the
+broker retains the dependency-safe rule.
 
 An object workflow may contain an `acceleration` section. Regions are eligible
 for contraction only when all four closure declarations (`causal`, `state`,

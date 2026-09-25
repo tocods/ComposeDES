@@ -243,6 +243,10 @@ class WorkflowController:
                     "dst_host": child.get("dst_host") or self.tasks[dst_id].get("host") or "",
                     "bytes": size,
                 }
+                if child.get("latency_bounds_ns") is not None:
+                    edge["latency_bounds_ns"] = copy.deepcopy(
+                        child["latency_bounds_ns"]
+                    )
                 if size > 0 and (not edge["src_host"] or not edge["dst_host"]):
                     raise WorkflowError(f"network edge {edge_id} is missing a host")
                 self.parents[dst_id].add(src_id)
@@ -745,12 +749,102 @@ class WorkflowController:
 
 
 def encode_dependency_update(
-    epoch: int, dependencies: Dict[str, set[str]]
+    epoch: int,
+    dependencies: Dict[str, set[str]],
+    frontiers: Mapping[str, int] | None = None,
 ) -> str:
     lines = [f"epoch={epoch}"]
     for consumer in sorted(dependencies):
         lines.append(f"{consumer}={','.join(sorted(dependencies[consumer]))}")
+    for consumer, frontier in sorted((frontiers or {}).items()):
+        if consumer not in dependencies:
+            raise WorkflowError(f"frontier references unknown simulator {consumer!r}")
+        if frontier <= 0:
+            raise WorkflowError("frontiers must be positive")
+        lines.append(f"frontier.{consumer}={frontier}")
     return "\n".join(lines)
+
+
+def _saturating_add_time(base: int, delta: int) -> int:
+    if delta < 0:
+        raise WorkflowError("completion lower bounds must be non-negative")
+    return min(MAX_TIME_NS, base + delta)
+
+
+def _task_duration_lower_bound(task: Mapping[str, Any]) -> int | None:
+    bounds = task.get("duration_bounds_ns")
+    if isinstance(bounds, list) and len(bounds) == 2:
+        lower = int(bounds[0])
+        return lower if lower > 0 else None
+    for field in ("simulated_duration_ns", "estimated_duration_ns"):
+        value = int(task.get(field) or 0)
+        if value > 0:
+            return value
+    return None
+
+
+def command_completion_lower_bounds(
+    command: Command,
+    dispatch_time_ns: int,
+    compute_safety_margin_ns: int = 0,
+) -> Dict[str, int | None]:
+    """Return certified earliest completion times introduced by a command."""
+    event = command.event
+    payload = event.get("payload") or {}
+    kind = event.get("kind")
+    if kind == "compute.dispatch":
+        task_id = str(payload.get("task_id") or "")
+        raw_lower = _task_duration_lower_bound(payload.get("task") or {})
+        lower = (
+            max(1, raw_lower - compute_safety_margin_ns)
+            if raw_lower is not None else None
+        )
+        return {
+            f"compute:{task_id}": (
+                _saturating_add_time(dispatch_time_ns, lower)
+                if lower is not None else None
+            )
+        }
+    if kind == "compute.plan.dispatch":
+        tasks = payload.get("tasks") or []
+        raw_durations = [
+            _task_duration_lower_bound(entry.get("task") or {}) for entry in tasks
+        ]
+        durations = [
+            max(1, value - compute_safety_margin_ns)
+            if value is not None else None
+            for value in raw_durations
+        ]
+        total = sum(value for value in durations if value is not None)
+        certified = bool(tasks) and all(value is not None for value in durations)
+        finish = _saturating_add_time(dispatch_time_ns, total) if certified else None
+        return {
+            f"compute:{entry.get('task_id')}": finish for entry in tasks
+        }
+    if kind == "network.dispatch":
+        transfer_id = str(payload.get("transfer_id") or "")
+        bounds = payload.get("latency_bounds_ns")
+        lower = (
+            int(bounds[0])
+            if isinstance(bounds, list) and len(bounds) == 2 and int(bounds[0]) > 0
+            else None
+        )
+        return {
+            f"network:{transfer_id}": (
+                _saturating_add_time(dispatch_time_ns, lower)
+                if lower is not None else None
+            )
+        }
+    return {}
+
+
+def completion_key(event: Mapping[str, Any]) -> str | None:
+    payload = event.get("payload") or {}
+    if event.get("kind") == "compute.completed":
+        return f"compute:{payload.get('task_id')}"
+    if event.get("kind") == "network.completed":
+        return f"network:{payload.get('transfer_id')}"
+    return None
 
 
 def make_batch(
@@ -835,6 +929,12 @@ class EventLog:
 def run(args: argparse.Namespace) -> int:
     if args.idle_grant_ns <= 0:
         raise WorkflowError("idle-grant-ns must be positive")
+    if args.frontier_compute_safety_margin_ns < 0:
+        raise WorkflowError("frontier-compute-safety-margin-ns must be non-negative")
+    if args.safe_frontier_coordination and not args.active_dependency_coordination:
+        raise WorkflowError(
+            "safe-frontier-coordination requires active-dependency-coordination"
+        )
     run_id = args.run_id or f"run-{uuid.uuid4()}"
     controller = WorkflowController.from_file(
         args.workflow,
@@ -886,12 +986,38 @@ def run(args: argparse.Namespace) -> int:
     current_time = 0
     current_microstep = 0
     dependency_epoch = 0
-    last_dependency_state: tuple[tuple[str, ...], bool, bool] | None = None
+    last_dependency_state: tuple[Any, ...] | None = None
+    inflight_completion_lower_bounds: Dict[str, int | None] = {}
+
+    def certified_input_frontier() -> int | None:
+        if not inflight_completion_lower_bounds or any(
+            value is None for value in inflight_completion_lower_bounds.values()
+        ):
+            return None
+        certified = min(
+            int(value) for value in inflight_completion_lower_bounds.values()
+            if value is not None
+        )
+        return certified if certified > current_time else None
+
+    def next_request_time() -> int:
+        # In Active mode the dependency graph already constrains this request
+        # to every in-flight producer. A maximum request therefore acts as a
+        # cancellable lease: the broker wakes the orchestrator at the first
+        # compute/network completion without 1 ms polling.
+        return MAX_TIME_NS
 
     def publish_commands(commands: List[Command]) -> None:
         nonlocal batch_sequence
         grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         for command in commands:
+            inflight_completion_lower_bounds.update(
+                command_completion_lower_bounds(
+                    command,
+                    current_time,
+                    args.frontier_compute_safety_margin_ns,
+                )
+            )
             topic = command.topic
             if command.topic == COMPUTE_DISPATCH and args.compute_worker_map:
                 payload = command.event.get("payload") or {}
@@ -917,7 +1043,11 @@ def run(args: argparse.Namespace) -> int:
         nonlocal dependency_epoch, last_dependency_state
         if not args.active_dependency_coordination:
             return
-        state = controller.simulator_dependency_state(compute_worker_by_host)
+        frontier = certified_input_frontier()
+        state = (
+            *controller.simulator_dependency_state(compute_worker_by_host),
+            frontier if args.safe_frontier_coordination and frontier is not None else 0,
+        )
         if state == last_dependency_state:
             return
         dependencies = controller.simulator_dependencies(
@@ -928,7 +1058,13 @@ def run(args: argparse.Namespace) -> int:
         )
         dependency_epoch += 1
         last_dependency_state = state
-        value = encode_dependency_update(dependency_epoch, dependencies)
+        frontiers = None
+        if args.safe_frontier_coordination and frontier is not None:
+            frontiers = {
+                worker: frontier for worker in compute_worker_names
+            }
+            frontiers[args.network_worker_name] = frontier
+        value = encode_dependency_update(dependency_epoch, dependencies, frontiers)
         client.publish_anon(ACTIVE_DEPENDENCIES, value)
         event_log.write(
             "control",
@@ -943,7 +1079,11 @@ def run(args: argparse.Namespace) -> int:
         publish_dependencies()
         while not controller.terminal:
             previous_time = current_time
-            request_time = min(MAX_TIME_NS, current_time + args.idle_grant_ns)
+            request_time = (
+                next_request_time()
+                if args.safe_frontier_coordination
+                else min(MAX_TIME_NS, current_time + args.idle_grant_ns)
+            )
             current_time = client.time_request(request_time)
             current_microstep = (
                 current_microstep + 1 if current_time == previous_time else 0
@@ -968,6 +1108,9 @@ def run(args: argparse.Namespace) -> int:
             for _, _, topic, event in sorted(
                 incoming, key=lambda item: (item[0], item[1], item[2], item[3]["event_id"])
             ):
+                key = completion_key(event)
+                if key is not None:
+                    inflight_completion_lower_bounds.pop(key, None)
                 commands.extend(controller.handle_event(topic, event))
             publish_commands(commands)
             # Dependency state can only change while handling a worker event.
@@ -1028,6 +1171,23 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=os.environ.get("COSIM_ACTIVE_DEPENDENCIES", "").lower()
         in {"1", "true", "yes"},
+    )
+    parser.add_argument(
+        "--safe-frontier-coordination",
+        action="store_true",
+        help=(
+            "publish certified earliest-input frontiers and request directly "
+            "to the next certified completion bound"
+        ),
+    )
+    parser.add_argument(
+        "--frontier-compute-safety-margin-ns",
+        type=int,
+        default=10000,
+        help=(
+            "amount subtracted from each compute duration lower bound to "
+            "cover backend floating-point time conversion"
+        ),
     )
     parser.add_argument("--orchestrator-name", default="orchestrator")
     parser.add_argument("--compute-worker-name", default="gpusim")

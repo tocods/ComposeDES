@@ -28,10 +28,16 @@ struct ActiveGrant {
 struct ActiveDependencyGraph {
     std::vector<std::vector<size_t> > direct;
     std::vector<std::vector<size_t> > closure;
+    // A consumer frontier certifies that it cannot receive a new message
+    // before this logical time. Zero means that no explicit certificate was
+    // advertised. Frontiers only affect the certified consumer; they are not
+    // propagated when that consumer acts as a producer for another federate.
+    std::vector<fncs::time> frontier;
 
     void reset(size_t size) {
         direct.assign(size, std::vector<size_t>());
         closure.assign(size, std::vector<size_t>());
+        frontier.assign(size, 0);
     }
 
     void rebuild_closure() {
@@ -177,8 +183,12 @@ inline const std::vector<ActiveGrant>& select_active_grants(
     }
 
     for (size_t i = 0; i < size; ++i) {
-        if (!states[i].processing
-                && scratch->actionable[i] == scratch->lower_bound[i]) {
+        const bool dependency_safe =
+            scratch->actionable[i] == scratch->lower_bound[i];
+        const bool frontier_safe = dependencies.frontier.size() == size
+            && dependencies.frontier[i] > 0
+            && scratch->actionable[i] <= dependencies.frontier[i];
+        if (!states[i].processing && (dependency_safe || frontier_safe)) {
             ActiveGrant grant = {i, scratch->actionable[i]};
             scratch->grants.push_back(grant);
         }
