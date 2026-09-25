@@ -587,9 +587,29 @@ public class CloudSim {
 			future.removeAll(toRemove);
 			Api.truePublish();
 		} else {
-			queue_empty = true;
-			running = false;
-			printMessage("Simulation: No more future events");
+			if(Api.isWorkerMode() && !Api.isWorkerEndRequested()) {
+				// A partitioned compute worker can be idle between phases. Keep it
+				// in the FNCS federation and wait for a later directed dispatch.
+				Api.truePublish();
+				long currentNs = (long) Math.ceil(clock() * 1000.0);
+				long idleGrant = Api.getWorkerIdleGrantNs();
+				long requestNs = currentNs > Long.MAX_VALUE - idleGrant
+						? Long.MAX_VALUE : currentNs + idleGrant;
+				long grantedNs = Api.timeRequest(requestNs);
+				clock = grantedNs / 1000.0;
+				List<FncsMessage> workerMessages = new ArrayList<>();
+				for(String topic: Api.getEvents()) {
+					String value = Api.getValue(topic);
+					if(value == null || value.isEmpty()) continue;
+					workerMessages.add(new FncsMessage(topic, value));
+				}
+				doWorkerUpdate(workerMessages);
+				queue_empty = false;
+			} else {
+				queue_empty = true;
+				running = false;
+				printMessage("Simulation: No more future events");
+			}
 		}
 
 		return queue_empty;

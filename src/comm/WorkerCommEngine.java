@@ -101,6 +101,7 @@ public class WorkerCommEngine extends CommEngine {
             for (int index = 0; index < events.size(); index++) {
                 if ("control.end".equals(events.getJSONObject(index).getString("kind"))) {
                     endRequested = true;
+                    Api.requestWorkerEnd();
                 }
             }
             finishIfDrained();

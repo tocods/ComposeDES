@@ -21,6 +21,9 @@ public class Api {
     private static long batchSequence = 0;
     private static long currentGrantTimeNs = 0;
     private static long currentMicrostep = 0;
+    private static String workerId = "gpusim";
+    private static boolean workerEndRequested = false;
+    private static long workerIdleGrantNs = 1000000L;
     public static enum CommType {
         SEND_WITHOUT_REPLY,
         SEND_REPLY
@@ -56,7 +59,7 @@ public class Api {
                 JSONObject batch = new JSONObject(true);
                 batch.put("schema_version", "2.0");
                 batch.put("run_id", runId);
-                batch.put("batch_id", String.format("gpusim-batch-%09d", ++batchSequence));
+                batch.put("batch_id", String.format("%s-batch-%09d", workerId, ++batchSequence));
                 batch.put("logical_time_ns", logicalTimeNs);
                 batch.put("microstep", logicalTimeNs == currentGrantTimeNs ? currentMicrostep : 0);
                 batch.put("events", entry.getValue());
@@ -75,6 +78,15 @@ public class Api {
         batchSequence = 0;
         currentGrantTimeNs = 0;
         currentMicrostep = 0;
+        workerEndRequested = false;
+        String configuredName = System.getenv("FNCS_NAME");
+        workerId = sanitizeWorkerId(configuredName == null ? "gpusim" : configuredName);
+        String configuredIdleGrant = System.getenv("COSIM_WORKER_IDLE_GRANT_NS");
+        workerIdleGrantNs = configuredIdleGrant == null
+                ? 1000000L : Long.parseLong(configuredIdleGrant);
+        if(workerIdleGrantNs <= 0) {
+            throw new IllegalArgumentException("COSIM_WORKER_IDLE_GRANT_NS must be positive");
+        }
     }
 
     public static boolean isWorkerMode() {
@@ -90,7 +102,23 @@ public class Api {
     }
 
     public static String nextWorkerEventId() {
-        return String.format("gpusim-event-%09d", ++workerEventSequence);
+        return String.format("%s-event-%09d", workerId, ++workerEventSequence);
+    }
+
+    private static String sanitizeWorkerId(String value) {
+        return value.replaceAll("[^A-Za-z0-9_.-]", "_");
+    }
+
+    public static void requestWorkerEnd() {
+        workerEndRequested = true;
+    }
+
+    public static boolean isWorkerEndRequested() {
+        return workerEndRequested;
+    }
+
+    public static long getWorkerIdleGrantNs() {
+        return workerIdleGrantNs;
     }
 
     public static void publishWorkerEvent(String topic, JSONObject event) {
