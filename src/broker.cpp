@@ -171,6 +171,7 @@ static void write_coordination_metrics(
         bool active,
         unsigned long long rounds,
         unsigned long long dependency_updates,
+        unsigned long long asynchronous_grants,
         const SimVec &simulators) {
     if (!path || !path[0]) {
         return;
@@ -188,6 +189,7 @@ static void write_coordination_metrics(
         << "  \"mode\": \"" << (active ? "active_dependency" : "global") << "\",\n"
         << "  \"scheduler_rounds\": " << rounds << ",\n"
         << "  \"dependency_updates\": " << dependency_updates << ",\n"
+        << "  \"asynchronous_grants\": " << asynchronous_grants << ",\n"
         << "  \"total_grants\": " << total_grants << ",\n"
         << "  \"grants_by_simulator\": {";
     for (size_t i = 0; i < simulators.size(); ++i) {
@@ -243,6 +245,7 @@ int main(int argc, char **argv)
     fncs::ActiveSchedulerScratch active_scheduler_scratch;
     unsigned long long dependency_epoch = 0;
     unsigned long long dependency_updates = 0;
+    unsigned long long asynchronous_grants = 0;
     unsigned long long scheduler_rounds = 0;
     const char *coordination_metrics_path = getenv("FNCS_COORDINATION_METRICS");
 
@@ -523,6 +526,7 @@ int main(int argc, char **argv)
                     for (size_t i=0; i<n_sims; ++i) {
                         set<string> &keys = name_to_keys[simulators[i].name];
                         simulators[i].processing = true;
+                        active_states[i].processing = true;
                         LDEBUG4 << "sending first ACK to " << simulators[i].name;
                         zstr_sendm(server, simulators[i].name.c_str());
                         zstr_sendm(server, fncs::ACK);
@@ -617,6 +621,7 @@ int main(int argc, char **argv)
                             active_dependency_mode,
                             scheduler_rounds,
                             dependency_updates,
+                            asynchronous_grants,
                             simulators);
                         break;
                     }
@@ -657,8 +662,40 @@ int main(int argc, char **argv)
                 /* update sim state */
                 simulators[index].time_last_processed = time_last;
                 simulators[index].processing = false;
+                if (active_dependency_mode) {
+                    active_states[index].requested = simulators[index].time_requested;
+                    active_states[index].pending_time = simulators[index].pending_time;
+                    active_states[index].messages_pending = simulators[index].messages_pending;
+                    active_states[index].processing = byes.count(simulators[index].name) != 0;
+                }
 
                 --n_processing;
+
+                /* Active-dependency fast path: an independent consumer can
+                 * advance as soon as its own request arrives. Federates with
+                 * an unknown producer still use the original all-federate
+                 * barrier below, so this cannot weaken conservative safety. */
+                if (active_dependency_mode
+                        && fncs::TIME_REQUEST == message_type) {
+                    fncs::ActiveGrant immediate;
+                    if (fncs::select_active_grant_for_index(
+                            active_states, active_dependencies, index, &immediate)) {
+                        const size_t granted_index = immediate.index;
+                        ++n_processing;
+                        simulators[granted_index].processing = true;
+                        simulators[granted_index].messages_pending = false;
+                        simulators[granted_index].pending_time = ULLONG_MAX;
+                        simulators[granted_index].current_grant = immediate.time;
+                        ++simulators[granted_index].grant_count;
+                        ++asynchronous_grants;
+                        active_states[granted_index].processing = true;
+                        active_states[granted_index].messages_pending = false;
+                        active_states[granted_index].pending_time = ULLONG_MAX;
+                        zstr_sendm(server, simulators[granted_index].name.c_str());
+                        zstr_sendm(server, fncs::TIME_REQUEST);
+                        zstr_sendf(server, "%llu", immediate.time);
+                    }
+                }
 
                 /* if all sims are done, determine next time step */
                 if (0 == n_processing) {
@@ -686,6 +723,9 @@ int main(int argc, char **argv)
                             simulators[i].pending_time = ULLONG_MAX;
                             simulators[i].current_grant = granted;
                             ++simulators[i].grant_count;
+                            active_states[i].processing = true;
+                            active_states[i].messages_pending = false;
+                            active_states[i].pending_time = ULLONG_MAX;
                             zstr_sendm(server, simulators[i].name.c_str());
                             zstr_sendm(server, fncs::TIME_REQUEST);
                             zstr_sendf(server, "%llu", granted);
@@ -885,6 +925,11 @@ int main(int argc, char **argv)
                                     simulators[i].messages_pending = true;
                                     simulators[i].pending_time = std::min(
                                         simulators[i].pending_time, message_time);
+                                    if (active_dependency_mode) {
+                                        active_states[i].messages_pending = true;
+                                        active_states[i].pending_time = std::min(
+                                            active_states[i].pending_time, message_time);
+                                    }
                                     LDEBUG4 << "pub to " << simulators[i].name;
 							}
                         }

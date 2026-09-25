@@ -31,6 +31,17 @@ int main() {
     assert(grants[0].time == 10);
     assert(grants[1].time == 100);
 
+    fncs::ActiveDependencyGraph independent_graph =
+        fncs::index_active_dependencies(independent, Dependencies());
+    ActiveGrant immediate;
+    assert(fncs::select_active_grant_for_index(
+        independent, independent_graph, 1, &immediate));
+    assert(immediate.index == 1);
+    assert(immediate.time == 100);
+    independent[0].processing = true;
+    assert(fncs::select_active_grant_for_index(
+        independent, independent_graph, 1, &immediate));
+
     Dependencies chain;
     chain["b"].insert("a");
     chain["c"].insert("b");
@@ -38,6 +49,12 @@ int main() {
     chained.push_back(state("a", 10));
     chained.push_back(state("b", 100));
     chained.push_back(state("c", 1000));
+    fncs::ActiveDependencyGraph chained_graph =
+        fncs::index_active_dependencies(chained, chain);
+    chained[0].processing = true;
+    assert(!fncs::select_active_grant_for_index(
+        chained, chained_graph, 1, &immediate));
+    chained[0].processing = false;
     grants = fncs::select_active_grants(chained, chain);
     assert(grants.size() == 1);
     assert(grants[0].index == 0);

@@ -87,6 +87,48 @@ struct ActiveSchedulerScratch {
     }
 };
 
+/* Return a grant for one federate when its own request is already safe.  This
+ * is used by the broker's asynchronous fast path before all unrelated
+ * federates have returned their requests.  A processing producer is treated
+ * as unknown; the caller must keep the old all-federate barrier in that case.
+ */
+inline bool select_active_grant_for_index(
+        const std::vector<ActiveTimeState>& states,
+        const ActiveDependencyGraph& dependencies,
+        size_t index,
+        ActiveGrant *grant) {
+    if (!grant || index >= states.size() || states[index].processing
+            || dependencies.closure.size() != states.size()) {
+        return false;
+    }
+    const fncs::time actionable = states[index].messages_pending
+        ? states[index].pending_time : states[index].requested;
+    const bool frontier_safe = dependencies.frontier.size() == states.size()
+        && dependencies.frontier[index] > 0
+        && actionable <= dependencies.frontier[index];
+    if (frontier_safe) {
+        grant->index = index;
+        grant->time = actionable;
+        return true;
+    }
+    fncs::time lower_bound = actionable;
+    for (size_t edge = 0; edge < dependencies.closure[index].size(); ++edge) {
+        const size_t producer = dependencies.closure[index][edge];
+        if (producer >= states.size() || states[producer].processing) {
+            return false;
+        }
+        const fncs::time producer_actionable = states[producer].messages_pending
+            ? states[producer].pending_time : states[producer].requested;
+        lower_bound = std::min(lower_bound, producer_actionable);
+    }
+    if (lower_bound != actionable) {
+        return false;
+    }
+    grant->index = index;
+    grant->time = actionable;
+    return true;
+}
+
 inline ActiveDependencyGraph index_active_dependencies(
         const std::vector<ActiveTimeState>& states,
         const std::map<std::string, std::set<std::string> >& dependencies) {
