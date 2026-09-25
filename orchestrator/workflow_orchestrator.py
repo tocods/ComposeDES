@@ -971,23 +971,26 @@ class EventLog:
     def write(self, direction: str, topic: str, time_ns: int, value: Any) -> None:
         if not self._stream:
             return
+        encoded = json.dumps(value, ensure_ascii=True, separators=(",", ":"))
+        self.write_raw(direction, topic, time_ns, encoded)
+
+    def write_raw(self, direction: str, topic: str, time_ns: int, value: str) -> None:
+        """Write an already encoded JSON value without serializing it again.
+
+        BatchEncoder already produced the exact wire payload and incoming FNCS
+        values are already JSON strings. Re-encoding their parsed dictionaries
+        made event logging a second full traversal of every event in the steady
+        path. Keep the outer record format unchanged while reusing the payload.
+        """
+        if not self._stream:
+            return
         self._stream.write(
-            json.dumps(
-                {
-                    "direction": direction,
-                    "topic": topic,
-                    "logical_time_ns": time_ns,
-                    "value": value,
-                },
-                ensure_ascii=True,
-                separators=(",", ":"),
-            )
-            + "\n"
+            '{"direction":' + json.dumps(direction, ensure_ascii=True)
+            + ',"topic":' + json.dumps(topic, ensure_ascii=True)
+            + ',"logical_time_ns":' + str(time_ns)
+            + ',"value":' + value + '}\n'
         )
-        terminal = any(
-            event.get("kind") == "control.end"
-            for event in (value.get("events", []) if isinstance(value, dict) else [])
-        )
+        terminal = '"kind":"control.end"' in value
         if self._flush_each or terminal:
             self._stream.flush()
 
@@ -1111,17 +1114,7 @@ def run(args: argparse.Namespace) -> int:
             )
             client.publish(topic, value)
             if event_log.enabled:
-                event_log.write(
-                    "out",
-                    topic,
-                    current_time,
-                    batch_encoder.record(
-                        batch_sequence,
-                        current_time,
-                        grouped[topic],
-                        current_microstep,
-                    ),
-                )
+                event_log.write_raw("out", topic, current_time, value)
 
     def publish_dependencies() -> None:
         nonlocal dependency_epoch, last_dependency_state, last_dependency_topology_state
@@ -1196,8 +1189,9 @@ def run(args: argparse.Namespace) -> int:
                 value = client.get_value(topic)
                 if not value:
                     continue
+                if event_log.enabled:
+                    event_log.write_raw("in", topic, current_time, value)
                 batch = parse_batch(value, run_id)
-                event_log.write("in", topic, current_time, batch)
                 for event in batch["events"]:
                     incoming.append(
                         (
@@ -1236,17 +1230,7 @@ def run(args: argparse.Namespace) -> int:
         )
         client.publish(CONTROL, control_value)
         if event_log.enabled:
-            event_log.write(
-                "out",
-                CONTROL,
-                current_time,
-                batch_encoder.record(
-                    batch_sequence,
-                    current_time,
-                    [control_event],
-                    current_microstep,
-                ),
-            )
+            event_log.write_raw("out", CONTROL, current_time, control_value)
         print(json.dumps(controller.summary(), ensure_ascii=False, sort_keys=True))
         client.time_request(MAX_TIME_NS)
         return 0 if controller.done else 2
