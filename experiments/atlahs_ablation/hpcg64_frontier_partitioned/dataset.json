@@ -9,7 +9,7 @@
   "modeled_send_bytes": 4194717888,
   "num_ranks": 64,
   "phases_per_rank": 16,
-  "preparation_wall_seconds": 14.15490756201325,
+  "preparation_wall_seconds": 14.125714854017133,
   "source": "/home/sdic/atlahs/data/hpc/hpcg/hpcg_64/hpcg_64.goal",
   "source_bytes": 528337256,
   "source_operation_kinds": {

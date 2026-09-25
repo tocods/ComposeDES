@@ -2,6 +2,12 @@
   "cells": {
     "vertical_off__horizontal_off": {
       "active_dependency_coordination": false,
+      "asynchronous_grants": [
+        0,
+        0,
+        0
+      ],
+      "asynchronous_grants_median": 0,
       "compute_dispatch_events": 8192,
       "compute_federates": 1,
       "compute_plan_dispatch_events": 0,
@@ -34,20 +40,20 @@
       "simulated_makespans_ns": [
         5294062105
       ],
-      "startup_median_seconds": 0.9530634219991043,
+      "startup_median_seconds": 1.0028485750081018,
       "startup_seconds": [
-        0.9529492240108084,
-        0.9530634219991043,
-        0.9533665269846097
+        1.0032627219916321,
+        1.0026044659898616,
+        1.0028485750081018
       ],
-      "steady_wall_clock_mean_seconds": 11.594967499666382,
-      "steady_wall_clock_median_seconds": 11.626427907001926,
+      "steady_wall_clock_mean_seconds": 10.91247627932656,
+      "steady_wall_clock_median_seconds": 10.929551176988753,
       "steady_wall_clock_seconds": [
-        11.628963291994296,
-        11.529511300002923,
-        11.626427907001926
+        10.929551176988753,
+        11.029332075006096,
+        10.77854558598483
       ],
-      "steady_wall_clock_stdev_seconds": 0.05670090475514286,
+      "steady_wall_clock_stdev_seconds": 0.12626214740188033,
       "total_grants": [
         64711,
         64711,
@@ -55,26 +61,32 @@
       ],
       "total_grants_median": 64711,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 12.548093890664555,
-      "wall_clock_median_seconds": 12.579794433986535,
+      "wall_clock_mean_seconds": 11.915381533656424,
+      "wall_clock_median_seconds": 11.932813898980385,
       "wall_clock_seconds": [
-        12.581912516005104,
-        12.482574722002028,
-        12.579794433986535
+        11.932813898980385,
+        12.031936540995957,
+        11.781394160992932
       ],
       "wall_clock_speedup_vs_all_off": 1.0,
-      "wall_clock_stdev_seconds": 0.056751146812473834
+      "wall_clock_stdev_seconds": 0.1261775992995038
     },
     "vertical_off__horizontal_on": {
       "active_dependency_coordination": true,
+      "asynchronous_grants": [
+        0,
+        0,
+        0
+      ],
+      "asynchronous_grants_median": 0,
       "compute_dispatch_events": 8192,
-      "compute_federates": 8,
+      "compute_federates": 2,
       "compute_plan_dispatch_events": 0,
       "control_plane_records": [
-        38761
+        38614
       ],
       "dependency_updates": [
-        4556
+        4427
       ],
       "federate_partition": "contiguous_rank_groups",
       "horizontal_optimization": true,
@@ -87,51 +99,57 @@
         "70156fa92473232f42b9b44387aed81cefab2b0dabe6228b3c5c8518a216c5f6"
       ],
       "network_trace_hashes": [
-        "1a07b5c5f38155306e3740c9a539195aa6b84abf49fb07db0d6e60035c862954"
+        "fcc48e8c4a5386d88f2212922af05c07b0421b1f49ac3312b402957f5e788daa"
       ],
       "samples": 3,
       "scheduler_rounds": [
-        60997,
-        60997,
-        60997
+        61531,
+        61531,
+        61531
       ],
-      "scheduler_rounds_median": 60997,
+      "scheduler_rounds_median": 61531,
       "simulated_makespans_ns": [
-        5294074703
+        5294062534
       ],
-      "startup_median_seconds": 0.9546457369870041,
+      "startup_median_seconds": 1.003121324989479,
       "startup_seconds": [
-        0.9539591110078618,
-        0.9552569059887901,
-        0.9546457369870041
+        1.003121324989479,
+        1.0031769549823366,
+        1.0030128780053928
       ],
-      "steady_wall_clock_mean_seconds": 13.15126188666909,
-      "steady_wall_clock_median_seconds": 13.018996552011231,
+      "steady_wall_clock_mean_seconds": 10.91109172165549,
+      "steady_wall_clock_median_seconds": 10.89288948799367,
       "steady_wall_clock_seconds": [
-        13.438569024001481,
-        12.996220083994558,
-        13.018996552011231
+        10.89288948799367,
+        11.011125065997476,
+        10.829260610975325
       ],
-      "steady_wall_clock_stdev_seconds": 0.24907576205931534,
+      "steady_wall_clock_stdev_seconds": 0.09228846614195937,
       "total_grants": [
-        61059,
-        61059,
-        61059
+        61574,
+        61574,
+        61574
       ],
-      "total_grants_median": 61059,
+      "total_grants_median": 61574,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 14.10588247133031,
-      "wall_clock_median_seconds": 13.973642288998235,
+      "wall_clock_mean_seconds": 11.914195440981226,
+      "wall_clock_median_seconds": 11.89601081298315,
       "wall_clock_seconds": [
-        14.392528135009343,
-        13.951476989983348,
-        13.973642288998235
+        11.89601081298315,
+        12.014302020979812,
+        11.832273488980718
       ],
-      "wall_clock_speedup_vs_all_off": 0.9002516433307365,
-      "wall_clock_stdev_seconds": 0.24848969294439618
+      "wall_clock_speedup_vs_all_off": 1.0030937334015424,
+      "wall_clock_stdev_seconds": 0.09236669928609374
     },
     "vertical_on__horizontal_off": {
       "active_dependency_coordination": false,
+      "asynchronous_grants": [
+        0,
+        0,
+        0
+      ],
+      "asynchronous_grants_median": 0,
       "compute_dispatch_events": 1024,
       "compute_federates": 1,
       "compute_plan_dispatch_events": 0,
@@ -164,20 +182,20 @@
       "simulated_makespans_ns": [
         5294060988
       ],
-      "startup_median_seconds": 1.2032275689998642,
+      "startup_median_seconds": 1.2032504950184375,
       "startup_seconds": [
-        1.2033652880054433,
-        1.1532850039948244,
-        1.2032275689998642
+        1.2032690299965907,
+        1.2032504950184375,
+        1.203067138994811
       ],
-      "steady_wall_clock_mean_seconds": 4.1259581963240635,
-      "steady_wall_clock_median_seconds": 4.119490657001734,
+      "steady_wall_clock_mean_seconds": 3.444401007000124,
+      "steady_wall_clock_median_seconds": 3.4682358060090337,
       "steady_wall_clock_seconds": [
-        4.069445471977815,
-        4.188938459992642,
-        4.119490657001734
+        3.468347112007905,
+        3.3966201029834338,
+        3.4682358060090337
       ],
-      "steady_wall_clock_stdev_seconds": 0.060008460610502926,
+      "steady_wall_clock_stdev_seconds": 0.04137951411925322,
       "total_grants": [
         51674,
         51674,
@@ -185,26 +203,32 @@
       ],
       "total_grants_median": 51674,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 5.312584149990774,
-      "wall_clock_median_seconds": 5.322718226001598,
+      "wall_clock_mean_seconds": 4.6475965616700705,
+      "wall_clock_median_seconds": 4.671302945003845,
       "wall_clock_seconds": [
-        5.272810759983258,
-        5.342223463987466,
-        5.322718226001598
+        4.6716161420044955,
+        4.599870598001871,
+        4.671302945003845
       ],
-      "wall_clock_speedup_vs_all_off": 2.3634154392268893,
-      "wall_clock_stdev_seconds": 0.03579881969756548
+      "wall_clock_speedup_vs_all_off": 2.5544936904045223,
+      "wall_clock_stdev_seconds": 0.04133219361628428
     },
     "vertical_on__horizontal_on": {
       "active_dependency_coordination": true,
+      "asynchronous_grants": [
+        0,
+        0,
+        0
+      ],
+      "asynchronous_grants_median": 0,
       "compute_dispatch_events": 1024,
-      "compute_federates": 8,
+      "compute_federates": 2,
       "compute_plan_dispatch_events": 0,
       "control_plane_records": [
-        20324
+        20211
       ],
       "dependency_updates": [
-        455
+        348
       ],
       "federate_partition": "contiguous_rank_groups",
       "horizontal_optimization": true,
@@ -217,48 +241,48 @@
         "70156fa92473232f42b9b44387aed81cefab2b0dabe6228b3c5c8518a216c5f6"
       ],
       "network_trace_hashes": [
-        "99f580bcffd977864d1fe354e363e675ca524ce5f38dd20da81d7792d5e6b02f"
+        "2299bb5a220da976cf155b1da7397e4dfd6361e1c1afe0650461e7922d6b694c"
       ],
       "samples": 3,
       "scheduler_rounds": [
-        39890,
-        39890,
-        39890
+        43399,
+        43399,
+        43399
       ],
-      "scheduler_rounds_median": 39890,
+      "scheduler_rounds_median": 43399,
       "simulated_makespans_ns": [
-        5294074703
+        5294062534
       ],
-      "startup_median_seconds": 1.2047196589992382,
+      "startup_median_seconds": 1.2034535350103397,
       "startup_seconds": [
-        1.2047196589992382,
-        1.205115933000343,
-        1.2045583949948195
+        1.2034535350103397,
+        1.2033422150125261,
+        1.203612081008032
       ],
-      "steady_wall_clock_mean_seconds": 4.15429470698776,
-      "steady_wall_clock_median_seconds": 4.1635680589824915,
+      "steady_wall_clock_mean_seconds": 3.409501714990862,
+      "steady_wall_clock_median_seconds": 3.4186714129755273,
       "steady_wall_clock_seconds": [
-        4.183654044987634,
-        4.1635680589824915,
-        4.115662016993156
+        3.4186714129755273,
+        3.4412169760034885,
+        3.368616755993571
       ],
-      "steady_wall_clock_stdev_seconds": 0.03493172284062314,
+      "steady_wall_clock_stdev_seconds": 0.03715858591523068,
       "total_grants": [
-        46723,
-        46723,
-        46723
+        47250,
+        47250,
+        47250
       ],
-      "total_grants_median": 46723,
+      "total_grants_median": 47250,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 5.3590927026525605,
-      "wall_clock_median_seconds": 5.368683991982834,
+      "wall_clock_mean_seconds": 4.612970992001162,
+      "wall_clock_median_seconds": 4.622124947985867,
       "wall_clock_seconds": [
-        5.388373703986872,
-        5.368683991982834,
-        5.320220411987975
+        4.622124947985867,
+        4.644559191016015,
+        4.572228837001603
       ],
-      "wall_clock_speedup_vs_all_off": 2.343180275235458,
-      "wall_clock_stdev_seconds": 0.03507438418325388
+      "wall_clock_speedup_vs_all_off": 2.5816727226684377,
+      "wall_clock_stdev_seconds": 0.037023860017426184
     }
   },
   "dataset": {
@@ -272,7 +296,7 @@
     "modeled_send_bytes": 4194717888,
     "num_ranks": 64,
     "phases_per_rank": 16,
-    "preparation_wall_seconds": 14.15490756201325,
+    "preparation_wall_seconds": 14.125714854017133,
     "source": "/home/sdic/atlahs/data/hpc/hpcg/hpcg_64/hpcg_64.goal",
     "source_bytes": 528337256,
     "source_operation_kinds": {
@@ -297,19 +321,19 @@
     ],
     "network_trace_hashes": [
       "0444722de03b46fcdb9af855205e447fd8c8563d486867a28dd709a39096eea8",
-      "1a07b5c5f38155306e3740c9a539195aa6b84abf49fb07db0d6e60035c862954",
+      "2299bb5a220da976cf155b1da7397e4dfd6361e1c1afe0650461e7922d6b694c",
       "3686f6872360340943acb56eb081d08423e91b1b0c704760dec75f2c340f85c6",
-      "99f580bcffd977864d1fe354e363e675ca524ce5f38dd20da81d7792d5e6b02f"
+      "fcc48e8c4a5386d88f2212922af05c07b0421b1f49ac3312b402957f5e788daa"
     ],
     "simulated_makespan_preserved": false,
-    "simulated_makespan_relative_span": 2.5906321254265838e-06,
-    "simulated_makespan_span_ns": 13715,
+    "simulated_makespan_relative_span": 2.9202526227658645e-07,
+    "simulated_makespan_span_ns": 1546,
     "simulated_makespan_within_10ppm": true,
-    "simulated_makespan_within_1ppm": false,
+    "simulated_makespan_within_1ppm": true,
     "simulated_makespans_ns": [
       5294060988,
       5294062105,
-      5294074703
+      5294062534
     ]
   }
 }

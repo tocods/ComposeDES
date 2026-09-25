@@ -2,6 +2,12 @@
   "cells": {
     "vertical_off__horizontal_off": {
       "active_dependency_coordination": false,
+      "asynchronous_grants": [
+        0,
+        0,
+        0
+      ],
+      "asynchronous_grants_median": 0,
       "compute_dispatch_events": 32768,
       "compute_federates": 1,
       "compute_plan_dispatch_events": 0,
@@ -34,20 +40,20 @@
       "simulated_makespans_ns": [
         1006360865727
       ],
-      "startup_median_seconds": 2.3060101100127213,
+      "startup_median_seconds": 2.3560454979888164,
       "startup_seconds": [
-        2.3070760819828138,
-        2.255781522981124,
-        2.3060101100127213
+        2.3563022809976246,
+        2.3559360610088333,
+        2.3560454979888164
       ],
-      "steady_wall_clock_mean_seconds": 87.91723633900013,
-      "steady_wall_clock_median_seconds": 87.88356048800051,
+      "steady_wall_clock_mean_seconds": 83.12136260100912,
+      "steady_wall_clock_median_seconds": 83.14408484302112,
       "steady_wall_clock_seconds": [
-        87.23383935299353,
-        87.88356048800051,
-        88.63430917600635
+        82.33231381501537,
+        83.88768914499087,
+        83.14408484302112
       ],
-      "steady_wall_clock_stdev_seconds": 0.7008419782645772,
+      "steady_wall_clock_stdev_seconds": 0.7779365844885052,
       "total_grants": [
         1119194,
         1119194,
@@ -55,18 +61,24 @@
       ],
       "total_grants_median": 1119194,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 90.20685891065902,
-      "wall_clock_median_seconds": 90.13934201098164,
+      "wall_clock_mean_seconds": 85.47745721434087,
+      "wall_clock_median_seconds": 85.50013034100994,
       "wall_clock_seconds": [
-        89.54091543497634,
-        90.13934201098164,
-        90.94031928601908
+        84.68861609601299,
+        86.2436252059997,
+        85.50013034100994
       ],
       "wall_clock_speedup_vs_all_off": 1.0,
-      "wall_clock_stdev_seconds": 0.7021407860143457
+      "wall_clock_stdev_seconds": 0.7777524580739882
     },
     "vertical_off__horizontal_on": {
       "active_dependency_coordination": true,
+      "asynchronous_grants": [
+        0,
+        0,
+        0
+      ],
+      "asynchronous_grants_median": 0,
       "compute_dispatch_events": 32768,
       "compute_federates": 8,
       "compute_plan_dispatch_events": 0,
@@ -99,20 +111,20 @@
       "simulated_makespans_ns": [
         1006360881966
       ],
-      "startup_median_seconds": 2.307451275002677,
+      "startup_median_seconds": 2.357620518974727,
       "startup_seconds": [
-        2.259578628989402,
-        2.3084227569925133,
-        2.307451275002677
+        2.3576594129845034,
+        2.3575200799969025,
+        2.357620518974727
       ],
-      "steady_wall_clock_mean_seconds": 57.670447586996794,
-      "steady_wall_clock_median_seconds": 57.65724728698842,
+      "steady_wall_clock_mean_seconds": 56.98561764266924,
+      "steady_wall_clock_median_seconds": 56.77763692100416,
       "steady_wall_clock_seconds": [
-        58.12478101599845,
-        57.2293144580035,
-        57.65724728698842
+        56.77763692100416,
+        57.47767555798055,
+        56.701540449023014
       ],
-      "steady_wall_clock_stdev_seconds": 0.44787919695166045,
+      "steady_wall_clock_stdev_seconds": 0.42782988707823594,
       "total_grants": [
         115898,
         115898,
@@ -120,18 +132,24 @@
       ],
       "total_grants_median": 115898,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 59.962265140658324,
-      "wall_clock_median_seconds": 59.9646985619911,
+      "wall_clock_mean_seconds": 59.343217646654615,
+      "wall_clock_median_seconds": 59.13529633398866,
       "wall_clock_seconds": [
-        60.38435964498785,
-        59.537737214996014,
-        59.9646985619911
+        59.13529633398866,
+        59.83519563797745,
+        59.05916096799774
       ],
-      "wall_clock_speedup_vs_all_off": 1.503206789537951,
-      "wall_clock_stdev_seconds": 0.42331646069561113
+      "wall_clock_speedup_vs_all_off": 1.4458392134896227,
+      "wall_clock_stdev_seconds": 0.42776267537991086
     },
     "vertical_on__horizontal_off": {
       "active_dependency_coordination": false,
+      "asynchronous_grants": [
+        0,
+        0,
+        0
+      ],
+      "asynchronous_grants_median": 0,
       "compute_dispatch_events": 4096,
       "compute_federates": 1,
       "compute_plan_dispatch_events": 0,
@@ -164,20 +182,20 @@
       "simulated_makespans_ns": [
         1006360860972
       ],
-      "startup_median_seconds": 2.606149927014485,
+      "startup_median_seconds": 2.657052296999609,
       "startup_seconds": [
-        2.556951415986987,
-        2.606149927014485,
-        2.606459280999843
+        2.657052296999609,
+        2.706948020000709,
+        2.605811410001479
       ],
-      "steady_wall_clock_mean_seconds": 35.44524490033897,
-      "steady_wall_clock_median_seconds": 35.3722431770002,
+      "steady_wall_clock_mean_seconds": 30.204643998663716,
+      "steady_wall_clock_median_seconds": 30.122000041010324,
       "steady_wall_clock_seconds": [
-        35.238143941009184,
-        35.3722431770002,
-        35.72534758300753
+        30.017561767977895,
+        30.474370187002933,
+        30.122000041010324
       ],
-      "steady_wall_clock_stdev_seconds": 0.2516719807645197,
+      "steady_wall_clock_stdev_seconds": 0.23935538582931543,
       "total_grants": [
         1069493,
         1069493,
@@ -185,18 +203,24 @@
       ],
       "total_grants_median": 1069493,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 38.035098441672744,
-      "wall_clock_median_seconds": 37.978393104014685,
+      "wall_clock_mean_seconds": 32.861247907664314,
+      "wall_clock_median_seconds": 32.7278114510118,
       "wall_clock_seconds": [
-        37.79509535699617,
-        37.978393104014685,
-        38.331806864007376
+        32.674614064977504,
+        33.18131820700364,
+        32.7278114510118
       ],
-      "wall_clock_speedup_vs_all_off": 2.37343749020948,
-      "wall_clock_stdev_seconds": 0.2728120817133023
+      "wall_clock_speedup_vs_all_off": 2.6124609789135973,
+      "wall_clock_stdev_seconds": 0.27846227367382215
     },
     "vertical_on__horizontal_on": {
       "active_dependency_coordination": true,
+      "asynchronous_grants": [
+        0,
+        0,
+        0
+      ],
+      "asynchronous_grants_median": 0,
       "compute_dispatch_events": 4096,
       "compute_federates": 8,
       "compute_plan_dispatch_events": 0,
@@ -229,20 +253,20 @@
       "simulated_makespans_ns": [
         1006360881966
       ],
-      "startup_median_seconds": 2.607830768014537,
+      "startup_median_seconds": 2.657287970010657,
       "startup_seconds": [
-        2.607830768014537,
-        2.6096963140007574,
-        2.6067719139973633
+        2.608296329010045,
+        2.6591159380041063,
+        2.657287970010657
       ],
-      "steady_wall_clock_mean_seconds": 8.015320012666052,
-      "steady_wall_clock_median_seconds": 7.999283402983565,
+      "steady_wall_clock_mean_seconds": 6.8925713583400166,
+      "steady_wall_clock_median_seconds": 6.890903351013549,
       "steady_wall_clock_seconds": [
-        7.999283402983565,
-        8.084777640004177,
-        7.961898995010415
+        6.890903351013549,
+        6.902118341997266,
+        6.884692382009234
       ],
-      "steady_wall_clock_stdev_seconds": 0.0629894434525108,
+      "steady_wall_clock_stdev_seconds": 0.008831914102106132,
       "total_grants": [
         58592,
         58592,
@@ -250,15 +274,15 @@
       ],
       "total_grants_median": 58592,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 10.623419678003605,
-      "wall_clock_median_seconds": 10.607114170998102,
+      "wall_clock_mean_seconds": 9.534138104014952,
+      "wall_clock_median_seconds": 9.541980352019891,
       "wall_clock_seconds": [
-        10.607114170998102,
-        10.694473954004934,
-        10.568670909007778
+        9.499199680023594,
+        9.561234280001372,
+        9.541980352019891
       ],
-      "wall_clock_speedup_vs_all_off": 8.498008087575789,
-      "wall_clock_stdev_seconds": 0.064467074554915
+      "wall_clock_speedup_vs_all_off": 8.96041777354015,
+      "wall_clock_stdev_seconds": 0.03175214227306508
     }
   },
   "dataset": {
@@ -272,7 +296,7 @@
     "modeled_send_bytes": 9487384518016,
     "num_ranks": 256,
     "phases_per_rank": 16,
-    "preparation_wall_seconds": 160.35424600198166,
+    "preparation_wall_seconds": 161.86704590902082,
     "source": "/home/sdic/atlahs/data/ai/grok/Grok314B_N64_GPU256_TP4_PP1_CP1_VP1_EP8_ETP4_GBS512/grok.goal",
     "source_bytes": 8410598614,
     "source_operation_kinds": {

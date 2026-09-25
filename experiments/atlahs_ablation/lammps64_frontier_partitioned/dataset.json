@@ -9,7 +9,7 @@
   "modeled_send_bytes": 29902443777,
   "num_ranks": 64,
   "phases_per_rank": 16,
-  "preparation_wall_seconds": 1.725892666989239,
+  "preparation_wall_seconds": 1.724833779007895,
   "source": "/home/sdic/atlahs/data/hpc/lammps/lammps_64/lammps_64.goal",
   "source_bytes": 49494448,
   "source_operation_kinds": {

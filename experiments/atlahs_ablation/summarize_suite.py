@@ -59,6 +59,7 @@ def main() -> int:
                 "compute_dispatch_events",
                 "scheduler_rounds_median",
                 "total_grants_median",
+                "asynchronous_grants_median",
                 "network_completion_count",
             ]
         )
@@ -90,6 +91,7 @@ def main() -> int:
                         cell["compute_dispatch_events"],
                         cell["scheduler_rounds_median"],
                         cell["total_grants_median"],
+                        cell.get("asynchronous_grants_median", 0),
                         cell["network_completion_count"],
                     ]
                 )

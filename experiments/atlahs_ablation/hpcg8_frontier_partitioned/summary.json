@@ -2,6 +2,12 @@
   "cells": {
     "vertical_off__horizontal_off": {
       "active_dependency_coordination": false,
+      "asynchronous_grants": [
+        0,
+        0,
+        0
+      ],
+      "asynchronous_grants_median": 0,
       "compute_dispatch_events": 1024,
       "compute_federates": 1,
       "compute_plan_dispatch_events": 0,
@@ -34,20 +40,20 @@
       "simulated_makespans_ns": [
         4711358190
       ],
-      "startup_median_seconds": 0.4518670889956411,
+      "startup_median_seconds": 0.4514682219887618,
       "startup_seconds": [
-        0.4516609680140391,
-        0.4518670889956411,
-        0.45214851398486644
+        0.4513581770006567,
+        0.4515393380133901,
+        0.4514682219887618
       ],
-      "steady_wall_clock_mean_seconds": 1.3489513183400657,
-      "steady_wall_clock_median_seconds": 1.365546543005621,
+      "steady_wall_clock_mean_seconds": 1.3152379196835682,
+      "steady_wall_clock_median_seconds": 1.3153220600215718,
       "steady_wall_clock_seconds": [
-        1.365720722998958,
-        1.3155866890156176,
-        1.365546543005621
+        1.3153220600215718,
+        1.3154046710114926,
+        1.3149870280176401
       ],
-      "steady_wall_clock_stdev_seconds": 0.028894747829594922,
+      "steady_wall_clock_stdev_seconds": 0.00022116987800793205,
       "total_grants": [
         9435,
         9435,
@@ -55,18 +61,24 @@
       ],
       "total_grants_median": 9435,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 1.800843508671581,
-      "wall_clock_median_seconds": 1.8173816910129972,
+      "wall_clock_mean_seconds": 1.766693165351171,
+      "wall_clock_median_seconds": 1.7666802370222285,
       "wall_clock_seconds": [
-        1.8173816910129972,
-        1.7674537780112587,
-        1.8176950569904875
+        1.7666802370222285,
+        1.7669440090248827,
+        1.766455250006402
       ],
       "wall_clock_speedup_vs_all_off": 1.0,
-      "wall_clock_stdev_seconds": 0.028916779466870424
+      "wall_clock_stdev_seconds": 0.000244635853471047
     },
     "vertical_off__horizontal_on": {
       "active_dependency_coordination": true,
+      "asynchronous_grants": [
+        0,
+        0,
+        0
+      ],
+      "asynchronous_grants_median": 0,
       "compute_dispatch_events": 1024,
       "compute_federates": 2,
       "compute_plan_dispatch_events": 0,
@@ -99,20 +111,20 @@
       "simulated_makespans_ns": [
         4711358995
       ],
-      "startup_median_seconds": 0.4520830789988395,
+      "startup_median_seconds": 0.45201947301393375,
       "startup_seconds": [
-        0.4520830789988395,
-        0.452094461012166,
-        0.4520307809871156
+        0.45201947301393375,
+        0.45200518300407566,
+        0.4823504929954652
       ],
-      "steady_wall_clock_mean_seconds": 1.3321750633282743,
-      "steady_wall_clock_median_seconds": 1.3155147710058372,
+      "steady_wall_clock_mean_seconds": 1.2832490959942031,
+      "steady_wall_clock_median_seconds": 1.2686074099910911,
       "steady_wall_clock_seconds": [
-        1.3155072479858063,
-        1.365503170993179,
-        1.3155147710058372
+        1.2654764549806714,
+        1.2686074099910911,
+        1.3156634230108466
       ],
-      "steady_wall_clock_stdev_seconds": 0.02886298814297604,
+      "steady_wall_clock_stdev_seconds": 0.028115247940854966,
       "total_grants": [
         5047,
         5047,
@@ -120,18 +132,24 @@
       ],
       "total_grants_median": 5047,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 1.7842445036609813,
-      "wall_clock_median_seconds": 1.7675903269846458,
+      "wall_clock_mean_seconds": 1.7453741456653613,
+      "wall_clock_median_seconds": 1.7206125929951668,
       "wall_clock_seconds": [
-        1.7675903269846458,
-        1.817597632005345,
-        1.7675455519929528
+        1.7174959279946052,
+        1.7206125929951668,
+        1.7980139160063118
       ],
-      "wall_clock_speedup_vs_all_off": 1.0281690634239276,
-      "wall_clock_stdev_seconds": 0.028884665117786555
+      "wall_clock_speedup_vs_all_off": 1.026773978183473,
+      "wall_clock_stdev_seconds": 0.04561400515568046
     },
     "vertical_on__horizontal_off": {
       "active_dependency_coordination": false,
+      "asynchronous_grants": [
+        0,
+        0,
+        0
+      ],
+      "asynchronous_grants_median": 0,
       "compute_dispatch_events": 128,
       "compute_federates": 1,
       "compute_plan_dispatch_events": 0,
@@ -164,20 +182,20 @@
       "simulated_makespans_ns": [
         4711358182
       ],
-      "startup_median_seconds": 0.4516823790036142,
+      "startup_median_seconds": 0.45168516199919395,
       "startup_seconds": [
-        0.4516823790036142,
-        0.45165502702002414,
-        0.451774404005846
+        0.45146475700312294,
+        0.4517369030218106,
+        0.45168516199919395
       ],
-      "steady_wall_clock_mean_seconds": 0.9653212543247113,
-      "steady_wall_clock_median_seconds": 0.96491267500096,
+      "steady_wall_clock_mean_seconds": 0.9818347786689022,
+      "steady_wall_clock_median_seconds": 0.9659693840076216,
       "steady_wall_clock_seconds": [
-        0.9662061909912154,
-        0.9648448969819583,
-        0.96491267500096
+        0.9647963549941778,
+        1.0147385970049072,
+        0.9659693840076216
       ],
-      "steady_wall_clock_stdev_seconds": 0.0007671265493760354,
+      "steady_wall_clock_stdev_seconds": 0.02850157794023359,
       "total_grants": [
         7913,
         7913,
@@ -185,18 +203,24 @@
       ],
       "total_grants_median": 7913,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 1.417025191001206,
-      "wall_clock_median_seconds": 1.416687079006806,
+      "wall_clock_mean_seconds": 1.4334637193436113,
+      "wall_clock_median_seconds": 1.4176545460068155,
       "wall_clock_seconds": [
-        1.4178885699948296,
-        1.4164999240019824,
-        1.416687079006806
+        1.4162611119973008,
+        1.4664755000267178,
+        1.4176545460068155
       ],
-      "wall_clock_speedup_vs_all_off": 1.2828391801858638,
-      "wall_clock_stdev_seconds": 0.0007535411162839606
+      "wall_clock_speedup_vs_all_off": 1.2461993946258154,
+      "wall_clock_stdev_seconds": 0.02859752895770642
     },
     "vertical_on__horizontal_on": {
       "active_dependency_coordination": true,
+      "asynchronous_grants": [
+        0,
+        0,
+        0
+      ],
+      "asynchronous_grants_median": 0,
       "compute_dispatch_events": 128,
       "compute_federates": 2,
       "compute_plan_dispatch_events": 0,
@@ -229,20 +253,20 @@
       "simulated_makespans_ns": [
         4711358995
       ],
-      "startup_median_seconds": 0.45218185702105984,
+      "startup_median_seconds": 0.45178223997936584,
       "startup_seconds": [
-        0.45194356600404717,
-        0.45218185702105984,
-        0.45246693899389356
+        0.45178223997936584,
+        0.4519305200083181,
+        0.45175270998151973
       ],
-      "steady_wall_clock_mean_seconds": 0.8672060089981338,
-      "steady_wall_clock_median_seconds": 0.864744354999857,
+      "steady_wall_clock_mean_seconds": 0.8814135926756231,
+      "steady_wall_clock_median_seconds": 0.8646921399922576,
       "steady_wall_clock_seconds": [
-        0.8721477510116529,
-        0.8647259209828917,
-        0.864744354999857
+        0.9148922510212287,
+        0.8646921399922576,
+        0.8646563870133832
       ],
-      "steady_wall_clock_stdev_seconds": 0.004279684047845069,
+      "steady_wall_clock_stdev_seconds": 0.028993374122982186,
       "total_grants": [
         3255,
         3255,
@@ -250,15 +274,15 @@
       ],
       "total_grants_median": 3255,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 1.3194034630044673,
-      "wall_clock_median_seconds": 1.3172112939937506,
+      "wall_clock_mean_seconds": 1.333235415998691,
+      "wall_clock_median_seconds": 1.3166226600005757,
       "wall_clock_seconds": [
-        1.3240913170157,
-        1.3169077780039515,
-        1.3172112939937506
+        1.3666744910005946,
+        1.3166226600005757,
+        1.316409096994903
       ],
-      "wall_clock_speedup_vs_all_off": 1.3797191834749176,
-      "wall_clock_stdev_seconds": 0.004062636079196423
+      "wall_clock_speedup_vs_all_off": 1.3418273061026127,
+      "wall_clock_stdev_seconds": 0.028959285298959705
     }
   },
   "dataset": {
@@ -272,7 +296,7 @@
     "modeled_send_bytes": 344933504,
     "num_ranks": 8,
     "phases_per_rank": 16,
-    "preparation_wall_seconds": 0.9008893450081814,
+    "preparation_wall_seconds": 0.8771939700236544,
     "source": "/home/sdic/atlahs/data/hpc/hpcg/hpcg_8/hpcg_8.goal",
     "source_bytes": 30785016,
     "source_operation_kinds": {

@@ -145,19 +145,21 @@ schema/run-id JSON 前缀；运行时只编码序号、逻辑时间、microstep 
 日志字符串再写入 `/dev/null`；开启诊断时原有日志行为不变。编排器事件日志复用已经编码的
 JSON batch，避免对每个事件做第二次完整序列化。完成时间、重试、frontier 和失败状态仍在
 运行时生成，因此没有削弱因果约束。
-在 Active 模式下，broker 现在还会检查单个 Federate 的依赖闭包：当所有可能影响它的生产者
-都已经提交安全 request，或该 Federate 持有有效 frontier 时，可以立即发放该 Federate 的
-grant，而不等待无关 Federate 返回；无法证明安全时仍回退原来的全局保守 barrier。该 fast
-path 只减少等待和调度轮次，不改变 grant 数量或事件因果，`coordination.json` 记录
-`asynchronous_grants` 供消融统计。跨多个 Federate 的批量 grant、长期 lease 和一 rank 一 JVM
+Active 模式下还实现了一个实验性的单 Federate 异步 grant fast path；它默认关闭，只有设置
+`FNCS_ASYNCHRONOUS_GRANTS=yes` 才启用。启用时 broker 会在依赖闭包和 frontier 都能证明安全
+时提前发放 grant，否则回退原来的全局保守 barrier。由于 frontier 与跨分区 dispatch 的交界
+仍需要按工作负载验证，全量消融默认不启用该路径；`coordination.json` 仍记录
+`asynchronous_grants` 供单独测试。跨多个 Federate 的批量 grant、长期 lease 和一 rank 一 JVM
 仍是后续稳态优化方向。
 
 随后在这版实现上对全部七个工作负载重新执行了完整 2×2 消融，每格三次，共 84 次端到端运行。
-新版组合总墙钟加速为：LULESH-64 2.345×、HPCG-8 1.380×、ICON-8 1.569×、HPCG-64 2.343×、
-ICON-64 2.226×、LAMMPS-64 1.995×、Grok-314B-256 8.498×；对应稳态组合加速为 2.792×、
-1.579×、1.868×、2.792×、2.632×、2.303× 和 10.986×。每个配置的三次总墙钟、启动段、稳态
-墙钟、均值、标准差和中位数保存在 `experiments/atlahs_ablation/*_frontier_partitioned/results.csv`；
-总表见 `experiments/atlahs_ablation/SUITE_REPORT.md`。所有配置的网络完成语义保持一致，makespan
+横向分区固定为 64 ranks 使用 2 个 Federate、8 ranks 使用 2 个 Federate、256 ranks 使用 8 个
+Federate。横向单独的稳态加速分别为 LULESH-64 1.004×、HPCG-8 1.037×、ICON-8 1.277×、
+HPCG-64 1.003×、ICON-64 1.016×、LAMMPS-64 1.013× 和 Grok-314B-256 1.464×；因此每个
+工作负载都保持非负横向收益。组合稳态加速分别为 3.165×、1.521×、1.869×、3.197×、
+3.112×、3.030× 和 12.066×。每个配置的三次总墙钟、启动段、稳态墙钟、均值、标准差和中位数
+保存在 `experiments/atlahs_ablation/*_frontier_partitioned/results.csv`；总表见
+`experiments/atlahs_ablation/workload_summary.csv`。所有配置的网络完成语义保持一致，makespan
 跨度低于 10 ppm。
 
 ## 代码与验证

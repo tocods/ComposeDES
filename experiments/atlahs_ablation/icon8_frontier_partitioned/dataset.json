@@ -9,7 +9,7 @@
   "modeled_send_bytes": 4303891888,
   "num_ranks": 8,
   "phases_per_rank": 16,
-  "preparation_wall_seconds": 0.4766026999859605,
+  "preparation_wall_seconds": 0.456384324003011,
   "source": "/home/sdic/atlahs/data/hpc/icon/icon_8/icon_8.goal",
   "source_bytes": 15278290,
   "source_operation_kinds": {

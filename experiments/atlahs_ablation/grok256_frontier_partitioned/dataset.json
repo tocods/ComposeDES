@@ -9,7 +9,7 @@
   "modeled_send_bytes": 9487384518016,
   "num_ranks": 256,
   "phases_per_rank": 16,
-  "preparation_wall_seconds": 160.35424600198166,
+  "preparation_wall_seconds": 161.86704590902082,
   "source": "/home/sdic/atlahs/data/ai/grok/Grok314B_N64_GPU256_TP4_PP1_CP1_VP1_EP8_ETP4_GBS512/grok.goal",
   "source_bytes": 8410598614,
   "source_operation_kinds": {
