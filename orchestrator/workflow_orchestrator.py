@@ -819,12 +819,16 @@ def encode_dependency_update(
     epoch: int,
     dependencies: Dict[str, set[str]],
     frontiers: Mapping[str, int] | None = None,
+    frontier_only: bool = False,
 ) -> str:
     lines = [f"epoch={epoch}"]
-    for consumer in sorted(dependencies):
-        lines.append(f"{consumer}={','.join(sorted(dependencies[consumer]))}")
+    if frontier_only:
+        lines.append("frontier_only=1")
+    else:
+        for consumer in sorted(dependencies):
+            lines.append(f"{consumer}={','.join(sorted(dependencies[consumer]))}")
     for consumer, frontier in sorted((frontiers or {}).items()):
-        if consumer not in dependencies:
+        if not frontier_only and consumer not in dependencies:
             raise WorkflowError(f"frontier references unknown simulator {consumer!r}")
         if frontier <= 0:
             raise WorkflowError("frontiers must be positive")
@@ -1056,6 +1060,7 @@ def run(args: argparse.Namespace) -> int:
     current_microstep = 0
     dependency_epoch = 0
     last_dependency_state: tuple[Any, ...] | None = None
+    last_dependency_topology_state: tuple[Any, ...] | None = None
     inflight_completion_lower_bounds: Dict[str, int | None] = {}
 
     def certified_input_frontier() -> int | None:
@@ -1119,7 +1124,7 @@ def run(args: argparse.Namespace) -> int:
                 )
 
     def publish_dependencies() -> None:
-        nonlocal dependency_epoch, last_dependency_state
+        nonlocal dependency_epoch, last_dependency_state, last_dependency_topology_state
         if not args.active_dependency_coordination:
             return
         frontier = certified_input_frontier()
@@ -1129,27 +1134,35 @@ def run(args: argparse.Namespace) -> int:
             ) * args.frontier_update_quantum_ns
             if frontier <= current_time:
                 frontier = None
+        topology_state = controller.simulator_dependency_state(compute_worker_by_host)
         state = (
-            *controller.simulator_dependency_state(compute_worker_by_host),
+            *topology_state,
             frontier if args.safe_frontier_coordination and frontier is not None else 0,
         )
         if state == last_dependency_state:
             return
+        topology_changed = topology_state != last_dependency_topology_state
         dependencies = controller.simulator_dependencies(
             args.orchestrator_name,
             args.compute_worker_name,
             args.network_worker_name,
             compute_worker_by_host,
-        )
+        ) if topology_changed or frontier is None else {}
         dependency_epoch += 1
         last_dependency_state = state
+        last_dependency_topology_state = topology_state
         frontiers = None
         if args.safe_frontier_coordination and frontier is not None:
             frontiers = {
                 worker: frontier for worker in compute_worker_names
             }
             frontiers[args.network_worker_name] = frontier
-        value = encode_dependency_update(dependency_epoch, dependencies, frontiers)
+        value = encode_dependency_update(
+            dependency_epoch,
+            dependencies,
+            frontiers,
+            frontier_only=not topology_changed and frontier is not None,
+        )
         client.publish_anon(ACTIVE_DEPENDENCIES, value)
         event_log.write(
             "control",

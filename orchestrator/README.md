@@ -78,6 +78,12 @@ builds the transitive dependency closure once per epoch. Normal scheduling
 rounds reuse indexed state and scratch buffers. Invalid or cyclic graphs retain
 the conservative global-minimum fallback.
 
+When only a certified frontier changes, the orchestrator sends a
+`frontier_only=1` epoch. The broker retains the indexed dependency graph and
+updates only the frontier vector, avoiding a repeated closure rebuild on every
+completion certificate. A topology change or frontier withdrawal still sends
+a full atomic graph update.
+
 The dispatch path also precompiles immutable data before the FNCS session
 starts. Each task's children-free dispatch description is deep-copied once at
 workflow construction, and the batch encoder serializes the schema and run-id

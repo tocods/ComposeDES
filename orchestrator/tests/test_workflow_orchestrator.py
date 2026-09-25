@@ -499,6 +499,20 @@ class WorkflowControllerTest(unittest.TestCase):
             bounded,
         )
 
+        frontier_delta = MODULE.encode_dependency_update(
+            11,
+            {},
+            {"worker": 234567, "orchestrator": 234567},
+            frontier_only=True,
+        )
+        self.assertEqual(
+            "epoch=11\n"
+            "frontier_only=1\n"
+            "frontier.orchestrator=234567\n"
+            "frontier.worker=234567",
+            frontier_delta,
+        )
+
     def test_command_completion_lower_bounds_use_certificates(self):
         compute = MODULE.Command(
             MODULE.COMPUTE_DISPATCH,

@@ -71,7 +71,16 @@ static bool parse_dependency_update(
     istringstream input(value);
     string line;
     fncs::ActiveDependencyGraph parsed;
-    parsed.reset(name_to_index.size());
+    /* Frontier-only epochs retain the indexed dependency closure.  Frontier
+     * certificates change much more often than the dependency topology; do
+     * not rebuild the transitive closure for every certificate update. */
+    const bool frontier_only = value.find("frontier_only=1") != string::npos;
+    if (frontier_only) {
+        parsed = *dependencies;
+    }
+    else {
+        parsed.reset(name_to_index.size());
+    }
     unsigned long long parsed_epoch = 0;
     bool found_epoch = false;
     while (getline(input, line)) {
@@ -93,6 +102,12 @@ static bool parse_dependency_update(
             found_epoch = true;
             continue;
         }
+        if (consumer == "frontier_only") {
+            if (producers != "1") {
+                return false;
+            }
+            continue;
+        }
         const string frontier_prefix = "frontier.";
         if (consumer.compare(0, frontier_prefix.size(), frontier_prefix) == 0) {
             string simulator = consumer.substr(frontier_prefix.size());
@@ -112,6 +127,9 @@ static bool parse_dependency_update(
             continue;
         }
         if (name_to_index.count(consumer) == 0) {
+            return false;
+        }
+        if (frontier_only) {
             return false;
         }
         size_t consumer_index = name_to_index.find(consumer)->second;
