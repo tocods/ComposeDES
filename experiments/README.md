@@ -1,9 +1,20 @@
 # 第二项工作实验索引
 
-本目录验证两个变量：纵向事件聚合，以及由完整 Federate 切分和 Active-dependency 组成的
-横向优化。设计、因果边界和实现见 [`docs/WORK_2_DESIGN.md`](../docs/WORK_2_DESIGN.md)。
+本目录验证两个变量：纵向事件聚合，以及由长期 Federate 分区、Active-dependency、安全
+frontier 和可撤销 lease 组成的横向优化。设计、因果边界和实现见
+[`docs/WORK_2_DESIGN.md`](../docs/WORK_2_DESIGN.md)。
 
-## 端到端消融
+## 优化后消融
+
+| 数据集 | Ranks | 横向实现 | 仅纵向 | 仅横向 | 组合 | 报告 |
+|---|---:|---|---:|---:|---:|---|
+| LULESH-64 | 64 | 8 Federates × 8 ranks，Active + frontier + lease | **2.399×** | 0.888× | 2.350× | [报告](atlahs_ablation/lulesh64_frontier_partitioned/REPORT.md) |
+| Grok-314B-256 | 256 | 8 Federates × 32 ranks，Active + frontier + lease | 2.381× | **1.500×** | **8.574×** | [报告](atlahs_ablation/grok256_frontier_partitioned/REPORT.md) |
+
+每个单元三次重复。Grok 上横向单开已获得端到端收益，组合墙钟中位数从基线 90.052 秒降为
+10.503 秒；LULESH 的横向固定成本仍高于协调收益。机器可读结果位于对应报告目录。
+
+## 优化前端到端消融
 
 | 数据集 | 类型 | Ranks | 原始操作 | 仅纵向 | 仅横向 | 组合 | 报告 |
 |---|---|---:|---:|---:|---:|---:|---|
@@ -12,8 +23,9 @@
 | ICON-8 | HPC | 8 | 295,072 | **1.257×** | 0.768× | 1.065× | [报告](atlahs_ablation/icon8/REPORT.md) |
 | Grok-314B-256 | 大模型训练 | 256 | 114,000,750 | **2.397×** | 0.720× | 1.577× | [报告](atlahs_ablation/grok256/REPORT.md) |
 
-横向开启时，计算 Federate 数等于 ranks 且 Active-dependency 开启；关闭时只有一个集中式
-计算 Federate。完整汇总见[四工作负载报告](atlahs_ablation/SUITE_REPORT.md)。
+这组历史结果的横向实现为一 rank 一 JVM、短周期时间请求；关闭时只有一个集中式计算
+Federate。它们用于说明固定进程成本为何曾经抵消协调收益。完整汇总见
+[四工作负载报告](atlahs_ablation/SUITE_REPORT.md)。
 
 ## 协调层上界实验
 
@@ -28,7 +40,7 @@ python3 experiments/atlahs_ablation/run_ablation.py \
   --goal /path/to/trace.goal --output /path/to/output --prepare-only
 python3 experiments/atlahs_ablation/run_ablation.py \
   --output /path/to/output --run-only --repeats 3 \
-  --timeout 3600 --quiet-worker-logs
+  --ranks-per-federate 32 --timeout 3600 --quiet-worker-logs
 python3 experiments/atlahs_ablation/summarize_suite.py
 ```
 

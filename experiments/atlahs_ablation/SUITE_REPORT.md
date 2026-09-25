@@ -1,10 +1,15 @@
 # 三个超算应用与一个大模型训练负载的二因素消融
 
+> 本报告是优化前的一 rank 一 JVM 对照。安全 frontier 与长期 Federate 的当前三重复结果为：
+> LULESH-64 仅横向 0.888×、组合 2.350×；Grok-256 仅横向 1.500×、组合 8.574×。
+> 见 [`lulesh64_frontier_partitioned`](lulesh64_frontier_partitioned/REPORT.md) 和
+> [`grok256_frontier_partitioned`](grok256_frontier_partitioned/REPORT.md)。
+
 实验日期：2026-09-25（Asia/Shanghai）
 
 组件版本：FNCS `48dd83bd1`、GPUSim `6ab9fc71f`、ns-3 `2f049f0d4`
 
-## 实验定义
+## 优化前实验定义
 
 纵向开启表示 Critical-path event acceleration；横向开启表示同时采用每 rank 一个 GPUSim
 Federate 和 Active-dependency。横向关闭使用一个集中式 GPUSim Federate和静态保守协调。
@@ -32,8 +37,8 @@ Federate 和 Active-dependency。横向关闭使用一个集中式 GPUSim Federa
 
 这个结果回答了 Grok 之前“横向为什么没有收益”的问题：数据集有足够的 rank 并行性，纯协调
 模型也显示过上界收益；当前端到端实现采用一 rank 一 JVM，协调节省只有约 1.5%，不足以覆盖
-256 个计算进程的运行时成本。后续应把多个 rank 合并为少量分区 Federate，或在单进程中承载
-多个隔离时间线，再比较分区粒度。
+256 个计算进程的运行时成本。后续实现已经把多个 rank 合并为少量长期分区 Federate，并加入
+安全 frontier 和长期 lease；上方链接给出更新结果。本表继续保留为机制优化前对照。
 
 ## 正确性
 

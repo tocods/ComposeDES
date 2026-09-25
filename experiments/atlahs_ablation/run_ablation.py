@@ -5,8 +5,8 @@ The experiment varies two independent mechanisms:
 
 * vertical optimization: exact contraction of closed, same-owner
   compute regions;
-* horizontal optimization: one compute Federate per trace rank together with
-  Active-dependency scheduling between the resulting Federates.
+* horizontal optimization: long-lived compute Federates, each hosting one or
+  more trace ranks, together with frontier-aware Active-dependency scheduling.
 
 The GOAL trace is partitioned in operation order.  Compute durations and send
 volumes come from the trace.  Every rank/phase contains several local compute
@@ -388,6 +388,57 @@ def write_compute_worker_zpl(path: Path, worker: str, directed: bool) -> None:
     )
 
 
+def build_compute_partitions(
+    all_hosts: list[dict[str, Any]],
+    horizontal_optimization: bool,
+    ranks_per_federate: int,
+    partition_map_path: Path | None = None,
+) -> tuple[list[str], dict[str, str], dict[str, list[dict[str, Any]]], str]:
+    """Build stable long-lived Federates from rank or job-aware partitions."""
+    host_names = [str(host["name"]) for host in all_hosts]
+    if not horizontal_optimization:
+        return ["gpusim"], {name: "gpusim" for name in host_names}, {
+            "gpusim": [dict(host) for host in all_hosts]
+        }, "centralized"
+    if ranks_per_federate <= 0:
+        raise ValueError("ranks_per_federate must be positive")
+
+    if partition_map_path is None:
+        raw_partition_by_host = {
+            name: str(index // ranks_per_federate)
+            for index, name in enumerate(host_names)
+        }
+        strategy = "contiguous_rank_groups"
+    else:
+        loaded = json.loads(partition_map_path.read_text(encoding="utf-8"))
+        if not isinstance(loaded, dict):
+            raise ValueError("compute partition map must be a JSON object")
+        missing = sorted(set(host_names) - set(loaded))
+        extra = sorted(set(loaded) - set(host_names))
+        if missing or extra:
+            raise ValueError(
+                f"compute partition map host mismatch: missing={missing}, extra={extra}"
+            )
+        raw_partition_by_host = {name: str(loaded[name]) for name in host_names}
+        if any(not value for value in raw_partition_by_host.values()):
+            raise ValueError("compute partition IDs must be non-empty")
+        strategy = "explicit_dag_groups"
+
+    partition_ids = list(dict.fromkeys(raw_partition_by_host.values()))
+    worker_by_partition = {
+        partition_id: f"gpusim-partition-{index:03d}"
+        for index, partition_id in enumerate(partition_ids)
+    }
+    worker_by_host = {
+        host: worker_by_partition[raw_partition_by_host[host]]
+        for host in host_names
+    }
+    hosts_by_worker = {worker: [] for worker in worker_by_partition.values()}
+    for host in all_hosts:
+        hosts_by_worker[worker_by_host[str(host["name"])]].append(dict(host))
+    return list(hosts_by_worker), worker_by_host, hosts_by_worker, strategy
+
+
 def run_one(
     output: Path,
     acceleration: bool,
@@ -396,6 +447,9 @@ def run_one(
     port: int,
     timeout: int,
     quiet_worker_logs: bool = False,
+    ranks_per_federate: int = 1,
+    safe_frontiers: bool = True,
+    partition_map_path: Path | None = None,
 ) -> dict[str, Any]:
     label = (
         f"vertical_{'on' if acceleration else 'off'}__"
@@ -422,27 +476,30 @@ def run_one(
     all_hosts = json.loads((input_dir / "hosts.json").read_text())
     if len(all_hosts) != host_count:
         raise ValueError("hosts.json does not match dataset rank count")
-    if horizontal_optimization:
-        compute_workers = [f"gpusim-rank-{rank:03d}" for rank in range(host_count)]
-        compute_worker_by_host = {
-            str(host["name"]): compute_workers[index]
-            for index, host in enumerate(all_hosts)
-        }
-    else:
-        compute_workers = ["gpusim"]
-        compute_worker_by_host = {str(host["name"]): "gpusim" for host in all_hosts}
+    (
+        compute_workers,
+        compute_worker_by_host,
+        hosts_by_worker,
+        partition_strategy,
+    ) = build_compute_partitions(
+        all_hosts,
+        horizontal_optimization,
+        ranks_per_federate,
+        partition_map_path,
+    )
 
     config_dir = result_dir / "config"
     config_dir.mkdir()
     orchestrator_zpl = config_dir / "orchestrator.zpl"
     write_orchestrator_zpl(orchestrator_zpl, compute_workers)
     worker_specs: list[tuple[str, Path, Path]] = []
-    for index, worker in enumerate(compute_workers):
+    for worker in compute_workers:
         worker_dir = result_dir / "workers" / worker
         worker_dir.mkdir(parents=True)
-        worker_hosts = all_hosts if not horizontal_optimization else [dict(all_hosts[index])]
+        worker_hosts = hosts_by_worker[worker]
         if horizontal_optimization:
-            worker_hosts[0]["ifMaster"] = True
+            for host_index, host in enumerate(worker_hosts):
+                host["ifMaster"] = host_index == 0
         hosts_path = config_dir / f"{worker}.hosts.json"
         zpl_path = config_dir / f"{worker}.zpl"
         json_dump(hosts_path, worker_hosts)
@@ -518,13 +575,18 @@ def run_one(
         )
 
         gpusim_processes: list[tuple[str, subprocess.Popen[str]]] = []
-        worker_heap_mb = 256 if horizontal_optimization else max(256, host_count * 8)
         for worker, worker_dir, hosts_path in worker_specs:
+            worker_host_count = len(json.loads(hosts_path.read_text()))
+            worker_heap_mb = max(256, worker_host_count * 8)
             gpusim_env = base_env.copy()
             gpusim_env.update({
                 "FNCS_CONFIG_FILE": str(config_dir / f"{worker}.zpl"),
                 "FNCS_NAME": worker,
-                "COSIM_WORKER_IDLE_GRANT_NS": "1000000",
+                "COSIM_WORKER_IDLE_GRANT_NS": (
+                    str((1 << 63) - 1)
+                    if horizontal_optimization and safe_frontiers
+                    else "1000000"
+                ),
             })
             process = start(
                 worker,
@@ -558,9 +620,27 @@ def run_one(
                 "--compute-worker-map", str(worker_map_path),
                 "--active-dependency-coordination",
             ])
+            if safe_frontiers:
+                orchestrator_command.append("--safe-frontier-coordination")
         orchestrator = start("orchestrator", orchestrator_command, orchestrator_env)
 
-        orchestrator.wait(timeout=timeout)
+        deadline = time.monotonic() + timeout
+        while orchestrator.poll() is None:
+            for name, worker in [*gpusim_processes, ("ns3", ns3), ("broker", broker)]:
+                return_code = worker.poll()
+                if return_code is None:
+                    continue
+                terminal_published = event_log.exists() and (
+                    '"kind":"control.end"' in tail(event_log, 2)
+                )
+                if not terminal_published:
+                    raise RuntimeError(
+                        f"{name} exited early ({return_code}) while orchestrator was running: "
+                        f"{tail(result_dir / f'{name}.log')}"
+                    )
+            if time.monotonic() >= deadline:
+                raise subprocess.TimeoutExpired(orchestrator.args, timeout)
+            time.sleep(0.05)
         if orchestrator.returncode != 0:
             raise RuntimeError(f"orchestrator exited {orchestrator.returncode}: {tail(result_dir / 'orchestrator.log')}")
         for name, worker in [*gpusim_processes, ("ns3", ns3)]:
@@ -626,9 +706,18 @@ def run_one(
         "vertical_optimization": acceleration,
         "horizontal_optimization": horizontal_optimization,
         "critical_path_event_acceleration": acceleration,
-        "federate_partition": "rank" if horizontal_optimization else "centralized",
+        "federate_partition": partition_strategy,
         "compute_federates": len(compute_workers),
+        "ranks_per_compute_federate": (
+            ranks_per_federate
+            if horizontal_optimization and partition_map_path is None
+            else host_count if not horizontal_optimization else None
+        ),
         "active_dependency_coordination": horizontal_optimization,
+        "safe_frontier_coordination": horizontal_optimization and safe_frontiers,
+        "compute_federate_rank_counts": {
+            worker: len(hosts_by_worker[worker]) for worker in compute_workers
+        },
         "worker_logs_discarded": quiet_worker_logs,
         "wall_clock_seconds": wall_seconds,
         "simulated_makespan_ns": simulated_makespan_ns,
@@ -791,6 +880,25 @@ def main() -> int:
         help="first repeat to execute; prior result.json files are reused",
     )
     parser.add_argument("--timeout", type=int, default=900)
+    parser.add_argument(
+        "--ranks-per-federate",
+        type=int,
+        default=1,
+        help="number of trace ranks hosted by each horizontal GPUSim Federate",
+    )
+    parser.add_argument(
+        "--compute-partition-map",
+        type=Path,
+        help=(
+            "JSON object mapping every host to a partition ID; use this to "
+            "keep independent jobs or DAG components in separate Federates"
+        ),
+    )
+    parser.add_argument(
+        "--no-safe-frontiers",
+        action="store_true",
+        help="disable certified frontier requests in horizontal cells",
+    )
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--run-only", action="store_true")
     parser.add_argument(
@@ -845,6 +953,9 @@ def main() -> int:
             result = run_one(
                 args.output.resolve(), acceleration, horizontal_optimization, repeat,
                 5700 + sequence, args.timeout, args.quiet_worker_logs,
+                args.ranks_per_federate, not args.no_safe_frontiers,
+                args.compute_partition_map.resolve()
+                if args.compute_partition_map else None,
             )
             results.append(result)
             print(json.dumps({

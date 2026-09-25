@@ -1,0 +1,169 @@
+{
+  "cells": {
+    "vertical_off__horizontal_off": {
+      "active_dependency_coordination": false,
+      "compute_federates": 1,
+      "federate_partition": "centralized",
+      "horizontal_optimization": false,
+      "network_semantic_hashes": [
+        "ee0c2eacfa6eee5667ea5fa708d8078e9b13518d92e512095fd83aef42873b7b"
+      ],
+      "ranks_per_compute_federate": 256,
+      "safe_frontier_coordination": false,
+      "samples": 3,
+      "scheduler_rounds": [
+        1117671
+      ],
+      "simulated_makespans_ns": [
+        1006360865727
+      ],
+      "total_grants": [
+        1119194
+      ],
+      "vertical_optimization": false,
+      "wall_clock_mean_seconds": 90.02803017632687,
+      "wall_clock_median_seconds": 90.05186337500345,
+      "wall_clock_seconds": [
+        90.2950000599958,
+        90.05186337500345,
+        89.73722709398135
+      ],
+      "wall_clock_speedup_vs_all_off": 1.0,
+      "wall_clock_stdev_seconds": 0.2796492203162893
+    },
+    "vertical_off__horizontal_on": {
+      "active_dependency_coordination": true,
+      "compute_federates": 8,
+      "federate_partition": "contiguous_rank_groups",
+      "horizontal_optimization": true,
+      "network_semantic_hashes": [
+        "ee0c2eacfa6eee5667ea5fa708d8078e9b13518d92e512095fd83aef42873b7b"
+      ],
+      "ranks_per_compute_federate": 32,
+      "safe_frontier_coordination": true,
+      "samples": 3,
+      "scheduler_rounds": [
+        115613
+      ],
+      "simulated_makespans_ns": [
+        1006360881966
+      ],
+      "total_grants": [
+        115898
+      ],
+      "vertical_optimization": false,
+      "wall_clock_mean_seconds": 60.17278451366777,
+      "wall_clock_median_seconds": 60.03001398500055,
+      "wall_clock_seconds": [
+        60.03001398500055,
+        60.60420569201233,
+        59.88413386399043
+      ],
+      "wall_clock_speedup_vs_all_off": 1.5001139829403394,
+      "wall_clock_stdev_seconds": 0.3806749627564679
+    },
+    "vertical_on__horizontal_off": {
+      "active_dependency_coordination": false,
+      "compute_federates": 1,
+      "federate_partition": "centralized",
+      "horizontal_optimization": false,
+      "network_semantic_hashes": [
+        "ee0c2eacfa6eee5667ea5fa708d8078e9b13518d92e512095fd83aef42873b7b"
+      ],
+      "ranks_per_compute_federate": 256,
+      "safe_frontier_coordination": false,
+      "samples": 3,
+      "scheduler_rounds": [
+        1069305
+      ],
+      "simulated_makespans_ns": [
+        1006360860972
+      ],
+      "total_grants": [
+        1069493
+      ],
+      "vertical_optimization": true,
+      "wall_clock_mean_seconds": 37.904125642012026,
+      "wall_clock_median_seconds": 37.816905498999404,
+      "wall_clock_seconds": [
+        38.1162151270255,
+        37.779256300011184,
+        37.816905498999404
+      ],
+      "wall_clock_speedup_vs_all_off": 2.3812594443346544,
+      "wall_clock_stdev_seconds": 0.1846370162943299
+    },
+    "vertical_on__horizontal_on": {
+      "active_dependency_coordination": true,
+      "compute_federates": 8,
+      "federate_partition": "contiguous_rank_groups",
+      "horizontal_optimization": true,
+      "network_semantic_hashes": [
+        "ee0c2eacfa6eee5667ea5fa708d8078e9b13518d92e512095fd83aef42873b7b"
+      ],
+      "ranks_per_compute_federate": 32,
+      "safe_frontier_coordination": true,
+      "samples": 3,
+      "scheduler_rounds": [
+        56223
+      ],
+      "simulated_makespans_ns": [
+        1006360881966
+      ],
+      "total_grants": [
+        58592
+      ],
+      "vertical_optimization": true,
+      "wall_clock_mean_seconds": 10.508084282337222,
+      "wall_clock_median_seconds": 10.503451294003753,
+      "wall_clock_seconds": [
+        10.439604948012857,
+        10.503451294003753,
+        10.581196604995057
+      ],
+      "wall_clock_speedup_vs_all_off": 8.573549860359954,
+      "wall_clock_stdev_seconds": 0.07090943355728353
+    }
+  },
+  "dataset": {
+    "accelerated_compute_tasks": 4096,
+    "bandwidth_gbps": 56.0,
+    "baseline_compute_tasks": 32768,
+    "events_per_phase": 8,
+    "exact_regions": 4096,
+    "link_delay_ns": 1000,
+    "modeled_network_edges": 4758,
+    "modeled_send_bytes": 9487384518016,
+    "num_ranks": 256,
+    "phases_per_rank": 16,
+    "preparation_wall_seconds": 160.35424600198166,
+    "source": "/home/sdic/atlahs/data/ai/grok/Grok314B_N64_GPU256_TP4_PP1_CP1_VP1_EP8_ETP4_GBS512/grok.goal",
+    "source_bytes": 8410598614,
+    "source_operation_kinds": {
+      "calc": 59710454,
+      "recv": 27145148,
+      "send": 27145148
+    },
+    "source_operations": 114000750,
+    "source_sha256": "dec250a489ef317757de0aa58c1d0becb7063c8b7d2927bf349d6b2d54830c06",
+    "trace_send_bytes": 10481131527552
+  },
+  "experiment": "Grok-314B-256 frontier-aware partitioned 2x2 ablation",
+  "implementation": {
+    "compute_frontier_safety_margin_ns": 10000,
+    "coordination": "Active-dependency with per-partition safe frontier and cancellable maximum-time leases",
+    "horizontal_partition": "8 long-lived GPUSim Federates, 32 contiguous ranks each",
+    "network_partition": "one shared ns-3 timeline"
+  },
+  "validation": {
+    "network_completion_semantics_preserved": true,
+    "simulated_makespan_relative_span": 2.086130370944733e-08,
+    "simulated_makespan_span_ns": 20994,
+    "simulated_makespan_within_1ppm": true,
+    "simulated_makespans_ns": [
+      1006360860972,
+      1006360865727,
+      1006360881966
+    ]
+  }
+}

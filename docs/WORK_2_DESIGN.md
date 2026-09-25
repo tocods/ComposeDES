@@ -2,22 +2,25 @@
 
 ## 目标与二因素定义
 
-第二项工作减少两类开销：单个计算时间线上的细粒度事件，以及多条 rank 时间线之间不必要的
-全局同步。最终消融只保留两个布尔变量：
+第二项工作减少两类开销：单条计算时间线上的细粒度事件，以及多条 rank 时间线之间不必要的
+同步。最终消融保留两个布尔变量：
 
 | 变量 | 关闭 | 开启 | 直接作用 |
 |---|---|---|---|
 | 纵向优化 | 原始 phase 内计算事件 | Critical-path event acceleration，将认证闭区域收缩为宏事件 | 减少事件、派发和控制面处理 |
-| 横向优化 | 所有 host 放在一个 GPUSim Federate，静态保守协调 | 每 rank 一个 GPUSim Federate，并启用 Active-dependency | 暴露独立时间线，并按活动依赖授时 |
+| 横向优化 | 所有 host 在一个 GPUSim Federate，静态保守协调 | 长期存活的 Federate 分区、Active-dependency 和安全 frontier | 暴露独立时间线并减少无关同步 |
 
-横向优化是一个组合能力。Federate 切分提供并行单位，Active-dependency 决定这些单位何时可
-安全推进；只开启 Active 而不切分不能代表完整横向优化。
+横向优化是完整能力：Federate 切分提供并行单位，Active-dependency 表示当前依赖，frontier
+证明 worker 在某个时间前不会收到新任务，长期 lease 消除短周期轮询。只开启 Active 而不切分，
+或一 rank 一 JVM 而没有 frontier，都不能代表优化后的横向能力。
 
 ```mermaid
 flowchart LR
     A[phase 内细粒度事件] -->|纵向优化| B[认证宏事件]
-    C[中央 GPUSim 中的多个 rank] -->|Federate 切分| D[每 rank 一个计算 Federate]
-    D -->|Active-dependency| E[按当前依赖安全授时]
+    C[中央 GPUSim 中的多个 rank] -->|DAG/rank 分区| D[少量长期计算 Federates]
+    D -->|Active 依赖| E[只等待可能影响本分区的生产者]
+    F[在途任务持续时间下界] -->|安全 frontier| E
+    E -->|可撤销长期 lease| G[跳过空闲轮询]
 ```
 
 ## 纵向实现
@@ -31,64 +34,91 @@ flowchart LR
 
 ## 横向实现
 
-实验脚本从 `hosts.json` 为每个 rank 生成独立 GPUSim 配置、输出目录和 FNCS ZPL。编排器读取
-host-to-worker 映射，把 `compute.dispatch` 定向发布到对应 Federate，并分别订阅每个 worker
-的 `compute.completed`。事件 ID 和 batch ID 包含 worker 名称，因此跨进程保持全局唯一。
+### 长期 Federate 分区
 
-分区 worker 在暂时没有本地任务时继续参与 FNCS 授时，等待后续跨 rank 或网络完成事件触发
-的新任务；收到 `control.end` 且本地任务排空后才退出。这避免空闲 worker 提前离开 federation。
+实验脚本把多个 ranks 放入同一 GPUSim 进程。默认按连续 rank 分组，`--ranks-per-federate`
+控制粒度；`--compute-partition-map` 可显式把 host 映射到分区，供多作业按独立 DAG 或连通分量
+隔离。每个分区只有一个长期存活的 JVM 和 FNCS 连接。编排器根据 host-to-worker 映射定向派发，
+并分别订阅每个 worker 的完成事件。
 
-开启横向优化时，编排器按当前在途任务的 host 发布活动依赖图。依赖更新带单调 epoch；broker
-把名称编译为整数索引并缓存传递闭包，普通轮次复用时间状态和缓冲区。为了防止一个空闲分区
-越过未来派发时间，工作流结束前所有计算 worker 都保持对编排器的保守依赖。图无效或无法授权
-时，broker 回退到全局最小时间规则。
+网络默认保留一条共享 ns-3 时间线，因为共享链路上的作业不是独立分区。只有不同作业的拓扑、
+队列和链路资源均无交叉时，才能进一步拆分网络时间线；当前单作业消融不需要这一操作。
 
-## 消融矩阵
+### Active-dependency
 
-四个实验单元如下：
+编排器根据当前在途计算 owner 和网络任务发布依赖图，更新携带单调 epoch。broker 把名称编译
+成整数索引并缓存传递闭包，普通轮次复用时间状态和缓冲区。图无效、成环或尚未发布时，broker
+回退到全局最小时间规则。
 
-| 单元 | 纵向 | 横向 | 计算 Federates | Active-dependency |
-|---|---:|---:|---:|---:|
-| 基线 | 关 | 关 | 1 | 关 |
-| 仅纵向 | 开 | 关 | 1 | 关 |
-| 仅横向 | 关 | 开 | ranks | 开 |
-| 组合 | 开 | 开 | ranks | 开 |
+worker 在工作流结束前依赖编排器，编排器只依赖当前有在途工作的生产者。该关系保证稍后可能
+接收后继任务的空闲 worker 不会越过派发时间。
 
-因此横向开关同时改变进程拓扑和协调算法。这符合“完整横向能力”的产品定义，也意味着结果包含
-额外 JVM、FNCS 连接和序列化成本。若要分别归因切分和 Active，需要另做三因素实验。
+### 安全 lower bound/frontier 与 lease
 
-## 实验结论
+每次派发时，编排器记录该命令的最早可能完成时间：
 
-三个 HPC trace 和一个大模型训练 trace 均完成四组合、每组三次：
+- 计算事件使用 `dispatch time + duration lower bound - safety margin`；默认安全余量为 10,000 ns，
+  覆盖 GPUSim/CloudSim 的浮点时间转换误差；
+- 网络事件使用 `dispatch time + latency lower bound`，不把带宽序列化收益计入下界；
+- 任一在途事件没有有效下界时，不发布 frontier。
 
-| 工作负载 | 仅纵向 | 仅横向 | 组合 | 横向调度轮次下降 |
-|---|---:|---:|---:|---:|
-| LULESH-64 | 2.421× | 0.551× | 1.138× | 3.77% |
-| HPCG-8 | 1.280× | 0.736× | 1.056× | 2.62% |
-| ICON-8 | 1.257× | 0.768× | 1.065× | 0.90% |
-| Grok-314B-256 | 2.397× | 0.720× | 1.577× | 1.50% |
+所有在途证书的最小值形成输入 frontier。broker 只允许证书对应的 consumer 推进到 frontier，
+并且不会在该 consumer 作为生产者时传播此值，从而避免错误放宽下游因果约束。事件完成后证书
+立即删除；过期 frontier 也不会发布。
 
-完整横向实现确实减少调度轮次，但当前“一 rank 一 JVM”的固定成本更大，因此四个数据集上
-横向单独均未获得墙钟收益。纵向减少 87.5% 的计算派发后仍有明显收益；组合项在四个数据集
-上都快于基线，但慢于仅纵向。此前 rank-local 纯协调实验得到的 2.153× 是排除 GPUSim、
-ns-3 和进程成本后的协调层上界，不能替代这里的端到端结果。
+安全 frontier 模式下，worker 和编排器请求最大 FNCS 时间，形成可撤销长期 lease。Active
+依赖仍会在最早生产者完成时唤醒编排器，所以最大请求不是无条件跳到仿真终点。该设计把原来的
+1 ms 空闲轮询改成由真实事件和证书驱动的推进。
 
-## 正确性边界
+## 二因素消融矩阵
 
-四个工作负载的归一化网络完成语义哈希在四个单元中一致。模拟 makespan 最大相对跨度为：
-LULESH 4.317 ppm、HPCG 0.998 ppm、ICON 0.489 ppm、Grok 0.028 ppm，均低于端到端分区实验
-采用的 10 ppm 阈值。LULESH 超过旧的 1 ppm 阈值，因此文档保留实际偏差，不声明逐纳秒等价。
+| 单元 | 纵向 | 横向 | 计算拓扑 | 时间协调 |
+|---|---:|---:|---|---|
+| 基线 | 关 | 关 | 1 个集中式 Federate | 全局保守 |
+| 仅纵向 | 开 | 关 | 1 个集中式 Federate | 全局保守 |
+| 仅横向 | 关 | 开 | 多 rank/长期 Federate | Active + frontier + lease |
+| 组合 | 开 | 开 | 多 rank/长期 Federate | Active + frontier + lease |
 
-Active-dependency 当前根据在途 owner 发布依赖集合，尚未实现论文设想的逐边 lower-bound /
-frontier 协议。当前结果证明组合能力可以运行并保持边界语义，不代表该协议已经完整实现。
+横向开关同时改变进程拓扑和协调算法，符合完整能力的产品定义。若要分别归因切分、Active、
+frontier 和 lease，需要固定其他条件再做机制级实验，不能从这张 2×2 表直接拆分贡献。
+
+## 优化后消融结果
+
+Grok-314B-256 使用 8 个计算 Federates、每个 32 ranks。四个单元每个独立运行三次：
+
+| 单元 | 墙钟中位数 | 相对基线 | 调度轮次 |
+|---|---:|---:|---:|
+| 基线 | 90.052 s | 1.000× | 1,117,671 |
+| 仅纵向 | 37.817 s | 2.381× | 1,069,305 |
+| 仅横向 | 60.030 s | 1.500× | 115,613 |
+| 组合 | 10.503 s | 8.574× | 56,223 |
+
+横向单开已从旧实现的 0.720× 转为 1.500×。组合项高于单项加速的乘积，因为纵向先减少事件，
+frontier 又消除剩余事件之间的轮询，两个机制共同减少 broker 轮次和 JVM 间交互。归一化网络
+完成语义哈希在四个单元中一致；模拟 makespan 最大跨度为 20,994 ns，即 0.0209 ppm。
+
+分区扫描显示，一 rank 一 Federate 虽然轮次最少，仍需 256 个 JVM，组合运行耗时 30.908 s；
+32 ranks/Federate 只需 8 个 JVM，降为 10.440 s。继续增加到 64 ranks/Federate 会触发
+CloudSim `Past event detected`，所以 32 是当前后端经过验证的上限。
+
+此前的四工作负载表使用一 rank 一 JVM 和短请求，其横向结果分别为 LULESH 0.551×、HPCG
+0.736×、ICON 0.768×、Grok 0.720×。这些结果保留为优化前对照。新的 Grok 结果证明高 rank、
+长 trace、计算和通信相间的工作负载能够获得原协调层实验所预示的收益，但不能把 Grok 的
+8.574×外推到较小的 HPC trace。
+
+为验证这一边界，LULESH-64 也用最终实现和 8 个 Federates（每个 8 ranks）重跑三次：仅纵向
+2.399×、仅横向 0.888×、组合 2.350×。它的横向轮次确实下降，但约 13 秒的短运行和 64 个
+ranks 不足以摊薄 8 个 JVM 的固定成本。因此能复现显著横向收益的条件是高 rank 数、长控制面
+轨迹及足够多的可跳过同步窗口；“大模型”这一名称本身不是决定因素。
 
 ## 代码与验证
 
 - 纵向优化器：`fncs/orchestrator/graph_optimizer.py`
-- host 路由与依赖发布：`fncs/orchestrator/workflow_orchestrator.py`
-- Active 调度器：`fncs/src/active_dependency_scheduler.hpp`
+- frontier、host 路由和依赖发布：`fncs/orchestrator/workflow_orchestrator.py`
+- Active/frontier 调度器：`fncs/src/active_dependency_scheduler.hpp`
 - 分区 worker 生命周期：`GPUsim/src/cloudsim/core/CloudSim.java`
 - 二因素实验：`experiments/atlahs_ablation/run_ablation.py`
+- Grok 最终报告：`experiments/atlahs_ablation/grok256_frontier_partitioned/REPORT.md`
 
-本版本使用 FNCS `48dd83bd1`、GPUSim `6ab9fc71f`、ns-3 `2f049f0d4`。验证包含 20 个 Python
-测试、Java 编译、LULESH-8 四象限冒烟实验，以及四个正式工作负载的 48 次端到端运行。
+验证包括 21 个 Python 编排器测试、C++ Active 调度测试、FNCS 完整构建、LULESH-8 冒烟、
+Grok-256 分区扫描，以及 Grok-256 和 LULESH-64 各 12 次正式端到端运行。
