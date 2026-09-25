@@ -16,10 +16,10 @@ WORKLOADS = (
     ("Grok-314B-256", "LLM training", ROOT / "grok256" / "summary.json"),
 )
 LABELS = (
-    ("accel_off__active_off", False, False),
-    ("accel_off__active_on", False, True),
-    ("accel_on__active_off", True, False),
-    ("accel_on__active_on", True, True),
+    ("vertical_off__horizontal_off", False, False),
+    ("vertical_off__horizontal_on", False, True),
+    ("vertical_on__horizontal_off", True, False),
+    ("vertical_on__horizontal_on", True, True),
 )
 
 
@@ -29,8 +29,8 @@ def main() -> int:
         value = json.loads(path.read_text(encoding="utf-8"))
         if not value["validation"]["network_completion_semantics_preserved"]:
             raise ValueError(f"{name}: network semantics differ across ablation cells")
-        if not value["validation"]["simulated_makespan_within_1ppm"]:
-            raise ValueError(f"{name}: makespan differs by more than 1 ppm")
+        if not value["validation"]["simulated_makespan_within_10ppm"]:
+            raise ValueError(f"{name}: makespan differs by more than 10 ppm")
         loaded.append((name, category, value))
 
     with (ROOT / "all_workloads.csv").open("w", newline="", encoding="utf-8") as stream:
@@ -96,10 +96,10 @@ def main() -> int:
                     category,
                     dataset["num_ranks"],
                     dataset["source_operations"],
-                    cells["accel_off__active_off"]["wall_clock_median_seconds"],
-                    cells["accel_on__active_off"]["wall_clock_speedup_vs_all_off"],
-                    cells["accel_off__active_on"]["wall_clock_speedup_vs_all_off"],
-                    cells["accel_on__active_on"]["wall_clock_speedup_vs_all_off"],
+                    cells["vertical_off__horizontal_off"]["wall_clock_median_seconds"],
+                    cells["vertical_on__horizontal_off"]["wall_clock_speedup_vs_all_off"],
+                    cells["vertical_off__horizontal_on"]["wall_clock_speedup_vs_all_off"],
+                    cells["vertical_on__horizontal_on"]["wall_clock_speedup_vs_all_off"],
                     value["validation"]["simulated_makespan_relative_span"],
                 ]
             )

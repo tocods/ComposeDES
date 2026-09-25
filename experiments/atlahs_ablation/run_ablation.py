@@ -5,8 +5,8 @@ The experiment varies two independent mechanisms:
 
 * vertical optimization: exact contraction of closed, same-owner
   compute regions;
-* horizontal optimization: Active-dependency scheduling over a fixed
-  federation partition.
+* horizontal optimization: one compute Federate per trace rank together with
+  Active-dependency scheduling between the resulting Federates.
 
 The GOAL trace is partitioned in operation order.  Compute durations and send
 volumes come from the trace.  Every rank/phase contains several local compute
@@ -338,16 +338,69 @@ def tail(path: Path, lines: int = 30) -> str:
     return "\n".join(path.read_text(errors="replace").splitlines()[-lines:])
 
 
+def write_orchestrator_zpl(path: Path, compute_workers: list[str]) -> None:
+    lines = [
+        "name = orchestrator",
+        "time_delta = 1ns",
+        "broker = tcp://localhost:5570",
+        "values",
+    ]
+    for worker in compute_workers:
+        lines.extend([
+            f"    compute/completed/{worker}",
+            f"        topic = {worker}/compute/completed",
+            '        default = ""',
+            "        type = string",
+            "        list = false",
+        ])
+    lines.extend([
+        "    network/completed",
+        "        topic = ns3/network/completed",
+        '        default = ""',
+        "        type = string",
+        "        list = false",
+    ])
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def write_compute_worker_zpl(path: Path, worker: str, directed: bool) -> None:
+    dispatch_topic = "orchestrator/compute/dispatch"
+    if directed:
+        dispatch_topic += f"/{worker}"
+    path.write_text(
+        "\n".join([
+            f"name = {worker}",
+            "time_delta = 1ns",
+            "broker = tcp://localhost:5570",
+            "values",
+            "    compute/dispatch",
+            f"        topic = {dispatch_topic}",
+            '        default = ""',
+            "        type = string",
+            "        list = false",
+            "    control",
+            "        topic = orchestrator/control",
+            '        default = ""',
+            "        type = string",
+            "        list = false",
+        ]) + "\n",
+        encoding="utf-8",
+    )
+
+
 def run_one(
     output: Path,
     acceleration: bool,
-    active_dependency: bool,
+    horizontal_optimization: bool,
     repeat: int,
     port: int,
     timeout: int,
     quiet_worker_logs: bool = False,
 ) -> dict[str, Any]:
-    label = f"accel_{'on' if acceleration else 'off'}__active_{'on' if active_dependency else 'off'}"
+    label = (
+        f"vertical_{'on' if acceleration else 'off'}__"
+        f"horizontal_{'on' if horizontal_optimization else 'off'}"
+    )
     result_dir = output / "runs" / label / f"repeat_{repeat}"
     if result_dir.exists():
         shutil.rmtree(result_dir)
@@ -365,6 +418,38 @@ def run_one(
     optimization = result_dir / "optimization.json"
     broker_url = f"tcp://localhost:{port}"
     run_id = f"atlahs-{output.name}-{label}-r{repeat}"
+
+    all_hosts = json.loads((input_dir / "hosts.json").read_text())
+    if len(all_hosts) != host_count:
+        raise ValueError("hosts.json does not match dataset rank count")
+    if horizontal_optimization:
+        compute_workers = [f"gpusim-rank-{rank:03d}" for rank in range(host_count)]
+        compute_worker_by_host = {
+            str(host["name"]): compute_workers[index]
+            for index, host in enumerate(all_hosts)
+        }
+    else:
+        compute_workers = ["gpusim"]
+        compute_worker_by_host = {str(host["name"]): "gpusim" for host in all_hosts}
+
+    config_dir = result_dir / "config"
+    config_dir.mkdir()
+    orchestrator_zpl = config_dir / "orchestrator.zpl"
+    write_orchestrator_zpl(orchestrator_zpl, compute_workers)
+    worker_specs: list[tuple[str, Path, Path]] = []
+    for index, worker in enumerate(compute_workers):
+        worker_dir = result_dir / "workers" / worker
+        worker_dir.mkdir(parents=True)
+        worker_hosts = all_hosts if not horizontal_optimization else [dict(all_hosts[index])]
+        if horizontal_optimization:
+            worker_hosts[0]["ifMaster"] = True
+        hosts_path = config_dir / f"{worker}.hosts.json"
+        zpl_path = config_dir / f"{worker}.zpl"
+        json_dump(hosts_path, worker_hosts)
+        write_compute_worker_zpl(zpl_path, worker, horizontal_optimization)
+        worker_specs.append((worker, worker_dir, hosts_path))
+    worker_map_path = config_dir / "compute-worker-map.json"
+    json_dump(worker_map_path, compute_worker_by_host)
 
     base_env = os.environ.copy()
     base_env.update({
@@ -406,10 +491,12 @@ def run_one(
     try:
         broker_env = base_env.copy()
         broker_env.update({
-            "FNCS_ACTIVE_DEPENDENCY": "yes" if active_dependency else "no",
+            "FNCS_ACTIVE_DEPENDENCY": "yes" if horizontal_optimization else "no",
             "FNCS_COORDINATION_METRICS": str(metrics),
         })
-        broker = start("broker", [str(BROKER), "3"], broker_env)
+        broker = start(
+            "broker", [str(BROKER), str(len(compute_workers) + 2)], broker_env
+        )
         time.sleep(0.35)
 
         ns3_env = base_env.copy()
@@ -430,28 +517,34 @@ def run_one(
             discard_output=quiet_worker_logs,
         )
 
-        gpusim_env = base_env.copy()
-        gpusim_env.update({
-            "FNCS_CONFIG_FILE": str(ROOT / "GPUsim" / "fncs.worker.zpl"),
-            "FNCS_NAME": "gpusim",
-        })
-        gpusim = start(
-            "gpusim",
-            [
-                str(JAVA), "--enable-native-access=ALL-UNNAMED",
-                f"-Djava.library.path={ROOT / 'GPUsim/lib'}",
-                "-cp", f"{ROOT / 'GPUsim/out/production/gpuworkflowsim'}:{ROOT / 'GPUsim/jars'}/*",
-                "backend.SimEngine", str(result_dir), str(input_dir / "hosts.json"),
-                str(input_dir / "empty.json"), str(input_dir / "empty.json"),
-                "-1", "true", "false", "0", "worker",
-            ],
-            gpusim_env,
-            discard_output=quiet_worker_logs,
-        )
+        gpusim_processes: list[tuple[str, subprocess.Popen[str]]] = []
+        worker_heap_mb = 256 if horizontal_optimization else max(256, host_count * 8)
+        for worker, worker_dir, hosts_path in worker_specs:
+            gpusim_env = base_env.copy()
+            gpusim_env.update({
+                "FNCS_CONFIG_FILE": str(config_dir / f"{worker}.zpl"),
+                "FNCS_NAME": worker,
+                "COSIM_WORKER_IDLE_GRANT_NS": "1000000",
+            })
+            process = start(
+                worker,
+                [
+                    str(JAVA), "-Xms16m", f"-Xmx{worker_heap_mb}m",
+                    "--enable-native-access=ALL-UNNAMED",
+                    f"-Djava.library.path={ROOT / 'GPUsim/lib'}",
+                    "-cp", f"{ROOT / 'GPUsim/out/production/gpuworkflowsim'}:{ROOT / 'GPUsim/jars'}/*",
+                    "backend.SimEngine", str(worker_dir), str(hosts_path),
+                    str(input_dir / "empty.json"), str(input_dir / "empty.json"),
+                    "-1", "false", "false", "0", "worker",
+                ],
+                gpusim_env,
+                discard_output=quiet_worker_logs,
+            )
+            gpusim_processes.append((worker, process))
 
         orchestrator_env = base_env.copy()
         orchestrator_env.update({
-            "FNCS_CONFIG_FILE": str(ROOT / "fncs" / "orchestrator" / "fncs.zpl"),
+            "FNCS_CONFIG_FILE": str(orchestrator_zpl),
             "FNCS_NAME": "orchestrator",
             "COSIM_RUN_ID": run_id,
         })
@@ -460,14 +553,17 @@ def run_one(
             "--event-log", str(event_log),
             "--optimization-report", str(optimization),
         ]
-        if active_dependency:
-            orchestrator_command.append("--active-dependency-coordination")
+        if horizontal_optimization:
+            orchestrator_command.extend([
+                "--compute-worker-map", str(worker_map_path),
+                "--active-dependency-coordination",
+            ])
         orchestrator = start("orchestrator", orchestrator_command, orchestrator_env)
 
         orchestrator.wait(timeout=timeout)
         if orchestrator.returncode != 0:
             raise RuntimeError(f"orchestrator exited {orchestrator.returncode}: {tail(result_dir / 'orchestrator.log')}")
-        for name, worker in (("gpusim", gpusim), ("ns3", ns3)):
+        for name, worker in [*gpusim_processes, ("ns3", ns3)]:
             worker.wait(timeout=60)
             if worker.returncode != 0:
                 raise RuntimeError(f"{name} exited {worker.returncode}: {tail(result_dir / f'{name}.log')}")
@@ -527,8 +623,12 @@ def run_one(
     result = {
         "label": label,
         "repeat": repeat,
+        "vertical_optimization": acceleration,
+        "horizontal_optimization": horizontal_optimization,
         "critical_path_event_acceleration": acceleration,
-        "active_dependency_coordination": active_dependency,
+        "federate_partition": "rank" if horizontal_optimization else "centralized",
+        "compute_federates": len(compute_workers),
+        "active_dependency_coordination": horizontal_optimization,
         "worker_logs_discarded": quiet_worker_logs,
         "wall_clock_seconds": wall_seconds,
         "simulated_makespan_ns": simulated_makespan_ns,
@@ -560,6 +660,11 @@ def summarize(output: Path, results: list[dict[str, Any]]) -> dict[str, Any]:
         rounds = [sample["scheduler_rounds"] for sample in samples]
         grants = [sample["total_grants"] for sample in samples]
         cells[label] = {
+            "vertical_optimization": samples[0]["vertical_optimization"],
+            "horizontal_optimization": samples[0]["horizontal_optimization"],
+            "federate_partition": samples[0]["federate_partition"],
+            "compute_federates": samples[0]["compute_federates"],
+            "active_dependency_coordination": samples[0]["active_dependency_coordination"],
             "samples": len(samples),
             "wall_clock_seconds": walls,
             "wall_clock_median_seconds": statistics.median(walls),
@@ -581,7 +686,7 @@ def summarize(output: Path, results: list[dict[str, Any]]) -> dict[str, Any]:
             "network_completion_count": samples[0]["network_completion_count"],
         }
 
-    baseline = cells["accel_off__active_off"]["wall_clock_median_seconds"]
+    baseline = cells["vertical_off__horizontal_off"]["wall_clock_median_seconds"]
     for cell in cells.values():
         cell["wall_clock_speedup_vs_all_off"] = baseline / cell["wall_clock_median_seconds"]
 
@@ -613,6 +718,7 @@ def summarize(output: Path, results: list[dict[str, Any]]) -> dict[str, Any]:
         "validation": {
             "simulated_makespan_preserved": len(makespans) == 1,
             "simulated_makespan_within_1ppm": makespan_relative_span <= 1e-6,
+            "simulated_makespan_within_10ppm": makespan_relative_span <= 1e-5,
             "simulated_makespan_span_ns": makespan_span_ns,
             "simulated_makespan_relative_span": makespan_relative_span,
             "network_completion_trace_preserved": len(network_hashes) == 1,
@@ -644,16 +750,16 @@ def summarize(output: Path, results: list[dict[str, Any]]) -> dict[str, Any]:
             ]
         )
         for label in (
-            "accel_off__active_off",
-            "accel_off__active_on",
-            "accel_on__active_off",
-            "accel_on__active_on",
+            "vertical_off__horizontal_off",
+            "vertical_off__horizontal_on",
+            "vertical_on__horizontal_off",
+            "vertical_on__horizontal_on",
         ):
             cell = cells[label]
             writer.writerow(
                 [
-                    label.startswith("accel_on"),
-                    label.endswith("active_on"),
+                    cell["vertical_optimization"],
+                    cell["horizontal_optimization"],
                     cell["samples"],
                     cell["wall_clock_median_seconds"],
                     cell["wall_clock_mean_seconds"],
@@ -678,6 +784,12 @@ def main() -> int:
     parser.add_argument("--bandwidth-gbps", type=float, default=56.0)
     parser.add_argument("--delay-ns", type=int, default=1000)
     parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument(
+        "--repeat-start",
+        type=int,
+        default=1,
+        help="first repeat to execute; prior result.json files are reused",
+    )
     parser.add_argument("--timeout", type=int, default=900)
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--run-only", action="store_true")
@@ -687,6 +799,8 @@ def main() -> int:
         help="discard verbose ns-3/GPUSim stdout during timing runs",
     )
     args = parser.parse_args()
+    if args.repeat_start < 1 or args.repeat_start > args.repeats:
+        parser.error("--repeat-start must be between 1 and --repeats")
 
     if not args.run_only:
         metadata = prepare_workload(
@@ -703,15 +817,33 @@ def main() -> int:
 
     results = []
     configurations = [(False, False), (True, False), (False, True), (True, True)]
+    for repeat in range(1, args.repeat_start):
+        for acceleration, horizontal_optimization in configurations:
+            label = (
+                f"vertical_{'on' if acceleration else 'off'}__"
+                f"horizontal_{'on' if horizontal_optimization else 'off'}"
+            )
+            result_path = (
+                args.output.resolve() / "runs" / label /
+                f"repeat_{repeat}" / "result.json"
+            )
+            if not result_path.exists():
+                raise FileNotFoundError(
+                    f"cannot resume: missing prior result {result_path}"
+                )
+            results.append(json.loads(result_path.read_text(encoding="utf-8")))
     sequence = 0
-    for repeat in range(1, args.repeats + 1):
+    for repeat in range(args.repeat_start, args.repeats + 1):
         ordered = configurations[repeat - 1:] + configurations[:repeat - 1]
-        for acceleration, active_dependency in ordered:
+        for acceleration, horizontal_optimization in ordered:
             sequence += 1
-            label = f"accel_{'on' if acceleration else 'off'}__active_{'on' if active_dependency else 'off'}"
+            label = (
+                f"vertical_{'on' if acceleration else 'off'}__"
+                f"horizontal_{'on' if horizontal_optimization else 'off'}"
+            )
             print(f"running {label} repeat={repeat}", flush=True)
             result = run_one(
-                args.output.resolve(), acceleration, active_dependency, repeat,
+                args.output.resolve(), acceleration, horizontal_optimization, repeat,
                 5700 + sequence, args.timeout, args.quiet_worker_logs,
             )
             results.append(result)

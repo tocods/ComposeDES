@@ -61,9 +61,10 @@ broker 的调度工作，并且约 0.2 s 的进程启动成本不受二者影响
 
 ## 补充架构对照
 
-三 Federate 完整协同仿真中，256 个 rank 隐藏在单个 GPUSim 后面，Active-dependency 单开
-只有 1.005×；同一机制在 rank-visible 协调实验中达到 2.153×。这说明 Grok 数据规模足够，
-横向收益取决于独立时间线是否对 broker 可见。
+早期三 Federate 完整协同仿真中，256 个 rank 隐藏在单个 GPUSim 后面，Active-dependency
+单开只有 1.005×。当前端到端消融已经集成每 rank 一个 GPUSim 与 Active-dependency；完整
+横向单开为 0.720×，而本协调层实验为 2.153×。这说明 Grok 数据规模足够，但 256 个 JVM
+的执行与通信成本超过协调收益。
 
 这两种执行模型的墙钟时间不能直接相除：完整模型包含 GPUSim、ns-3 和跨-rank 网络，
 rank-visible 模型只测协调层。该数据只用于解释架构限制，不作为第三个消融变量。

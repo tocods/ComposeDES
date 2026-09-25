@@ -1,6 +1,6 @@
 # 协同仿真 DAG 控制面重构方案
 
-## 实施状态（2026-09-24）
+## 实施状态（2026-09-25）
 
 v2 alpha.4 已经实现并完成三联邦端到端验证：
 
@@ -19,9 +19,10 @@ v2 alpha.4 已经实现并完成三联邦端到端验证：
 当前仍保留 legacy 模式用于旧实验回归。60KB 分段保证每个字节经过真实 ns-3 链路、队列和路由，但对数十 GB trace 会产生大量数据报；超大通信的可扩展 flow 模型仍未实现，不能用 alpha.4 直接完成此类大规模实验。
 
 第二项性能工作已经在该控制面上完成：认证的本地事件链通过批量图收缩实现纵向优化；
-rank-visible Federate 切分和 Active-dependency 实现横向优化。broker 在依赖 epoch 更新时
-建立整数索引和传递闭包，普通调度轮复用缓冲区。完整设计、因果边界和 Grok-256 二因素
-实验见 `docs/WORK_2_DESIGN.md` 与 `experiments/README.md`。
+按 rank 的 GPUSim Federate 切分和 Active-dependency 实现横向优化。orchestrator 通过
+host-to-worker 映射定向派发，空闲分区 worker 保持在 federation 中等待后续任务；broker
+在依赖 epoch 更新时建立整数索引和传递闭包。完整设计、因果边界和四工作负载二因素实验见
+`docs/WORK_2_DESIGN.md` 与 `experiments/README.md`。
 
 ## 1. 决策摘要
 

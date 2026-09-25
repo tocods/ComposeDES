@@ -1,27 +1,37 @@
 # ATLAHS ICON-8 消融实验
 
-实验日期：2026-09-24（Asia/Shanghai）
+实验日期：2026-09-25（Asia/Shanghai）
 
-代码版本：FNCS `700d7d55a`、GPUSim `09861db84`、ns-3 `2f049f0d4`
+组件版本：FNCS `48dd83bd1`、GPUSim `6ab9fc71f`、ns-3 `2f049f0d4`
 
-ICON 是天气与气候模拟 HPC 应用。8-rank GOAL trace 包含 295,072 条操作，其中 160,856 个
-`calc`、67,108 个 `send` 和 67,108 个 `recv`。源文件 SHA-256 为
-`46b5ac70e60d099e3457f6ad2153cebb4a0ba63c8fbbc83edd8672c07eee9885`。
+## 数据与方法
 
-统一转换生成 1,024 个基线计算事件、128 个精确宏事件和 707 个聚合网络边。四个组合各运行
-三次，墙钟时间取中位数。
+ICON 是天气与气候模拟 HPC 应用。
+该 8-rank GOAL trace 包含 295,072 条操作：160,856 个 `calc`、67,108 个 `send` 和 67,108 个 `recv`。
+源文件 SHA-256 为 `46b5ac70e60d099e3457f6ad2153cebb4a0ba63c8fbbc83edd8672c07eee9885`。
 
-| 纵向优化 | 横向优化 | 墙钟中位数 / s | 相对双关 | 计算事件 | 调度轮次 | Grants |
-|---|---|---:|---:|---:|---:|---:|
-| 关 | 关 | 2.2311 | 1.000× | 1,024 | 23,908 | 24,051 |
-| 关 | 开 | 2.1806 | 1.023× | 1,024 | 23,890 | 23,905 |
-| 开 | 关 | 1.7301 | **1.290×** | 128 | 22,543 | 22,554 |
-| 开 | 开 | 1.7304 | 1.289× | 128 | 22,525 | 22,537 |
+转换后基线有 1,024 个计算事件，纵向优化收缩为 128 个宏事件；模型包含 707 个网络边。横向关闭时使用一个集中式 GPUSim，横向开启时使用每 rank 一个 GPUSim 并开启 Active-dependency。四个单元各运行三次。
 
-纵向优化获得约 1.290×。横向单开的 2.3% 差异与三次短运行的波动量级接近，暂不认定为
-稳定收益。四组均完成 707 个网络事件，网络语义哈希一致；makespan 最大差异为 1,000 ns，
-即 0.0505 ppm。
+## 结果
 
-复现时将 `run_ablation.py` 的 `--goal` 指向 `icon_8.goal`，并使用
-`--output experiments/atlahs_ablation/icon8`。机器可读结果位于 `results.csv` 和
-`summary.json`。
+| 纵向 | 横向 | 计算 Federates | 墙钟中位数 / s | 相对基线 | 计算事件 | 调度轮次 | Grants |
+|---|---|---:|---:|---:|---:|---:|---:|
+| 关 | 关 | 1 | 2.1120 | 1.000× | 1,024 | 23,908 | 24,051 |
+| 关 | 开 | 8 | 2.7506 | 0.768× | 1,024 | 23,692 | 23,725 |
+| 开 | 关 | 1 | 1.6803 | 1.257× | 128 | 22,543 | 22,554 |
+| 开 | 开 | 8 | 1.9834 | 1.065× | 128 | 22,326 | 22,359 |
+
+纵向单独获得 1.257×。完整横向把调度轮次减少 0.90%，但进程和通信成本使墙钟变为基线的 0.768×。两者组合仍获得 1.065×，但低于仅纵向。
+
+四组均完成 707 个网络事件，归一化网络语义哈希一致。模拟 makespan 最大跨度为 9,702 ns，即 0.489 ppm。
+
+## 复现
+
+```bash
+python3 experiments/atlahs_ablation/run_ablation.py --goal /home/sdic/atlahs/data/hpc/icon/icon_8/icon_8.goal \
+  --output experiments/atlahs_ablation/icon8 --phases 16 --events-per-phase 8 --prepare-only
+python3 experiments/atlahs_ablation/run_ablation.py --output experiments/atlahs_ablation/icon8 \
+  --run-only --repeats 3 --timeout 1800 --quiet-worker-logs
+```
+
+机器可读结果位于 `results.csv` 和 `summary.json`。

@@ -1,13 +1,13 @@
 # 协同仿真组件版本清单
 
-更新日期：2026-09-24
+更新日期：2026-09-25
 
 本文件记录 DAG 控制面重构前的组件来源和本地基线。源码 commit 以各子仓库为准；大型 trace、模型输出、构建产物和运行日志不进入 Git。
 
 | 组件 | 上游基点 | 重构前基线 | v2 alpha.3 | v2 alpha.4 | v2 alpha.4.1 | v2 alpha.4.2 | 第二项工作 | 组件分支 | 职责 |
 |---|---|---|---|---|---|---|---|---|---|
-| FNCS | `790ec3de` | `d0896f2` | `0593a82` | `3c32900` | `e3e0d95` | `2df6dda` | `700d7d5` | `components/fncs` | broker、FNCS client library、workflow orchestrator |
-| GPUSim | `bc84bdd6` | `0b4f104` | `55476aa` | `1601a6c` | `25081e7` | `09861db` | `09861db` | `components/gpusim` | 计算仿真 worker |
+| FNCS | `790ec3de` | `d0896f2` | `0593a82` | `3c32900` | `e3e0d95` | `2df6dda` | `48dd83b` | `components/fncs` | broker、FNCS client library、workflow orchestrator |
+| GPUSim | `bc84bdd6` | `0b4f104` | `55476aa` | `1601a6c` | `25081e7` | `09861db` | `6ab9fc7` | `components/gpusim` | 计算仿真 worker |
 | ns-3 | `78b53d4b3` | `c4cead46f` | `72934a130` | `4f42d2468` | `2f049f0d4` | `2f049f0d4` | `2f049f0d4` | `components/ns3` | 网络仿真 worker |
 | NeuSight | `6945927d` | 未提交本地实验改动 | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 保持当前分支 | 算子时间预测和输入生成 |
 | ATLAHS | `fb51a99f` | 上游 commit | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 不参与运行时改造 | 提供 LULESH/HPCG/ICON/Grok traces | 保持当前分支 | validation trace 与 LogGOPSim 基准 |
@@ -20,7 +20,7 @@
 - tag `v2.0.0-alpha.4` 分别指向 FNCS `3c32900`、GPUSim `1601a6c`、ns-3 `4f42d2468`。
 - tag `v2.0.0-alpha.4.1` 分别指向 FNCS `e3e0d95`、GPUSim `25081e7`、ns-3 `2f049f0d4`。
 - tag `v2.0.0-alpha.4.2` 分别指向 FNCS `2df6dda`、GPUSim `09861db`、ns-3 `2f049f0d4`。
-- 第二项工作使用 FNCS `700d7d5`、GPUSim `09861db`、ns-3 `2f049f0d4`；主仓库通过
+- 第二项工作使用 FNCS `48dd83b`、GPUSim `6ab9fc7`、ns-3 `2f049f0d4`；主仓库通过
   submodule 固定该组合。
 - 后续提交按组件独立演进，禁止跨仓库使用同一个模糊提交说明。
 - 顶层 integration 仓库记录确切 commit 组合；端到端结果必须同时记录 manifest 版本。
@@ -71,6 +71,15 @@
 - GPUSim 不合并计算代价，仍逐个执行原始 GpuJob；链末统一回传每个原任务的 start/finish timestamp。
 - H100 29-task 对照：dispatch 29→1，scheduler rounds 651→602，逐任务起止 trace 与 569683μs makespan 不变。
 - PP4 对照：dispatch 29→4，scheduler rounds 729→683，29 个计算任务、3 个网络完成的边界 trace 与 640153.312μs makespan 不变。
+
+## 第二项工作：完整横向切分
+
+- Orchestrator 支持 host-to-worker 映射、定向 compute dispatch 和按 worker 订阅 completion。
+- GPUSim 分区 worker 在暂时空闲时保持在 federation 中，直到收到终止事件且本地任务排空。
+- 二因素消融把横向开启定义为“每 rank 一个计算 Federate + Active-dependency”，横向关闭为
+  “单计算 Federate + 静态协调”。
+- LULESH-64、HPCG-8、ICON-8 和 Grok-256 各完成 12 次端到端运行；完整结果见
+  `experiments/atlahs_ablation/SUITE_REPORT.md`。
 
 ## 版本发布约定
 
