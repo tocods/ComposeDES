@@ -153,7 +153,14 @@ static bool parse_dependency_update(
     if (!found_epoch || parsed_epoch <= *epoch) {
         return false;
     }
-    parsed.rebuild_closure();
+    if (frontier_only || parsed.direct == dependencies->direct) {
+        /* The graph is unchanged; retain the existing transitive closure.
+         * Frontier values and epochs do not affect reachability. */
+        parsed.closure = dependencies->closure;
+    }
+    else {
+        parsed.rebuild_closure();
+    }
     *dependencies = parsed;
     *epoch = parsed_epoch;
     return true;
