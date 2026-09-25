@@ -328,7 +328,9 @@ class WorkflowControllerTest(unittest.TestCase):
         task["children"] = []
         controller = MODULE.WorkflowController([task], "test-run")
         controller.initial_commands()
-        self.assertEqual((True, False, True), controller.simulator_dependency_state())
+        self.assertEqual(
+            (("gpusim",), False, True), controller.simulator_dependency_state()
+        )
         self.assertEqual(
             {
                 "orchestrator": {"gpusim"},
@@ -338,10 +340,44 @@ class WorkflowControllerTest(unittest.TestCase):
             controller.simulator_dependencies(),
         )
         controller.handle_event(MODULE.COMPUTE_COMPLETED, self.completed("a"))
-        self.assertEqual((False, False, False), controller.simulator_dependency_state())
+        self.assertEqual(((), False, False), controller.simulator_dependency_state())
         self.assertEqual(
             {"orchestrator": set(), "gpusim": set(), "ns3": set()},
             controller.simulator_dependencies(),
+        )
+
+    def test_partitioned_compute_dependencies_follow_active_hosts(self):
+        tasks = [
+            {
+                "name": "left",
+                "host": "host1",
+                "cpu_task": {"pes_number": 1, "length": 10, "ram": 0},
+                "gpu_task": {"kernels": []},
+                "children": [],
+            },
+            {
+                "name": "right",
+                "host": "host2",
+                "cpu_task": {"pes_number": 1, "length": 10, "ram": 0},
+                "gpu_task": {"kernels": []},
+                "children": [],
+            },
+        ]
+        controller = MODULE.WorkflowController(tasks, "partitioned")
+        controller.initial_commands()
+        workers = {"host1": "gpusim-rank-000", "host2": "gpusim-rank-001"}
+        self.assertEqual(
+            (("gpusim-rank-000", "gpusim-rank-001"), False, True),
+            controller.simulator_dependency_state(workers),
+        )
+        self.assertEqual(
+            {
+                "orchestrator": {"gpusim-rank-000", "gpusim-rank-001"},
+                "gpusim-rank-000": {"orchestrator"},
+                "gpusim-rank-001": {"orchestrator"},
+                "ns3": {"orchestrator"},
+            },
+            controller.simulator_dependencies(compute_worker_by_host=workers),
         )
 
     def test_backend_local_chain_dispatch_preserves_task_completions(self):

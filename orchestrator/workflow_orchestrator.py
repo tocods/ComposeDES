@@ -12,7 +12,7 @@ import uuid
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, TextIO
+from typing import Any, Dict, Iterable, List, Mapping, TextIO
 
 from fncs_client import FncsClient
 from graph_optimizer import OptimizationError, optimize_workflow
@@ -695,28 +695,50 @@ class WorkflowController:
         orchestrator: str = "orchestrator",
         compute_worker: str = "gpusim",
         network_worker: str = "ns3",
+        compute_worker_by_host: Mapping[str, str] | None = None,
     ) -> Dict[str, set[str]]:
-        compute_active, network_active, running = self.simulator_dependency_state()
+        worker_by_host = compute_worker_by_host or {
+            str(task["host"]): compute_worker for task in self.tasks.values()
+        }
+        compute_workers = sorted(set(worker_by_host.values()))
+        active_compute_workers, network_active, running = (
+            self.simulator_dependency_state(worker_by_host)
+        )
         dependencies = {
             orchestrator: set(),
-            compute_worker: set(),
             network_worker: set(),
         }
-        if compute_active:
-            dependencies[orchestrator].add(compute_worker)
+        dependencies.update({worker: set() for worker in compute_workers})
+        dependencies[orchestrator].update(active_compute_workers)
         if network_active:
             dependencies[orchestrator].add(network_worker)
-        # Either backend may receive a successor dispatch after any completion,
-        # so idle workers must remain behind the DAG controller until terminal.
+        # A backend may receive a successor dispatch after any completion, so
+        # every worker remains behind the DAG controller until terminal. This
+        # prevents an idle partition from passing a later dispatch timestamp.
         if running:
-            dependencies[compute_worker].add(orchestrator)
+            for worker in compute_workers:
+                dependencies[worker].add(orchestrator)
             dependencies[network_worker].add(orchestrator)
         return dependencies
 
-    def simulator_dependency_state(self) -> tuple[bool, bool, bool]:
+    def simulator_dependency_state(
+        self,
+        compute_worker_by_host: Mapping[str, str] | None = None,
+    ) -> tuple[tuple[str, ...], bool, bool]:
         """Return the minimal state that determines simulator dependencies."""
+        if compute_worker_by_host is None:
+            active_compute_workers = ("gpusim",) if self.inflight_compute else ()
+        else:
+            active_compute_workers = tuple(
+                sorted(
+                    {
+                        compute_worker_by_host[str(self.tasks[task_id]["host"])]
+                        for task_id in self.inflight_compute
+                    }
+                )
+            )
         return (
-            bool(self.inflight_compute),
+            active_compute_workers,
             bool(self.inflight_network),
             not self.terminal,
         )
@@ -824,6 +846,33 @@ def run(args: argparse.Namespace) -> int:
     )
     if args.backend_local_chains and args.max_compute_retries:
         raise WorkflowError("backend-local-chains requires max-compute-retries=0")
+    task_hosts = sorted({str(task["host"]) for task in controller.tasks.values()})
+    if args.compute_worker_map:
+        raw_worker_map = json.loads(Path(args.compute_worker_map).read_text())
+        if not isinstance(raw_worker_map, dict):
+            raise WorkflowError("compute-worker-map must be a JSON object")
+        compute_worker_by_host = {
+            str(host): str(worker) for host, worker in raw_worker_map.items()
+        }
+        missing_hosts = sorted(set(task_hosts) - set(compute_worker_by_host))
+        extra_hosts = sorted(set(compute_worker_by_host) - set(task_hosts))
+        if missing_hosts or extra_hosts or any(
+            not worker for worker in compute_worker_by_host.values()
+        ):
+            raise WorkflowError(
+                "compute-worker-map must map every workflow host exactly once; "
+                f"missing={missing_hosts} extra={extra_hosts}"
+            )
+    else:
+        compute_worker_by_host = {
+            host: args.compute_worker_name for host in task_hosts
+        }
+    compute_worker_names = sorted(set(compute_worker_by_host.values()))
+    reserved_names = {args.orchestrator_name, args.network_worker_name}
+    if reserved_names.intersection(compute_worker_names):
+        raise WorkflowError(
+            "compute worker names must differ from orchestrator and network worker"
+        )
     if args.optimization_report:
         target = Path(args.optimization_report)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -837,13 +886,21 @@ def run(args: argparse.Namespace) -> int:
     current_time = 0
     current_microstep = 0
     dependency_epoch = 0
-    last_dependency_state: tuple[bool, bool, bool] | None = None
+    last_dependency_state: tuple[tuple[str, ...], bool, bool] | None = None
 
     def publish_commands(commands: List[Command]) -> None:
         nonlocal batch_sequence
         grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         for command in commands:
-            grouped[command.topic].append(command.event)
+            topic = command.topic
+            if command.topic == COMPUTE_DISPATCH and args.compute_worker_map:
+                payload = command.event.get("payload") or {}
+                host = str(payload.get("target_host") or "")
+                worker = compute_worker_by_host.get(host)
+                if worker is None:
+                    raise WorkflowError(f"no compute worker mapped for host {host!r}")
+                topic = f"{COMPUTE_DISPATCH}/{worker}"
+            grouped[topic].append(command.event)
         for topic in sorted(grouped):
             batch_sequence += 1
             value = make_batch(
@@ -860,13 +917,14 @@ def run(args: argparse.Namespace) -> int:
         nonlocal dependency_epoch, last_dependency_state
         if not args.active_dependency_coordination:
             return
-        state = controller.simulator_dependency_state()
+        state = controller.simulator_dependency_state(compute_worker_by_host)
         if state == last_dependency_state:
             return
         dependencies = controller.simulator_dependencies(
             args.orchestrator_name,
             args.compute_worker_name,
             args.network_worker_name,
+            compute_worker_by_host,
         )
         dependency_epoch += 1
         last_dependency_state = state
@@ -973,6 +1031,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--orchestrator-name", default="orchestrator")
     parser.add_argument("--compute-worker-name", default="gpusim")
+    parser.add_argument(
+        "--compute-worker-map",
+        help="JSON object mapping every workflow host to a compute Federate name",
+    )
     parser.add_argument("--network-worker-name", default="ns3")
     parser.add_argument(
         "--idle-grant-ns",
