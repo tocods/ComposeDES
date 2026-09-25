@@ -39,6 +39,66 @@ class Command:
     event: Dict[str, Any]
 
 
+class BatchEncoder:
+    """Encode batches while keeping immutable JSON framing out of the hot path.
+
+    Event payloads and logical time are necessarily dynamic.  The schema and
+    run id are immutable for a simulation, so serialize that framing once at
+    startup and append only the batch metadata and event array for each
+    publish.  ``record`` returns the already structured value for the optional
+    event log, avoiding a JSON encode/decode round trip just for logging.
+    """
+
+    def __init__(self, run_id: str) -> None:
+        self.run_id = run_id
+        self._prefix = (
+            '{"schema_version":'
+            + json.dumps(SCHEMA_VERSION, ensure_ascii=True)
+            + ',"run_id":'
+            + json.dumps(run_id, ensure_ascii=True)
+            + ',"batch_id":"'
+        )
+
+    @staticmethod
+    def _batch_id(batch_sequence: int) -> str:
+        return f"batch-{batch_sequence:09d}"
+
+    def encode(
+        self,
+        batch_sequence: int,
+        time_ns: int,
+        events: List[Dict[str, Any]],
+        microstep: int = 0,
+    ) -> str:
+        return (
+            self._prefix
+            + self._batch_id(batch_sequence)
+            + '\",\"logical_time_ns\":'
+            + str(time_ns)
+            + ',"microstep":'
+            + str(microstep)
+            + ',"events":'
+            + json.dumps(events, separators=(",", ":"), ensure_ascii=True)
+            + "}"
+        )
+
+    def record(
+        self,
+        batch_sequence: int,
+        time_ns: int,
+        events: List[Dict[str, Any]],
+        microstep: int = 0,
+    ) -> Dict[str, Any]:
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "run_id": self.run_id,
+            "batch_id": self._batch_id(batch_sequence),
+            "logical_time_ns": time_ns,
+            "microstep": microstep,
+            "events": events,
+        }
+
+
 class WorkflowController:
     """Deterministic DAG and collective state machine, independent from FNCS."""
 
@@ -99,6 +159,14 @@ class WorkflowController:
 
         if not self.tasks:
             raise WorkflowError("workflow must contain at least one task")
+        # Task descriptions are immutable after workflow construction.  Keep a
+        # children-free dispatch form ready so every retry/ready transition
+        # does not deep-copy the full DAG before JSON encoding.
+        self.dispatch_task_specs: Dict[str, Dict[str, Any]] = {}
+        for task_id, spec in self.tasks.items():
+            dispatch_spec = copy.deepcopy(spec)
+            dispatch_spec["children"] = []
+            self.dispatch_task_specs[task_id] = dispatch_spec
         self._build_edges()
         self._build_collectives(collective_specs or [])
         self._validate_acyclic()
@@ -364,8 +432,7 @@ class WorkflowController:
                 continue
             self.task_attempt[task_id] += 1
             attempt = self.task_attempt[task_id]
-            task_spec = copy.deepcopy(self.tasks[task_id])
-            task_spec["children"] = []
+            task_spec = self.dispatch_task_specs[task_id]
             payload = {
                 "task_id": task_id,
                 "attempt": attempt,
@@ -393,8 +460,7 @@ class WorkflowController:
                 )
             self.task_attempt[task_id] += 1
             attempt = self.task_attempt[task_id]
-            task_spec = copy.deepcopy(self.tasks[task_id])
-            task_spec["children"] = []
+            task_spec = self.dispatch_task_specs[task_id]
             plan_tasks.append(
                 {
                     "task_id": task_id,
@@ -854,18 +920,7 @@ def make_batch(
     events: List[Dict[str, Any]],
     microstep: int = 0,
 ) -> str:
-    return json.dumps(
-        {
-            "schema_version": SCHEMA_VERSION,
-            "run_id": run_id,
-            "batch_id": f"batch-{batch_sequence:09d}",
-            "logical_time_ns": time_ns,
-            "microstep": microstep,
-            "events": events,
-        },
-        separators=(",", ":"),
-        ensure_ascii=True,
-    )
+    return BatchEncoder(run_id).encode(batch_sequence, time_ns, events, microstep)
 
 
 def parse_batch(value: str, expected_run_id: str) -> Dict[str, Any]:
@@ -902,6 +957,10 @@ class EventLog:
             target = Path(path)
             target.parent.mkdir(parents=True, exist_ok=True)
             self._stream = target.open("w", encoding="utf-8")
+
+    @property
+    def enabled(self) -> bool:
+        return self._stream is not None
 
     def write(self, direction: str, topic: str, time_ns: int, value: Any) -> None:
         if not self._stream:
@@ -982,6 +1041,7 @@ def run(args: argparse.Namespace) -> int:
         )
     client = FncsClient(args.fncs_library)
     event_log = EventLog(args.event_log)
+    batch_encoder = BatchEncoder(run_id)
     batch_sequence = 0
     current_time = 0
     current_microstep = 0
@@ -1029,15 +1089,25 @@ def run(args: argparse.Namespace) -> int:
             grouped[topic].append(command.event)
         for topic in sorted(grouped):
             batch_sequence += 1
-            value = make_batch(
-                run_id,
+            value = batch_encoder.encode(
                 batch_sequence,
                 current_time,
                 grouped[topic],
                 current_microstep,
             )
             client.publish(topic, value)
-            event_log.write("out", topic, current_time, json.loads(value))
+            if event_log.enabled:
+                event_log.write(
+                    "out",
+                    topic,
+                    current_time,
+                    batch_encoder.record(
+                        batch_sequence,
+                        current_time,
+                        grouped[topic],
+                        current_microstep,
+                    ),
+                )
 
     def publish_dependencies() -> None:
         nonlocal dependency_epoch, last_dependency_state
@@ -1126,15 +1196,25 @@ def run(args: argparse.Namespace) -> int:
             run_id,
             {"status": status, "summary": controller.summary()},
         )
-        control_value = make_batch(
-            run_id,
+        control_value = batch_encoder.encode(
             batch_sequence,
             current_time,
             [control_event],
             current_microstep,
         )
         client.publish(CONTROL, control_value)
-        event_log.write("out", CONTROL, current_time, json.loads(control_value))
+        if event_log.enabled:
+            event_log.write(
+                "out",
+                CONTROL,
+                current_time,
+                batch_encoder.record(
+                    batch_sequence,
+                    current_time,
+                    [control_event],
+                    current_microstep,
+                ),
+            )
         print(json.dumps(controller.summary(), ensure_ascii=False, sort_keys=True))
         client.time_request(MAX_TIME_NS)
         return 0 if controller.done else 2

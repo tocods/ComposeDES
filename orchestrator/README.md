@@ -78,6 +78,16 @@ builds the transitive dependency closure once per epoch. Normal scheduling
 rounds reuse indexed state and scratch buffers. Invalid or cyclic graphs retain
 the conservative global-minimum fallback.
 
+The dispatch path also precompiles immutable data before the FNCS session
+starts. Each task's children-free dispatch description is deep-copied once at
+workflow construction, and the batch encoder serializes the schema and run-id
+prefix once per run. Runtime encoding only fills the batch sequence, logical
+time, microstep, and dynamic event array. When an event log is enabled, the
+orchestrator writes that structured batch directly instead of decoding the JSON
+it just published. Dynamic completion times, retries, frontiers, and failure
+states remain runtime data, so causality and Active-dependency behavior are
+unchanged.
+
 With `--safe-frontier-coordination`, the orchestrator derives a conservative
 earliest completion time from every in-flight compute and network command and
 publishes the minimum as `frontier.<federate>`. A frontier certifies that the

@@ -108,6 +108,39 @@ class WorkflowControllerTest(unittest.TestCase):
         controller.handle_event(MODULE.COMPUTE_COMPLETED, self.completed("d"))
         self.assertTrue(controller.done)
 
+    def test_batch_encoder_preserves_wire_schema(self):
+        events = [
+            {
+                "event_id": "evt-1",
+                "kind": "compute.dispatch",
+                "correlation_id": "task:a:attempt:1",
+                "payload": {"task_id": "a", "attempt": 1},
+            }
+        ]
+        encoded = MODULE.BatchEncoder("run/quoted").encode(7, 1234, events, 2)
+        self.assertEqual(
+            MODULE.make_batch("run/quoted", 7, 1234, events, 2), encoded
+        )
+        self.assertEqual(
+            {
+                "schema_version": MODULE.SCHEMA_VERSION,
+                "run_id": "run/quoted",
+                "batch_id": "batch-000000007",
+                "logical_time_ns": 1234,
+                "microstep": 2,
+                "events": events,
+            },
+            MODULE.parse_batch(encoded, "run/quoted"),
+        )
+
+    def test_dispatch_task_payload_is_precompiled_without_dag_children(self):
+        controller = MODULE.WorkflowController(self.tasks, "test-run")
+        commands = controller.initial_commands()
+        dispatched = commands[0].event["payload"]["task"]
+        self.assertEqual([], dispatched["children"])
+        self.assertEqual(2, len(controller.tasks["a"]["children"]))
+        self.assertIs(dispatched, controller.dispatch_task_specs["a"])
+
     def test_duplicate_completion_is_idempotent(self):
         task = dict(self.tasks[0])
         task["children"] = []
