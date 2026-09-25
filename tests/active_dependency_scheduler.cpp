@@ -38,6 +38,10 @@ int main() {
         independent, independent_graph, 1, &immediate));
     assert(immediate.index == 1);
     assert(immediate.time == 100);
+    independent[1].requested = ULLONG_MAX;
+    assert(!fncs::select_active_grant_for_index(
+        independent, independent_graph, 1, &immediate));
+    independent[1].requested = 100;
     independent[0].processing = true;
     assert(fncs::select_active_grant_for_index(
         independent, independent_graph, 1, &immediate));

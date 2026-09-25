@@ -103,6 +103,12 @@ inline bool select_active_grant_for_index(
     }
     const fncs::time actionable = states[index].messages_pending
         ? states[index].pending_time : states[index].requested;
+    // A maximum request is a lease request, not a finite safe point.  The
+    // asynchronous path must never turn it into an immediate grant without a
+    // finite frontier; otherwise a worker can run past a later dispatch.
+    if (actionable == ULLONG_MAX) {
+        return false;
+    }
     const bool frontier_safe = dependencies.frontier.size() == states.size()
         && dependencies.frontier[index] > 0
         && actionable <= dependencies.frontier[index];
@@ -119,6 +125,9 @@ inline bool select_active_grant_for_index(
         }
         const fncs::time producer_actionable = states[producer].messages_pending
             ? states[producer].pending_time : states[producer].requested;
+        if (producer_actionable == ULLONG_MAX) {
+            return false;
+        }
         lower_bound = std::min(lower_bound, producer_actionable);
     }
     if (lower_bound != actionable) {

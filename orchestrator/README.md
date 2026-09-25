@@ -103,7 +103,9 @@ therefore grant an idle consumer up to the frontier even when its controller
 dependency has an earlier request. The certificate is local to the consumer
 and is never propagated as that consumer's producer bound.
 
-Active mode also has a conservative asynchronous grant fast path. Once a
+Active mode also has an experimental conservative asynchronous grant fast path.
+It is disabled by default; enable it only with
+`FNCS_ASYNCHRONOUS_GRANTS=yes` after validating the workload. Once a
 consumer has submitted a request, the broker can grant it immediately when
 every federate in its transitive producer closure is already at a safe request,
 or when the consumer's frontier certifies that no earlier input can arrive.

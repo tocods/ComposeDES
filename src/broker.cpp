@@ -248,11 +248,14 @@ int main(int argc, char **argv)
     unsigned long long asynchronous_grants = 0;
     unsigned long long scheduler_rounds = 0;
     const char *coordination_metrics_path = getenv("FNCS_COORDINATION_METRICS");
+    bool asynchronous_grant_mode = false;
 
     {
         const char *env_active = getenv("FNCS_ACTIVE_DEPENDENCY");
         active_dependency_mode = env_active && string(env_active) != "0"
             && string(env_active) != "false" && string(env_active) != "no";
+        const char *env_async = getenv("FNCS_ASYNCHRONOUS_GRANTS");
+        asynchronous_grant_mode = env_async && string(env_async) == "yes";
     }
 
     fncs::start_logging();
@@ -675,7 +678,7 @@ int main(int argc, char **argv)
                  * advance as soon as its own request arrives. Federates with
                  * an unknown producer still use the original all-federate
                  * barrier below, so this cannot weaken conservative safety. */
-                if (active_dependency_mode
+                if (active_dependency_mode && asynchronous_grant_mode
                         && fncs::TIME_REQUEST == message_type) {
                     fncs::ActiveGrant immediate;
                     if (fncs::select_active_grant_for_index(
