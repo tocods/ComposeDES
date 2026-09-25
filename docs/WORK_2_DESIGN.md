@@ -142,8 +142,12 @@ schema/run-id JSON 前缀；运行时只编码序号、逻辑时间、microstep 
 避免重复复制；事件日志默认缓冲写入，避免逐条 flush。frontier 数值变化时现在使用
 `frontier_only=1` 增量 epoch，只更新证书向量而不重建依赖闭包；拓扑变化或 frontier 撤销仍发送
 完整原子更新。完成时间、重试、frontier 和失败状态仍在运行时生成，因此没有削弱因果约束。
-grant/wakeup 的 FNCS 协议交互仍保留，尚未做跨多个
-Federate 的协议级批量 grant，因此它仍是横向稳态的主要剩余成本。
+在 Active 模式下，broker 现在还会检查单个 Federate 的依赖闭包：当所有可能影响它的生产者
+都已经提交安全 request，或该 Federate 持有有效 frontier 时，可以立即发放该 Federate 的
+grant，而不等待无关 Federate 返回；无法证明安全时仍回退原来的全局保守 barrier。该 fast
+path 只减少等待和调度轮次，不改变 grant 数量或事件因果，`coordination.json` 记录
+`asynchronous_grants` 供消融统计。跨多个 Federate 的批量 grant、长期 lease 和一 rank 一 JVM
+仍是后续稳态优化方向。
 
 随后在这版实现上对全部七个工作负载重新执行了完整 2×2 消融，每格三次，共 84 次端到端运行。
 新版组合总墙钟加速为：LULESH-64 2.345×、HPCG-8 1.380×、ICON-8 1.569×、HPCG-64 2.343×、

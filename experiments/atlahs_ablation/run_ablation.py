@@ -744,6 +744,7 @@ def run_one(
         "simulated_makespan_ns": simulated_makespan_ns,
         "scheduler_rounds": coordination["scheduler_rounds"],
         "total_grants": coordination["total_grants"],
+        "asynchronous_grants": coordination.get("asynchronous_grants", 0),
         "grants_by_simulator": coordination["grants_by_simulator"],
         "dependency_updates": coordination["dependency_updates"],
         "control_plane_records": len(records),
@@ -771,6 +772,7 @@ def summarize(output: Path, results: list[dict[str, Any]]) -> dict[str, Any]:
         steady_walls = [sample["steady_wall_clock_seconds"] for sample in samples]
         rounds = [sample["scheduler_rounds"] for sample in samples]
         grants = [sample["total_grants"] for sample in samples]
+        asynchronous_grants = [sample.get("asynchronous_grants", 0) for sample in samples]
         cells[label] = {
             "vertical_optimization": samples[0]["vertical_optimization"],
             "horizontal_optimization": samples[0]["horizontal_optimization"],
@@ -792,6 +794,8 @@ def summarize(output: Path, results: list[dict[str, Any]]) -> dict[str, Any]:
             "scheduler_rounds_median": statistics.median(rounds),
             "total_grants": grants,
             "total_grants_median": statistics.median(grants),
+            "asynchronous_grants": asynchronous_grants,
+            "asynchronous_grants_median": statistics.median(asynchronous_grants),
             "dependency_updates": sorted({sample["dependency_updates"] for sample in samples}),
             "control_plane_records": sorted({sample["control_plane_records"] for sample in samples}),
             "simulated_makespans_ns": sorted({sample["simulated_makespan_ns"] for sample in samples}),
@@ -866,6 +870,7 @@ def summarize(output: Path, results: list[dict[str, Any]]) -> dict[str, Any]:
                 "compute_dispatch_events",
                 "scheduler_rounds_median",
                 "total_grants_median",
+                "asynchronous_grants_median",
                 "network_completion_count",
                 "simulated_makespan_ns",
             ]
@@ -892,6 +897,7 @@ def summarize(output: Path, results: list[dict[str, Any]]) -> dict[str, Any]:
                     cell["compute_dispatch_events"],
                     cell["scheduler_rounds_median"],
                     cell["total_grants_median"],
+                    cell["asynchronous_grants_median"],
                     cell["network_completion_count"],
                     cell["simulated_makespans_ns"][0],
                 ]
