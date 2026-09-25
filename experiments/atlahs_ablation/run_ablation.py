@@ -450,7 +450,10 @@ def run_one(
     ranks_per_federate: int = 1,
     safe_frontiers: bool = True,
     partition_map_path: Path | None = None,
+    frontier_update_quantum_ns: int = 0,
 ) -> dict[str, Any]:
+    if frontier_update_quantum_ns < 0:
+        raise ValueError("frontier_update_quantum_ns must be non-negative")
     label = (
         f"vertical_{'on' if acceleration else 'off'}__"
         f"horizontal_{'on' if horizontal_optimization else 'off'}"
@@ -470,6 +473,7 @@ def run_one(
     metrics = result_dir / "coordination.json"
     event_log = result_dir / "control-plane.jsonl"
     optimization = result_dir / "optimization.json"
+    steady_start_marker = result_dir / "steady-start.marker"
     broker_url = f"tcp://localhost:{port}"
     run_id = f"atlahs-{output.name}-{label}-r{repeat}"
 
@@ -545,6 +549,7 @@ def run_one(
         return process
 
     started = time.perf_counter()
+    steady_started: float | None = None
     try:
         broker_env = base_env.copy()
         broker_env.update({
@@ -614,6 +619,7 @@ def run_one(
             sys.executable, str(ORCHESTRATOR), str(workflow),
             "--event-log", str(event_log),
             "--optimization-report", str(optimization),
+            "--steady-start-marker", str(steady_start_marker),
         ]
         if horizontal_optimization:
             orchestrator_command.extend([
@@ -622,10 +628,17 @@ def run_one(
             ])
             if safe_frontiers:
                 orchestrator_command.append("--safe-frontier-coordination")
+            if frontier_update_quantum_ns:
+                orchestrator_command.extend([
+                    "--frontier-update-quantum-ns",
+                    str(frontier_update_quantum_ns),
+                ])
         orchestrator = start("orchestrator", orchestrator_command, orchestrator_env)
 
         deadline = time.monotonic() + timeout
         while orchestrator.poll() is None:
+            if steady_started is None and steady_start_marker.exists():
+                steady_started = time.perf_counter()
             for name, worker in [*gpusim_processes, ("ns3", ns3), ("broker", broker)]:
                 return_code = worker.poll()
                 if return_code is None:
@@ -663,6 +676,11 @@ def run_one(
                     process.kill()
         for stream in streams:
             stream.close()
+
+    if steady_started is None:
+        raise RuntimeError("orchestrator did not publish a steady-start marker")
+    startup_seconds = steady_started - started
+    steady_wall_seconds = wall_seconds - startup_seconds
 
     records = [json.loads(line) for line in event_log.read_text().splitlines() if line.strip()]
     kinds: Counter[str] = Counter()
@@ -720,6 +738,9 @@ def run_one(
         },
         "worker_logs_discarded": quiet_worker_logs,
         "wall_clock_seconds": wall_seconds,
+        "startup_seconds": startup_seconds,
+        "steady_wall_clock_seconds": steady_wall_seconds,
+        "frontier_update_quantum_ns": frontier_update_quantum_ns,
         "simulated_makespan_ns": simulated_makespan_ns,
         "scheduler_rounds": coordination["scheduler_rounds"],
         "total_grants": coordination["total_grants"],
@@ -746,6 +767,8 @@ def summarize(output: Path, results: list[dict[str, Any]]) -> dict[str, Any]:
     cells = {}
     for label, samples in sorted(grouped.items()):
         walls = [sample["wall_clock_seconds"] for sample in samples]
+        startups = [sample["startup_seconds"] for sample in samples]
+        steady_walls = [sample["steady_wall_clock_seconds"] for sample in samples]
         rounds = [sample["scheduler_rounds"] for sample in samples]
         grants = [sample["total_grants"] for sample in samples]
         cells[label] = {
@@ -756,6 +779,12 @@ def summarize(output: Path, results: list[dict[str, Any]]) -> dict[str, Any]:
             "active_dependency_coordination": samples[0]["active_dependency_coordination"],
             "samples": len(samples),
             "wall_clock_seconds": walls,
+            "startup_seconds": startups,
+            "startup_median_seconds": statistics.median(startups),
+            "steady_wall_clock_seconds": steady_walls,
+            "steady_wall_clock_median_seconds": statistics.median(steady_walls),
+            "steady_wall_clock_mean_seconds": statistics.mean(steady_walls),
+            "steady_wall_clock_stdev_seconds": statistics.stdev(steady_walls) if len(steady_walls) > 1 else 0.0,
             "wall_clock_median_seconds": statistics.median(walls),
             "wall_clock_mean_seconds": statistics.mean(walls),
             "wall_clock_stdev_seconds": statistics.stdev(walls) if len(walls) > 1 else 0.0,
@@ -828,6 +857,8 @@ def summarize(output: Path, results: list[dict[str, Any]]) -> dict[str, Any]:
                 "horizontal_optimization",
                 "samples",
                 "wall_clock_seconds",
+                "startup_seconds",
+                "steady_wall_clock_seconds",
                 "wall_clock_median_seconds",
                 "wall_clock_mean_seconds",
                 "wall_clock_stdev_seconds",
@@ -852,6 +883,8 @@ def summarize(output: Path, results: list[dict[str, Any]]) -> dict[str, Any]:
                     cell["horizontal_optimization"],
                     cell["samples"],
                     json.dumps(cell["wall_clock_seconds"], separators=(",", ":")),
+                    json.dumps(cell["startup_seconds"], separators=(",", ":")),
+                    json.dumps(cell["steady_wall_clock_seconds"], separators=(",", ":")),
                     cell["wall_clock_median_seconds"],
                     cell["wall_clock_mean_seconds"],
                     cell["wall_clock_stdev_seconds"],
@@ -900,6 +933,12 @@ def main() -> int:
         "--no-safe-frontiers",
         action="store_true",
         help="disable certified frontier requests in horizontal cells",
+    )
+    parser.add_argument(
+        "--frontier-update-quantum-ns",
+        type=int,
+        default=0,
+        help="round certified frontiers down before publishing (0 keeps exact updates)",
     )
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--run-only", action="store_true")
@@ -958,6 +997,7 @@ def main() -> int:
                 args.ranks_per_federate, not args.no_safe_frontiers,
                 args.compute_partition_map.resolve()
                 if args.compute_partition_map else None,
+                args.frontier_update_quantum_ns,
             )
             results.append(result)
             print(json.dumps({

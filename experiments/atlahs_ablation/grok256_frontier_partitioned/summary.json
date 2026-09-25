@@ -34,6 +34,20 @@
       "simulated_makespans_ns": [
         1006360865727
       ],
+      "startup_median_seconds": 2.3060101100127213,
+      "startup_seconds": [
+        2.3070760819828138,
+        2.255781522981124,
+        2.3060101100127213
+      ],
+      "steady_wall_clock_mean_seconds": 87.91723633900013,
+      "steady_wall_clock_median_seconds": 87.88356048800051,
+      "steady_wall_clock_seconds": [
+        87.23383935299353,
+        87.88356048800051,
+        88.63430917600635
+      ],
+      "steady_wall_clock_stdev_seconds": 0.7008419782645772,
       "total_grants": [
         1119194,
         1119194,
@@ -41,15 +55,15 @@
       ],
       "total_grants_median": 1119194,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 91.51207557599992,
-      "wall_clock_median_seconds": 91.59792786999606,
+      "wall_clock_mean_seconds": 90.20685891065902,
+      "wall_clock_median_seconds": 90.13934201098164,
       "wall_clock_seconds": [
-        91.99810595199233,
-        90.94019290601136,
-        91.59792786999606
+        89.54091543497634,
+        90.13934201098164,
+        90.94031928601908
       ],
       "wall_clock_speedup_vs_all_off": 1.0,
-      "wall_clock_stdev_seconds": 0.5341563118624378
+      "wall_clock_stdev_seconds": 0.7021407860143457
     },
     "vertical_off__horizontal_on": {
       "active_dependency_coordination": true,
@@ -57,10 +71,10 @@
       "compute_federates": 8,
       "compute_plan_dispatch_events": 0,
       "control_plane_records": [
-        78987
+        76981
       ],
       "dependency_updates": [
-        5370
+        3364
       ],
       "federate_partition": "contiguous_rank_groups",
       "horizontal_optimization": true,
@@ -85,6 +99,20 @@
       "simulated_makespans_ns": [
         1006360881966
       ],
+      "startup_median_seconds": 2.307451275002677,
+      "startup_seconds": [
+        2.259578628989402,
+        2.3084227569925133,
+        2.307451275002677
+      ],
+      "steady_wall_clock_mean_seconds": 57.670447586996794,
+      "steady_wall_clock_median_seconds": 57.65724728698842,
+      "steady_wall_clock_seconds": [
+        58.12478101599845,
+        57.2293144580035,
+        57.65724728698842
+      ],
+      "steady_wall_clock_stdev_seconds": 0.44787919695166045,
       "total_grants": [
         115898,
         115898,
@@ -92,15 +120,15 @@
       ],
       "total_grants_median": 115898,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 60.718452162012305,
-      "wall_clock_median_seconds": 61.016167298017535,
+      "wall_clock_mean_seconds": 59.962265140658324,
+      "wall_clock_median_seconds": 59.9646985619911,
       "wall_clock_seconds": [
-        61.016167298017535,
-        61.02729749001446,
-        60.11189169800491
+        60.38435964498785,
+        59.537737214996014,
+        59.9646985619911
       ],
-      "wall_clock_speedup_vs_all_off": 1.501207498376781,
-      "wall_clock_stdev_seconds": 0.5253262487884258
+      "wall_clock_speedup_vs_all_off": 1.503206789537951,
+      "wall_clock_stdev_seconds": 0.42331646069561113
     },
     "vertical_on__horizontal_off": {
       "active_dependency_coordination": false,
@@ -136,6 +164,20 @@
       "simulated_makespans_ns": [
         1006360860972
       ],
+      "startup_median_seconds": 2.606149927014485,
+      "startup_seconds": [
+        2.556951415986987,
+        2.606149927014485,
+        2.606459280999843
+      ],
+      "steady_wall_clock_mean_seconds": 35.44524490033897,
+      "steady_wall_clock_median_seconds": 35.3722431770002,
+      "steady_wall_clock_seconds": [
+        35.238143941009184,
+        35.3722431770002,
+        35.72534758300753
+      ],
+      "steady_wall_clock_stdev_seconds": 0.2516719807645197,
       "total_grants": [
         1069493,
         1069493,
@@ -143,15 +185,15 @@
       ],
       "total_grants_median": 1069493,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 37.887795489329925,
-      "wall_clock_median_seconds": 37.862381606013514,
+      "wall_clock_mean_seconds": 38.035098441672744,
+      "wall_clock_median_seconds": 37.978393104014685,
       "wall_clock_seconds": [
-        37.964278326981,
-        37.83672653499525,
-        37.862381606013514
+        37.79509535699617,
+        37.978393104014685,
+        38.331806864007376
       ],
-      "wall_clock_speedup_vs_all_off": 2.4192331275708225,
-      "wall_clock_stdev_seconds": 0.06746676225082356
+      "wall_clock_speedup_vs_all_off": 2.37343749020948,
+      "wall_clock_stdev_seconds": 0.2728120817133023
     },
     "vertical_on__horizontal_on": {
       "active_dependency_coordination": true,
@@ -159,10 +201,10 @@
       "compute_federates": 8,
       "compute_plan_dispatch_events": 0,
       "control_plane_records": [
-        19481
+        19277
       ],
       "dependency_updates": [
-        3194
+        2990
       ],
       "federate_partition": "contiguous_rank_groups",
       "horizontal_optimization": true,
@@ -179,14 +221,28 @@
       ],
       "samples": 3,
       "scheduler_rounds": [
-        56223,
-        56223,
-        56223
+        56244,
+        56244,
+        56244
       ],
-      "scheduler_rounds_median": 56223,
+      "scheduler_rounds_median": 56244,
       "simulated_makespans_ns": [
         1006360881966
       ],
+      "startup_median_seconds": 2.607830768014537,
+      "startup_seconds": [
+        2.607830768014537,
+        2.6096963140007574,
+        2.6067719139973633
+      ],
+      "steady_wall_clock_mean_seconds": 8.015320012666052,
+      "steady_wall_clock_median_seconds": 7.999283402983565,
+      "steady_wall_clock_seconds": [
+        7.999283402983565,
+        8.084777640004177,
+        7.961898995010415
+      ],
+      "steady_wall_clock_stdev_seconds": 0.0629894434525108,
       "total_grants": [
         58592,
         58592,
@@ -194,15 +250,15 @@
       ],
       "total_grants_median": 58592,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 10.671239672665251,
-      "wall_clock_median_seconds": 10.685953720996622,
+      "wall_clock_mean_seconds": 10.623419678003605,
+      "wall_clock_median_seconds": 10.607114170998102,
       "wall_clock_seconds": [
-        10.697739297989756,
-        10.685953720996622,
-        10.630025999009376
+        10.607114170998102,
+        10.694473954004934,
+        10.568670909007778
       ],
-      "wall_clock_speedup_vs_all_off": 8.57180652860372,
-      "wall_clock_stdev_seconds": 0.03617526956948624
+      "wall_clock_speedup_vs_all_off": 8.498008087575789,
+      "wall_clock_stdev_seconds": 0.064467074554915
     }
   },
   "dataset": {

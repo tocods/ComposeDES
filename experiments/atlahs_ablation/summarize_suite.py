@@ -51,6 +51,10 @@ def main() -> int:
                 "safe_frontier_coordination",
                 "wall_clock_seconds",
                 "wall_clock_median_seconds",
+                "startup_seconds",
+                "startup_median_seconds",
+                "steady_wall_clock_seconds",
+                "steady_wall_clock_median_seconds",
                 "speedup_vs_both_off",
                 "compute_dispatch_events",
                 "scheduler_rounds_median",
@@ -78,6 +82,10 @@ def main() -> int:
                         cell.get("safe_frontier_coordination", horizontal),
                         json.dumps(cell["wall_clock_seconds"], separators=(",", ":")),
                         cell["wall_clock_median_seconds"],
+                        json.dumps(cell.get("startup_seconds", []), separators=(",", ":")),
+                        cell.get("startup_median_seconds", ""),
+                        json.dumps(cell.get("steady_wall_clock_seconds", []), separators=(",", ":")),
+                        cell.get("steady_wall_clock_median_seconds", ""),
                         cell["wall_clock_speedup_vs_all_off"],
                         cell["compute_dispatch_events"],
                         cell["scheduler_rounds_median"],
@@ -95,11 +103,16 @@ def main() -> int:
                 "ranks",
                 "source_operations",
                 "baseline_seconds",
+                "baseline_startup_seconds",
+                "baseline_steady_seconds",
                 "horizontal_compute_federates",
                 "horizontal_ranks_per_federate",
                 "vertical_only_speedup",
                 "horizontal_only_speedup",
                 "both_speedup",
+                "vertical_only_steady_speedup",
+                "horizontal_only_steady_speedup",
+                "both_steady_speedup",
                 "makespan_relative_span",
             ]
         )
@@ -113,6 +126,8 @@ def main() -> int:
                     dataset["num_ranks"],
                     dataset["source_operations"],
                     cells["vertical_off__horizontal_off"]["wall_clock_median_seconds"],
+                    cells["vertical_off__horizontal_off"].get("startup_median_seconds", ""),
+                    cells["vertical_off__horizontal_off"].get("steady_wall_clock_median_seconds", ""),
                     cells["vertical_off__horizontal_on"]["compute_federates"],
                     cells["vertical_off__horizontal_on"].get(
                         "ranks_per_compute_federate",
@@ -122,6 +137,12 @@ def main() -> int:
                     cells["vertical_on__horizontal_off"]["wall_clock_speedup_vs_all_off"],
                     cells["vertical_off__horizontal_on"]["wall_clock_speedup_vs_all_off"],
                     cells["vertical_on__horizontal_on"]["wall_clock_speedup_vs_all_off"],
+                    cells["vertical_off__horizontal_off"].get("steady_wall_clock_median_seconds", 0)
+                    / cells["vertical_on__horizontal_off"].get("steady_wall_clock_median_seconds", 1),
+                    cells["vertical_off__horizontal_off"].get("steady_wall_clock_median_seconds", 0)
+                    / cells["vertical_off__horizontal_on"].get("steady_wall_clock_median_seconds", 1),
+                    cells["vertical_off__horizontal_off"].get("steady_wall_clock_median_seconds", 0)
+                    / cells["vertical_on__horizontal_on"].get("steady_wall_clock_median_seconds", 1),
                     value["validation"]["simulated_makespan_relative_span"],
                 ]
             )

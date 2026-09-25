@@ -34,6 +34,20 @@
       "simulated_makespans_ns": [
         19820888763
       ],
+      "startup_median_seconds": 0.45185819300240837,
+      "startup_seconds": [
+        0.4517343679908663,
+        0.45188454299932346,
+        0.45185819300240837
+      ],
+      "steady_wall_clock_mean_seconds": 1.6004009800089989,
+      "steady_wall_clock_median_seconds": 1.6158668239950202,
+      "steady_wall_clock_seconds": [
+        1.6194982370070647,
+        1.6158668239950202,
+        1.5658378790249117
+      ],
+      "steady_wall_clock_stdev_seconds": 0.02998754328622419,
       "total_grants": [
         24051,
         24051,
@@ -41,15 +55,15 @@
       ],
       "total_grants_median": 24051,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 2.0840652383340057,
-      "wall_clock_median_seconds": 2.067586504999781,
+      "wall_clock_mean_seconds": 2.052226681339865,
+      "wall_clock_median_seconds": 2.0677513669943437,
       "wall_clock_seconds": [
-        2.0673165270127356,
-        2.1172926829895005,
-        2.067586504999781
+        2.071232604997931,
+        2.0677513669943437,
+        2.01769607202732
       ],
       "wall_clock_speedup_vs_all_off": 1.0,
-      "wall_clock_stdev_seconds": 0.028776127793343702
+      "wall_clock_stdev_seconds": 0.02995499940128716
     },
     "vertical_off__horizontal_on": {
       "active_dependency_coordination": true,
@@ -57,10 +71,10 @@
       "compute_federates": 2,
       "compute_plan_dispatch_events": 0,
       "control_plane_records": [
-        3965
+        3905
       ],
       "dependency_updates": [
-        1095
+        1035
       ],
       "federate_partition": "contiguous_rank_groups",
       "horizontal_optimization": true,
@@ -85,6 +99,20 @@
       "simulated_makespans_ns": [
         19820891178
       ],
+      "startup_median_seconds": 0.45171713500167243,
+      "startup_seconds": [
+        0.45171713500167243,
+        0.4517264619935304,
+        0.4516289080202114
+      ],
+      "steady_wall_clock_mean_seconds": 1.29898201332738,
+      "steady_wall_clock_median_seconds": 1.3155526040063705,
+      "steady_wall_clock_seconds": [
+        1.3155526040063705,
+        1.2654527839913499,
+        1.3159406519844197
+      ],
+      "steady_wall_clock_stdev_seconds": 0.029037812593399596,
       "total_grants": [
         4768,
         4768,
@@ -92,15 +120,15 @@
       ],
       "total_grants_median": 4768,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 1.7518144539984253,
-      "wall_clock_median_seconds": 1.7673800000047777,
+      "wall_clock_mean_seconds": 1.750672848332518,
+      "wall_clock_median_seconds": 1.767269739008043,
       "wall_clock_seconds": [
-        1.7673800000047777,
-        1.7204631429922301,
-        1.7676002189982682
+        1.767269739008043,
+        1.7171792459848803,
+        1.767569560004631
       ],
-      "wall_clock_speedup_vs_all_off": 1.1698596255441343,
-      "wall_clock_stdev_seconds": 0.027151255043858593
+      "wall_clock_speedup_vs_all_off": 1.1700259000388695,
+      "wall_clock_stdev_seconds": 0.029006697878658422
     },
     "vertical_on__horizontal_off": {
       "active_dependency_coordination": false,
@@ -136,6 +164,20 @@
       "simulated_makespans_ns": [
         19820887763
       ],
+      "startup_median_seconds": 0.45172636199276894,
+      "startup_seconds": [
+        0.45140622401959263,
+        0.45172636199276894,
+        0.45182639197446406
+      ],
+      "steady_wall_clock_mean_seconds": 1.2486274860081419,
+      "steady_wall_clock_median_seconds": 1.2652107239991892,
+      "steady_wall_clock_seconds": [
+        1.2154154629970435,
+        1.2652107239991892,
+        1.2652562710281927
+      ],
+      "steady_wall_clock_stdev_seconds": 0.028762464654480763,
       "total_grants": [
         22554,
         22554,
@@ -143,15 +185,15 @@
       ],
       "total_grants_median": 22554,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 1.6835156150045805,
-      "wall_clock_median_seconds": 1.6664417560095899,
+      "wall_clock_mean_seconds": 1.700280478670417,
+      "wall_clock_median_seconds": 1.7169370859919582,
       "wall_clock_seconds": [
-        1.6664417560095899,
-        1.717709582997486,
-        1.6663955060066655
+        1.6668216870166361,
+        1.7169370859919582,
+        1.7170826630026568
       ],
-      "wall_clock_speedup_vs_all_off": 1.2407193336002094,
-      "wall_clock_stdev_seconds": 0.029612853967332806
+      "wall_clock_speedup_vs_all_off": 1.2043256470284134,
+      "wall_clock_stdev_seconds": 0.028976254974803925
     },
     "vertical_on__horizontal_on": {
       "active_dependency_coordination": true,
@@ -159,10 +201,10 @@
       "compute_federates": 2,
       "compute_plan_dispatch_events": 0,
       "control_plane_records": [
-        1277
+        1225
       ],
       "dependency_updates": [
-        199
+        147
       ],
       "federate_partition": "contiguous_rank_groups",
       "horizontal_optimization": true,
@@ -187,6 +229,20 @@
       "simulated_makespans_ns": [
         19820891178
       ],
+      "startup_median_seconds": 0.45192010098253377,
+      "startup_seconds": [
+        0.45190987101523206,
+        0.4828528249927331,
+        0.45192010098253377
+      ],
+      "steady_wall_clock_mean_seconds": 0.8652043886637936,
+      "steady_wall_clock_median_seconds": 0.8648114019888453,
+      "steady_wall_clock_seconds": [
+        0.8648114019888453,
+        0.8647437239997089,
+        0.8660580400028266
+      ],
+      "steady_wall_clock_stdev_seconds": 0.0007400577910055471,
       "total_grants": [
         2976,
         2976,
@@ -194,15 +250,15 @@
       ],
       "total_grants_median": 2976,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 1.3227312969975173,
-      "wall_clock_median_seconds": 1.3197056299832184,
+      "wall_clock_mean_seconds": 1.3274319876606266,
+      "wall_clock_median_seconds": 1.3179781409853604,
       "wall_clock_seconds": [
-        1.3318454750115052,
-        1.3166427859978285,
-        1.3197056299832184
+        1.3167212730040774,
+        1.347596548992442,
+        1.3179781409853604
       ],
-      "wall_clock_speedup_vs_all_off": 1.5667027994917873,
-      "wall_clock_stdev_seconds": 0.008040300614573082
+      "wall_clock_speedup_vs_all_off": 1.568881381787129,
+      "wall_clock_stdev_seconds": 0.01747432629771466
     }
   },
   "dataset": {

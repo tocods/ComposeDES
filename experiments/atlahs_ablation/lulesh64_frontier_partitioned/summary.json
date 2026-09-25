@@ -34,6 +34,20 @@
       "simulated_makespans_ns": [
         5617370535
       ],
+      "startup_median_seconds": 0.9525835469830781,
+      "startup_seconds": [
+        0.9533314349828288,
+        0.9525835469830781,
+        0.9525793719803914
+      ],
+      "steady_wall_clock_mean_seconds": 11.679657310344433,
+      "steady_wall_clock_median_seconds": 11.679624870012049,
+      "steady_wall_clock_seconds": [
+        11.680410878005205,
+        11.678936183016049,
+        11.679624870012049
+      ],
+      "steady_wall_clock_stdev_seconds": 0.0007378825171627214,
       "total_grants": [
         64834,
         64834,
@@ -41,15 +55,15 @@
       ],
       "total_grants_median": 64834,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 12.696638592334542,
-      "wall_clock_median_seconds": 12.68227718299022,
+      "wall_clock_mean_seconds": 12.632488761659866,
+      "wall_clock_median_seconds": 12.63220424199244,
       "wall_clock_seconds": [
-        12.68227718299022,
-        12.730444812012138,
-        12.677193782001268
+        12.633742312988034,
+        12.631519729999127,
+        12.63220424199244
       ],
       "wall_clock_speedup_vs_all_off": 1.0,
-      "wall_clock_stdev_seconds": 0.02938716740468583
+      "wall_clock_stdev_seconds": 0.0011382804428210016
     },
     "vertical_off__horizontal_on": {
       "active_dependency_coordination": true,
@@ -57,10 +71,10 @@
       "compute_federates": 8,
       "compute_plan_dispatch_events": 0,
       "control_plane_records": [
-        41278
+        39346
       ],
       "dependency_updates": [
-        6959
+        5027
       ],
       "federate_partition": "contiguous_rank_groups",
       "horizontal_optimization": true,
@@ -77,14 +91,28 @@
       ],
       "samples": 3,
       "scheduler_rounds": [
-        61156,
-        61156,
-        61156
+        61169,
+        61169,
+        61169
       ],
-      "scheduler_rounds_median": 61156,
+      "scheduler_rounds_median": 61169,
       "simulated_makespans_ns": [
         5617377397
       ],
+      "startup_median_seconds": 0.9549168769735843,
+      "startup_seconds": [
+        0.9547788160271011,
+        0.9549168769735843,
+        1.004354220989626
+      ],
+      "steady_wall_clock_mean_seconds": 13.410036853999676,
+      "steady_wall_clock_median_seconds": 13.430968150991248,
+      "steady_wall_clock_seconds": [
+        13.430968150991248,
+        13.491777782008285,
+        13.307364628999494
+      ],
+      "steady_wall_clock_stdev_seconds": 0.09397149645489832,
       "total_grants": [
         61209,
         61209,
@@ -92,15 +120,15 @@
       ],
       "total_grants_median": 61209,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 14.356623695998374,
-      "wall_clock_median_seconds": 14.378903757984517,
+      "wall_clock_mean_seconds": 14.381386825329779,
+      "wall_clock_median_seconds": 14.385746967018349,
       "wall_clock_seconds": [
-        14.27579780301312,
-        14.415169526997488,
-        14.378903757984517
+        14.385746967018349,
+        14.446694658981869,
+        14.31171884998912
       ],
-      "wall_clock_speedup_vs_all_off": 0.8820058466521016,
-      "wall_clock_stdev_seconds": 0.07230781585121679
+      "wall_clock_speedup_vs_all_off": 0.8781055492602373,
+      "wall_clock_stdev_seconds": 0.06759345663575783
     },
     "vertical_on__horizontal_off": {
       "active_dependency_coordination": false,
@@ -136,6 +164,20 @@
       "simulated_makespans_ns": [
         5617369518
       ],
+      "startup_median_seconds": 1.2032792000100017,
+      "startup_seconds": [
+        1.153414728003554,
+        1.2032792000100017,
+        1.2035904040094465
+      ],
+      "steady_wall_clock_mean_seconds": 4.093957386988525,
+      "steady_wall_clock_median_seconds": 4.119255407975288,
+      "steady_wall_clock_seconds": [
+        4.119255407975288,
+        4.119487492978806,
+        4.043129260011483
+      ],
+      "steady_wall_clock_stdev_seconds": 0.04401860214566097,
       "total_grants": [
         51989,
         51989,
@@ -143,15 +185,15 @@
       ],
       "total_grants_median": 51989,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 5.29788164566465,
-      "wall_clock_median_seconds": 5.287047705001896,
+      "wall_clock_mean_seconds": 5.280718830996193,
+      "wall_clock_median_seconds": 5.272670135978842,
       "wall_clock_seconds": [
-        5.287047705001896,
-        5.281482433987549,
-        5.325114798004506
+        5.272670135978842,
+        5.322766692988807,
+        5.2467196640209295
       ],
-      "wall_clock_speedup_vs_all_off": 2.398744609584655,
-      "wall_clock_stdev_seconds": 0.023748189407618654
+      "wall_clock_speedup_vs_all_off": 2.395788834919661,
+      "wall_clock_stdev_seconds": 0.038657130937539315
     },
     "vertical_on__horizontal_on": {
       "active_dependency_coordination": true,
@@ -159,10 +201,10 @@
       "compute_federates": 8,
       "compute_plan_dispatch_events": 0,
       "control_plane_records": [
-        20470
+        20365
       ],
       "dependency_updates": [
-        485
+        380
       ],
       "federate_partition": "contiguous_rank_groups",
       "horizontal_optimization": true,
@@ -179,14 +221,28 @@
       ],
       "samples": 3,
       "scheduler_rounds": [
-        39940,
-        39940,
-        39940
+        39967,
+        39967,
+        39967
       ],
-      "scheduler_rounds_median": 39940,
+      "scheduler_rounds_median": 39967,
       "simulated_makespans_ns": [
         5617377397
       ],
+      "startup_median_seconds": 1.2047846489876974,
+      "startup_seconds": [
+        1.2047846489876974,
+        1.1542141670070123,
+        1.2049753030005377
+      ],
+      "steady_wall_clock_mean_seconds": 4.186389779332482,
+      "steady_wall_clock_median_seconds": 4.182983717997558,
+      "steady_wall_clock_seconds": [
+        4.182983717997558,
+        4.174157953006215,
+        4.202027666993672
+      ],
+      "steady_wall_clock_stdev_seconds": 0.014243636466808776,
       "total_grants": [
         46875,
         46875,
@@ -194,15 +250,15 @@
       ],
       "total_grants_median": 46875,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 5.3923463613318745,
-      "wall_clock_median_seconds": 5.3965817319985945,
+      "wall_clock_mean_seconds": 5.374381152330898,
+      "wall_clock_median_seconds": 5.387768366985256,
       "wall_clock_seconds": [
-        5.401761959015857,
-        5.378695392981172,
-        5.3965817319985945
+        5.387768366985256,
+        5.328372120013228,
+        5.40700296999421
       ],
-      "wall_clock_speedup_vs_all_off": 2.350057464670957,
-      "wall_clock_stdev_seconds": 0.012102495225015145
+      "wall_clock_speedup_vs_all_off": 2.3446078935759505,
+      "wall_clock_stdev_seconds": 0.04098921540276564
     }
   },
   "dataset": {
