@@ -24,8 +24,6 @@
       "network_trace_hashes": [
         "099bf6dcd240ac38f559661f2ec6d8e4fdc20299bc9edf1c5b04dfa0fad32e56"
       ],
-      "ranks_per_compute_federate": 256,
-      "safe_frontier_coordination": false,
       "samples": 3,
       "scheduler_rounds": [
         1117671,
@@ -43,15 +41,15 @@
       ],
       "total_grants_median": 1119194,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 90.02803017632687,
-      "wall_clock_median_seconds": 90.05186337500345,
+      "wall_clock_mean_seconds": 91.51207557599992,
+      "wall_clock_median_seconds": 91.59792786999606,
       "wall_clock_seconds": [
-        90.2950000599958,
-        90.05186337500345,
-        89.73722709398135
+        91.99810595199233,
+        90.94019290601136,
+        91.59792786999606
       ],
       "wall_clock_speedup_vs_all_off": 1.0,
-      "wall_clock_stdev_seconds": 0.2796492203162893
+      "wall_clock_stdev_seconds": 0.5341563118624378
     },
     "vertical_off__horizontal_on": {
       "active_dependency_coordination": true,
@@ -77,8 +75,6 @@
       "network_trace_hashes": [
         "425a67f443e897d90a58b6214bd2127a535c8349ab1fba0727cf6d54b9f18954"
       ],
-      "ranks_per_compute_federate": 32,
-      "safe_frontier_coordination": true,
       "samples": 3,
       "scheduler_rounds": [
         115613,
@@ -96,15 +92,15 @@
       ],
       "total_grants_median": 115898,
       "vertical_optimization": false,
-      "wall_clock_mean_seconds": 60.17278451366777,
-      "wall_clock_median_seconds": 60.03001398500055,
+      "wall_clock_mean_seconds": 60.718452162012305,
+      "wall_clock_median_seconds": 61.016167298017535,
       "wall_clock_seconds": [
-        60.03001398500055,
-        60.60420569201233,
-        59.88413386399043
+        61.016167298017535,
+        61.02729749001446,
+        60.11189169800491
       ],
-      "wall_clock_speedup_vs_all_off": 1.5001139829403394,
-      "wall_clock_stdev_seconds": 0.3806749627564679
+      "wall_clock_speedup_vs_all_off": 1.501207498376781,
+      "wall_clock_stdev_seconds": 0.5253262487884258
     },
     "vertical_on__horizontal_off": {
       "active_dependency_coordination": false,
@@ -130,8 +126,6 @@
       "network_trace_hashes": [
         "99534e695cefa20732a31a25c112f75bde507751339a3f8026dd7f91a9a9e0d4"
       ],
-      "ranks_per_compute_federate": 256,
-      "safe_frontier_coordination": false,
       "samples": 3,
       "scheduler_rounds": [
         1069305,
@@ -149,15 +143,15 @@
       ],
       "total_grants_median": 1069493,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 37.904125642012026,
-      "wall_clock_median_seconds": 37.816905498999404,
+      "wall_clock_mean_seconds": 37.887795489329925,
+      "wall_clock_median_seconds": 37.862381606013514,
       "wall_clock_seconds": [
-        38.1162151270255,
-        37.779256300011184,
-        37.816905498999404
+        37.964278326981,
+        37.83672653499525,
+        37.862381606013514
       ],
-      "wall_clock_speedup_vs_all_off": 2.3812594443346544,
-      "wall_clock_stdev_seconds": 0.1846370162943299
+      "wall_clock_speedup_vs_all_off": 2.4192331275708225,
+      "wall_clock_stdev_seconds": 0.06746676225082356
     },
     "vertical_on__horizontal_on": {
       "active_dependency_coordination": true,
@@ -183,8 +177,6 @@
       "network_trace_hashes": [
         "b8d71ec230aed5729af6f59ee58bd8736c0872ded55e72ac617348fbfc94989d"
       ],
-      "ranks_per_compute_federate": 32,
-      "safe_frontier_coordination": true,
       "samples": 3,
       "scheduler_rounds": [
         56223,
@@ -202,15 +194,15 @@
       ],
       "total_grants_median": 58592,
       "vertical_optimization": true,
-      "wall_clock_mean_seconds": 10.508084282337222,
-      "wall_clock_median_seconds": 10.503451294003753,
+      "wall_clock_mean_seconds": 10.671239672665251,
+      "wall_clock_median_seconds": 10.685953720996622,
       "wall_clock_seconds": [
-        10.439604948012857,
-        10.503451294003753,
-        10.581196604995057
+        10.697739297989756,
+        10.685953720996622,
+        10.630025999009376
       ],
-      "wall_clock_speedup_vs_all_off": 8.573549860359954,
-      "wall_clock_stdev_seconds": 0.07090943355728353
+      "wall_clock_speedup_vs_all_off": 8.57180652860372,
+      "wall_clock_stdev_seconds": 0.03617526956948624
     }
   },
   "dataset": {
@@ -235,13 +227,6 @@
     "source_operations": 114000750,
     "source_sha256": "dec250a489ef317757de0aa58c1d0becb7063c8b7d2927bf349d6b2d54830c06",
     "trace_send_bytes": 10481131527552
-  },
-  "experiment": "Grok-314B-256 frontier-aware partitioned 2x2 ablation",
-  "implementation": {
-    "compute_frontier_safety_margin_ns": 10000,
-    "coordination": "Active-dependency with per-partition safe frontier and cancellable maximum-time leases",
-    "horizontal_partition": "8 long-lived GPUSim Federates, 32 contiguous ranks each",
-    "network_partition": "one shared ns-3 timeline"
   },
   "validation": {
     "network_completion_identity_preserved": false,

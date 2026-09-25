@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the three-HPC plus one-LLM experiment tables from summaries."""
+"""Build the full HPC and LLM experiment tables from summaries."""
 
 from __future__ import annotations
 
@@ -13,6 +13,9 @@ WORKLOADS = (
     ("LULESH-64", "HPC", ROOT / "lulesh64_frontier_partitioned" / "summary.json"),
     ("HPCG-8", "HPC", ROOT / "hpcg8_frontier_partitioned" / "summary.json"),
     ("ICON-8", "HPC", ROOT / "icon8_frontier_partitioned" / "summary.json"),
+    ("HPCG-64", "HPC", ROOT / "hpcg64_frontier_partitioned" / "summary.json"),
+    ("ICON-64", "HPC", ROOT / "icon64_frontier_partitioned" / "summary.json"),
+    ("LAMMPS-64", "HPC", ROOT / "lammps64_frontier_partitioned" / "summary.json"),
     ("Grok-314B-256", "LLM training", ROOT / "grok256_frontier_partitioned" / "summary.json"),
 )
 LABELS = (
@@ -46,6 +49,7 @@ def main() -> int:
                 "compute_federates",
                 "ranks_per_compute_federate",
                 "safe_frontier_coordination",
+                "wall_clock_seconds",
                 "wall_clock_median_seconds",
                 "speedup_vs_both_off",
                 "compute_dispatch_events",
@@ -67,8 +71,12 @@ def main() -> int:
                         vertical,
                         horizontal,
                         cell["compute_federates"],
-                        cell["ranks_per_compute_federate"],
-                        cell["safe_frontier_coordination"],
+                        cell.get(
+                            "ranks_per_compute_federate",
+                            dataset["num_ranks"] // cell["compute_federates"],
+                        ),
+                        cell.get("safe_frontier_coordination", horizontal),
+                        json.dumps(cell["wall_clock_seconds"], separators=(",", ":")),
                         cell["wall_clock_median_seconds"],
                         cell["wall_clock_speedup_vs_all_off"],
                         cell["compute_dispatch_events"],
@@ -106,7 +114,11 @@ def main() -> int:
                     dataset["source_operations"],
                     cells["vertical_off__horizontal_off"]["wall_clock_median_seconds"],
                     cells["vertical_off__horizontal_on"]["compute_federates"],
-                    cells["vertical_off__horizontal_on"]["ranks_per_compute_federate"],
+                    cells["vertical_off__horizontal_on"].get(
+                        "ranks_per_compute_federate",
+                        dataset["num_ranks"]
+                        // cells["vertical_off__horizontal_on"]["compute_federates"],
+                    ),
                     cells["vertical_on__horizontal_off"]["wall_clock_speedup_vs_all_off"],
                     cells["vertical_off__horizontal_on"]["wall_clock_speedup_vs_all_off"],
                     cells["vertical_on__horizontal_on"]["wall_clock_speedup_vs_all_off"],

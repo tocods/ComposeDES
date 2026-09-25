@@ -8,17 +8,20 @@ frontier 和可撤销 lease 组成的横向优化。设计、因果边界和实�
 
 | 数据集 | Ranks | 横向实现 | 仅纵向 | 仅横向 | 组合 | 报告 |
 |---|---:|---|---:|---:|---:|---|
-| LULESH-64 | 64 | 8 Federates × 8 ranks，Active + frontier + lease | **2.399×** | 0.888× | 2.350× | [报告](atlahs_ablation/lulesh64_frontier_partitioned/REPORT.md) |
-| HPCG-8 | 8 | 2 Federates × 4 ranks，Active + frontier + lease | 1.239× | 1.000× | **1.379×** | [报告](atlahs_ablation/hpcg8_frontier_partitioned/REPORT.md) |
-| ICON-8 | 8 | 2 Federates × 4 ranks，Active + frontier + lease | 1.242× | 1.171× | **1.570×** | [报告](atlahs_ablation/icon8_frontier_partitioned/REPORT.md) |
-| Grok-314B-256 | 256 | 8 Federates × 32 ranks，Active + frontier + lease | 2.381× | **1.500×** | **8.574×** | [报告](atlahs_ablation/grok256_frontier_partitioned/REPORT.md) |
+| LULESH-64 | 64 | 8 Federates × 8 ranks，Active + frontier + lease | **2.399×** | 0.882× | 2.350× | [报告](atlahs_ablation/lulesh64_frontier_partitioned/REPORT.md) |
+| HPCG-8 | 8 | 2 Federates × 4 ranks，Active + frontier + lease | 1.282× | 1.028× | **1.330×** | [报告](atlahs_ablation/hpcg8_frontier_partitioned/REPORT.md) |
+| ICON-8 | 8 | 2 Federates × 4 ranks，Active + frontier + lease | 1.241× | 1.170× | **1.567×** | [报告](atlahs_ablation/icon8_frontier_partitioned/REPORT.md) |
+| HPCG-64 | 64 | 8 Federates × 8 ranks，Active + frontier + lease | **2.400×** | 0.890× | 2.361× | [报告](atlahs_ablation/hpcg64_frontier_partitioned/REPORT.md) |
+| ICON-64 | 64 | 8 Federates × 8 ranks，Active + frontier + lease | **2.306×** | 0.865× | 2.229× | [报告](atlahs_ablation/icon64_frontier_partitioned/REPORT.md) |
+| LAMMPS-64 | 64 | 8 Federates × 8 ranks，Active + frontier + lease | **2.177×** | 0.864× | 2.041× | [报告](atlahs_ablation/lammps64_frontier_partitioned/REPORT.md) |
+| Grok-314B-256 | 256 | 8 Federates × 32 ranks，Active + frontier + lease | 2.419× | **1.501×** | **8.572×** | [报告](atlahs_ablation/grok256_frontier_partitioned/REPORT.md) |
 
-四个数据集、每个单元三次重复，共 48 次正式运行。Grok 和 ICON 的横向单开获得端到端收益，
-HPCG 持平，LULESH 的横向固定成本仍高于协调收益。完整汇总见
-[最终四工作负载报告](atlahs_ablation/SUITE_REPORT.md)。
+七个数据集、每个单元三次重复，共 84 次正式运行。Grok、HPCG-8 和 ICON-8 的横向单开获得
+端到端收益，64-rank HPC trace 的横向固定成本仍高于协调收益。每组的三次实际耗时、均值、
+标准差和加速比见[完整汇总](atlahs_ablation/SUITE_REPORT.md)及各自报告。
 
 另外完成了三个 64-rank 大规模 HPC trace：HPCG-64（1,037 万操作）、ICON-64（310 万操作）和
-LAMMPS-64（102 万操作）。它们的组合加速分别为 2.307×、2.228× 和 2.013×，报告见
+LAMMPS-64（102 万操作）。新版 JSON 预编译优化后的组合加速分别为 2.361×、2.229× 和 2.041×，报告见
 [HPCG-64](atlahs_ablation/hpcg64_frontier_partitioned/REPORT.md) 和
 [ICON-64](atlahs_ablation/icon64_frontier_partitioned/REPORT.md)、
 [LAMMPS-64](atlahs_ablation/lammps64_frontier_partitioned/REPORT.md)。

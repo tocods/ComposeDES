@@ -130,6 +130,13 @@ batch 的 schema/run-id JSON 前缀；运行时只编码序号、逻辑时间、
 失败状态仍在运行时生成，因此没有削弱因果约束。单元测试覆盖了线协议 round-trip 和预编译任务
 描述；一个 100,000 batch 的微基准显示编码路径约减少 12.4% CPU 时间。
 
+随后在这版实现上对全部七个工作负载重新执行了完整 2×2 消融，每格三次，共 84 次端到端运行。
+新版组合加速为：LULESH-64 2.350×、HPCG-8 1.330×、ICON-8 1.567×、HPCG-64 2.361×、
+ICON-64 2.229×、LAMMPS-64 2.041×、Grok-314B-256 8.572×。每个配置的三次实际墙钟、均值、
+标准差和中位数保存在 `experiments/atlahs_ablation/*_frontier_partitioned/results.csv`；总表见
+`experiments/atlahs_ablation/SUITE_REPORT.md`。所有配置的网络完成语义保持一致，makespan 跨度
+低于 10 ppm。
+
 ## 代码与验证
 
 - 纵向优化器：`fncs/orchestrator/graph_optimizer.py`
@@ -139,5 +146,5 @@ batch 的 schema/run-id JSON 前缀；运行时只编码序号、逻辑时间、
 - 二因素实验：`experiments/atlahs_ablation/run_ablation.py`
 - Grok 最终报告：`experiments/atlahs_ablation/grok256_frontier_partitioned/REPORT.md`
 
-验证包括 21 个 Python 编排器测试、C++ Active 调度测试、FNCS 完整构建、LULESH-8 冒烟、
-分区扫描，以及四个正式工作负载共 48 次端到端运行。
+验证包括 23 个 Python 编排器测试、C++ Active 调度测试、FNCS 完整构建、LULESH-8 冒烟、
+分区扫描，以及七个正式工作负载共 84 次端到端运行。
