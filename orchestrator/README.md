@@ -74,9 +74,10 @@ must therefore hold the partition fixed.
 The orchestrator publishes a new dependency epoch only when a worker event
 changes one of three relevant states: compute in flight, network in flight, or
 terminal status. The broker translates federate names to integer indexes and
-builds the transitive dependency closure once per epoch. Normal scheduling
-rounds reuse indexed state and scratch buffers. Invalid or cyclic graphs retain
-the conservative global-minimum fallback.
+builds the transitive dependency closure only when the topology changes.
+Normal scheduling rounds and frontier-only epochs reuse indexed state, closure,
+and scratch buffers. Invalid or cyclic graphs retain the conservative
+global-minimum fallback.
 
 When only a certified frontier changes, the orchestrator sends a
 `frontier_only=1` epoch. The broker retains the indexed dependency graph and
