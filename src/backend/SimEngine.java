@@ -600,6 +600,13 @@ public class SimEngine {
         }
         boolean workerMode = args.length >= 9 && "worker".equalsIgnoreCase(args[8]);
         comm.Api.setWorkerMode(workerMode);
+        // The experiment harness redirects worker stdout, but redirecting the
+        // stream still formats and writes every CloudSim diagnostic line.  A
+        // quiet worker skips the logger at its source, which removes that
+        // per-event control-plane overhead without changing simulation state.
+        if (workerMode && "yes".equalsIgnoreCase(System.getenv("COSIM_QUIET_LOGS"))) {
+            Log.disable();
+        }
         // mode=1 强制启用合并（带跨 rank 分段支持）
         if (mergeMode == 1) {
             enableMerge = true;
