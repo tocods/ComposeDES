@@ -1,0 +1,23 @@
+{
+  "accelerated_compute_tasks": 1024,
+  "bandwidth_gbps": 56.0,
+  "baseline_compute_tasks": 8192,
+  "events_per_phase": 8,
+  "exact_regions": 1024,
+  "link_delay_ns": 1000,
+  "modeled_network_edges": 6058,
+  "modeled_send_bytes": 29902443777,
+  "num_ranks": 64,
+  "phases_per_rank": 16,
+  "preparation_wall_seconds": 1.725892666989239,
+  "source": "/home/sdic/atlahs/data/hpc/lammps/lammps_64/lammps_64.goal",
+  "source_bytes": 49494448,
+  "source_operation_kinds": {
+    "calc": 642112,
+    "recv": 188208,
+    "send": 188208
+  },
+  "source_operations": 1018528,
+  "source_sha256": "fa9575269f2c7196f1d36b2e99f5d48cd9fdfde36daf3146aab784f8a7278228",
+  "trace_send_bytes": 30417212445
+}

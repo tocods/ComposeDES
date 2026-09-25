@@ -17,10 +17,11 @@ frontier 和可撤销 lease 组成的横向优化。设计、因果边界和实�
 HPCG 持平，LULESH 的横向固定成本仍高于协调收益。完整汇总见
 [最终四工作负载报告](atlahs_ablation/SUITE_REPORT.md)。
 
-另外完成了两个 64-rank 大规模 HPC trace：HPCG-64（1,037 万操作）和 ICON-64（310 万操作）。
-它们的组合加速分别为 2.307× 和 2.228×，报告见
+另外完成了三个 64-rank 大规模 HPC trace：HPCG-64（1,037 万操作）、ICON-64（310 万操作）和
+LAMMPS-64（102 万操作）。它们的组合加速分别为 2.307×、2.228× 和 2.013×，报告见
 [HPCG-64](atlahs_ablation/hpcg64_frontier_partitioned/REPORT.md) 和
-[ICON-64](atlahs_ablation/icon64_frontier_partitioned/REPORT.md)。
+[ICON-64](atlahs_ablation/icon64_frontier_partitioned/REPORT.md)、
+[LAMMPS-64](atlahs_ablation/lammps64_frontier_partitioned/REPORT.md)。
 
 ## 优化前端到端消融
 
