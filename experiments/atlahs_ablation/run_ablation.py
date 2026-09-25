@@ -587,6 +587,7 @@ def run_one(
             gpusim_env.update({
                 "FNCS_CONFIG_FILE": str(config_dir / f"{worker}.zpl"),
                 "FNCS_NAME": worker,
+                "COSIM_QUIET_LOGS": "yes" if quiet_worker_logs else "no",
                 "COSIM_WORKER_IDLE_GRANT_NS": (
                     str((1 << 63) - 1)
                     if horizontal_optimization and safe_frontiers

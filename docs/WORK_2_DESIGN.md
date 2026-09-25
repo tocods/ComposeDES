@@ -141,7 +141,10 @@ schema/run-id JSON 前缀；运行时只编码序号、逻辑时间、microstep 
 1 ms 安全 frontier 量化，只向下收缩证书，不提前推进时间；broker 对单订阅直接转移原始消息，
 避免重复复制；事件日志默认缓冲写入，避免逐条 flush。frontier 数值变化时现在使用
 `frontier_only=1` 增量 epoch，只更新证书向量而不重建依赖闭包；拓扑变化或 frontier 撤销仍发送
-完整原子更新。完成时间、重试、frontier 和失败状态仍在运行时生成，因此没有削弱因果约束。
+完整原子更新。实验模式下 worker 的 CloudSim 诊断日志现在在进程内部直接关闭，而不是先构造
+日志字符串再写入 `/dev/null`；开启诊断时原有日志行为不变。编排器事件日志复用已经编码的
+JSON batch，避免对每个事件做第二次完整序列化。完成时间、重试、frontier 和失败状态仍在
+运行时生成，因此没有削弱因果约束。
 在 Active 模式下，broker 现在还会检查单个 Federate 的依赖闭包：当所有可能影响它的生产者
 都已经提交安全 request，或该 Federate 持有有效 frontier 时，可以立即发放该 Federate 的
 grant，而不等待无关 Federate 返回；无法证明安全时仍回退原来的全局保守 barrier。该 fast
