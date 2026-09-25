@@ -9,10 +9,13 @@ frontier 和可撤销 lease 组成的横向优化。设计、因果边界和实�
 | 数据集 | Ranks | 横向实现 | 仅纵向 | 仅横向 | 组合 | 报告 |
 |---|---:|---|---:|---:|---:|---|
 | LULESH-64 | 64 | 8 Federates × 8 ranks，Active + frontier + lease | **2.399×** | 0.888× | 2.350× | [报告](atlahs_ablation/lulesh64_frontier_partitioned/REPORT.md) |
+| HPCG-8 | 8 | 2 Federates × 4 ranks，Active + frontier + lease | 1.239× | 1.000× | **1.379×** | [报告](atlahs_ablation/hpcg8_frontier_partitioned/REPORT.md) |
+| ICON-8 | 8 | 2 Federates × 4 ranks，Active + frontier + lease | 1.242× | 1.171× | **1.570×** | [报告](atlahs_ablation/icon8_frontier_partitioned/REPORT.md) |
 | Grok-314B-256 | 256 | 8 Federates × 32 ranks，Active + frontier + lease | 2.381× | **1.500×** | **8.574×** | [报告](atlahs_ablation/grok256_frontier_partitioned/REPORT.md) |
 
-每个单元三次重复。Grok 上横向单开已获得端到端收益，组合墙钟中位数从基线 90.052 秒降为
-10.503 秒；LULESH 的横向固定成本仍高于协调收益。机器可读结果位于对应报告目录。
+四个数据集、每个单元三次重复，共 48 次正式运行。Grok 和 ICON 的横向单开获得端到端收益，
+HPCG 持平，LULESH 的横向固定成本仍高于协调收益。完整汇总见
+[最终四工作负载报告](atlahs_ablation/SUITE_REPORT.md)。
 
 ## 优化前端到端消融
 

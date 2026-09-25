@@ -1,0 +1,23 @@
+{
+  "accelerated_compute_tasks": 128,
+  "bandwidth_gbps": 56.0,
+  "baseline_compute_tasks": 1024,
+  "events_per_phase": 8,
+  "exact_regions": 128,
+  "link_delay_ns": 1000,
+  "modeled_network_edges": 840,
+  "modeled_send_bytes": 344933504,
+  "num_ranks": 8,
+  "phases_per_rank": 16,
+  "preparation_wall_seconds": 0.9008893450081814,
+  "source": "/home/sdic/atlahs/data/hpc/hpcg/hpcg_8/hpcg_8.goal",
+  "source_bytes": 30785016,
+  "source_operation_kinds": {
+    "calc": 402680,
+    "recv": 111768,
+    "send": 111768
+  },
+  "source_operations": 626216,
+  "source_sha256": "3e9c5aff427e3173264cceee411081f4d9046c7bd870be1c362f8505e80d5ce9",
+  "trace_send_bytes": 367445568
+}

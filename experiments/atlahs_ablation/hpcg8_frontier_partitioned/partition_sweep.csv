@@ -1,0 +1,4 @@
+ranks_per_federate,compute_federates,wall_clock_seconds,scheduler_rounds,total_grants,simulated_makespan_ns,status
+1,8,1.5244158809946384,2281,3098,4711362885,completed
+2,4,1.4168551620095968,2408,3147,4711359513,completed
+4,2,1.3666064490098506,2706,3255,4711358995,completed

@@ -1,5 +1,9 @@
 # ATLAHS ICON-8 消融实验
 
+> 本报告保留一 rank 一 JVM、短周期请求的优化前结果。安全 frontier、长期 lease 和
+> 4 ranks/Federate 的当前结果见
+> [`../icon8_frontier_partitioned/REPORT.md`](../icon8_frontier_partitioned/REPORT.md)。
+
 实验日期：2026-09-25（Asia/Shanghai）
 
 组件版本：FNCS `48dd83bd1`、GPUSim `6ab9fc71f`、ns-3 `2f049f0d4`

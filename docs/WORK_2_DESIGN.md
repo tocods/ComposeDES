@@ -84,6 +84,15 @@ frontier 和 lease，需要固定其他条件再做机制级实验，不能从�
 
 ## 优化后消融结果
 
+最终实现完成三个 HPC trace 和一个大模型训练 trace 的 2×2 消融，每个单元三次：
+
+| 工作负载 | 横向分区 | 仅纵向 | 仅横向 | 组合 |
+|---|---|---:|---:|---:|
+| LULESH-64 | 8 Federates × 8 ranks | **2.399×** | 0.888× | 2.350× |
+| HPCG-8 | 2 Federates × 4 ranks | 1.239× | 1.000× | **1.379×** |
+| ICON-8 | 2 Federates × 4 ranks | 1.242× | 1.171× | **1.570×** |
+| Grok-314B-256 | 8 Federates × 32 ranks | 2.381× | 1.500× | **8.574×** |
+
 Grok-314B-256 使用 8 个计算 Federates、每个 32 ranks。四个单元每个独立运行三次：
 
 | 单元 | 墙钟中位数 | 相对基线 | 调度轮次 |
@@ -121,4 +130,4 @@ ranks 不足以摊薄 8 个 JVM 的固定成本。因此能复现显著横向收
 - Grok 最终报告：`experiments/atlahs_ablation/grok256_frontier_partitioned/REPORT.md`
 
 验证包括 21 个 Python 编排器测试、C++ Active 调度测试、FNCS 完整构建、LULESH-8 冒烟、
-Grok-256 分区扫描，以及 Grok-256 和 LULESH-64 各 12 次正式端到端运行。
+分区扫描，以及四个正式工作负载共 48 次端到端运行。

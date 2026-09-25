@@ -10,10 +10,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 WORKLOADS = (
-    ("LULESH-64", "HPC", ROOT / "lulesh64" / "summary.json"),
-    ("HPCG-8", "HPC", ROOT / "hpcg8" / "summary.json"),
-    ("ICON-8", "HPC", ROOT / "icon8" / "summary.json"),
-    ("Grok-314B-256", "LLM training", ROOT / "grok256" / "summary.json"),
+    ("LULESH-64", "HPC", ROOT / "lulesh64_frontier_partitioned" / "summary.json"),
+    ("HPCG-8", "HPC", ROOT / "hpcg8_frontier_partitioned" / "summary.json"),
+    ("ICON-8", "HPC", ROOT / "icon8_frontier_partitioned" / "summary.json"),
+    ("Grok-314B-256", "LLM training", ROOT / "grok256_frontier_partitioned" / "summary.json"),
 )
 LABELS = (
     ("vertical_off__horizontal_off", False, False),
@@ -43,6 +43,9 @@ def main() -> int:
                 "source_operations",
                 "vertical_optimization",
                 "horizontal_optimization",
+                "compute_federates",
+                "ranks_per_compute_federate",
+                "safe_frontier_coordination",
                 "wall_clock_median_seconds",
                 "speedup_vs_both_off",
                 "compute_dispatch_events",
@@ -63,6 +66,9 @@ def main() -> int:
                         dataset["source_operations"],
                         vertical,
                         horizontal,
+                        cell["compute_federates"],
+                        cell["ranks_per_compute_federate"],
+                        cell["safe_frontier_coordination"],
                         cell["wall_clock_median_seconds"],
                         cell["wall_clock_speedup_vs_all_off"],
                         cell["compute_dispatch_events"],
@@ -81,6 +87,8 @@ def main() -> int:
                 "ranks",
                 "source_operations",
                 "baseline_seconds",
+                "horizontal_compute_federates",
+                "horizontal_ranks_per_federate",
                 "vertical_only_speedup",
                 "horizontal_only_speedup",
                 "both_speedup",
@@ -97,6 +105,8 @@ def main() -> int:
                     dataset["num_ranks"],
                     dataset["source_operations"],
                     cells["vertical_off__horizontal_off"]["wall_clock_median_seconds"],
+                    cells["vertical_off__horizontal_on"]["compute_federates"],
+                    cells["vertical_off__horizontal_on"]["ranks_per_compute_federate"],
                     cells["vertical_on__horizontal_off"]["wall_clock_speedup_vs_all_off"],
                     cells["vertical_off__horizontal_on"]["wall_clock_speedup_vs_all_off"],
                     cells["vertical_on__horizontal_on"]["wall_clock_speedup_vs_all_off"],

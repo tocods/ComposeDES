@@ -24,6 +24,8 @@
       "network_trace_hashes": [
         "a134b27199e406831b235491209b2f2464809aa5528698371482e62d0af646a4"
       ],
+      "ranks_per_compute_federate": 64,
+      "safe_frontier_coordination": false,
       "samples": 3,
       "scheduler_rounds": [
         64051,
@@ -75,6 +77,8 @@
       "network_trace_hashes": [
         "4c6de23e0207b8b83332f6a01e4a21ae543eeea03480d905c63ddfe894bbb3f0"
       ],
+      "ranks_per_compute_federate": 8,
+      "safe_frontier_coordination": true,
       "samples": 3,
       "scheduler_rounds": [
         61156,
@@ -126,6 +130,8 @@
       "network_trace_hashes": [
         "879cf1ecaf8b6e27e81a241ecceb49c11af648d8b5debaba057a574f0d327a08"
       ],
+      "ranks_per_compute_federate": 64,
+      "safe_frontier_coordination": false,
       "samples": 3,
       "scheduler_rounds": [
         51974,
@@ -177,6 +183,8 @@
       "network_trace_hashes": [
         "f0f928ffc8938f5a62b88f661461d108c58b014f33be64a6f48c93827c579873"
       ],
+      "ranks_per_compute_federate": 8,
+      "safe_frontier_coordination": true,
       "samples": 3,
       "scheduler_rounds": [
         39940,
