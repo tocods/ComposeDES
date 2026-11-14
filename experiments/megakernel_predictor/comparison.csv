@@ -1,0 +1,13 @@
+batch,pool,policy,selected,winner,regret_pct,separated_by_bounds,selected_prediction_ms,selected_measured_ms,stock_ms
+2,tiled,additive,tiled_whole,tiled_whole,0.0,1,2.293327,7.663267,6.7681830000000005
+2,ready,additive,ready_39,ready_26,1.795819,1,3.846683,8.369128,6.7681830000000005
+2,tiled,dag,tiled_whole,tiled_whole,0.0,1,2.293327,7.663267,6.7681830000000005
+2,ready,dag,ready_39,ready_26,1.795819,1,2.544186,8.369128,6.7681830000000005
+4,tiled,additive,tiled_whole,tiled_whole,0.0,0,4.529279,12.093641,9.929673000000001
+4,ready,additive,ready_39,ready_26,3.446192,1,8.027212,13.4933175,9.929673000000001
+4,tiled,dag,tiled_whole,tiled_whole,0.0,0,4.529279,12.093641,9.929673000000001
+4,ready,dag,ready_26,ready_26,0.0,1,5.108123,13.043803,9.929673000000001
+8,tiled,additive,tiled_whole,tiled_whole,0.0,0,9.028818,20.8018395,15.779244
+8,ready,additive,ready_39,ready_26,9.130794,1,16.146838,24.1542215,15.779244
+8,tiled,dag,tiled_whole,tiled_whole,0.0,0,9.028818,20.8018395,15.779244
+8,ready,dag,ready_26,ready_26,0.0,1,9.995113,22.1332775,15.779244

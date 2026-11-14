@@ -1,0 +1,14 @@
+/llama.cpp/
+/pristine/
+/build/
+/tools/
+/bench
+/bench-stock
+/capture
+/dev/
+/train-prompts.txt
+/*.gguf
+/compose-h20/*
+!/compose-h20/*.tokens
+/entry-profile/train/*
+!/entry-profile/train/b2.tokens

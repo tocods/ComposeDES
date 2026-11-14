@@ -1,0 +1,16 @@
+Explain the difference between a TCP keep-alive probe and an application-level heartbeat in a monitoring service.
+Write a checklist for restoring a PostgreSQL test database from a nightly backup and checking its consistency.
+Explain why a west-facing room stays hot after sunset and what would make it cool faster.
+Translate this sentence to French and explain two choices of wording: We will meet when the last train arrives.
+Derive the expected number of flips needed to obtain two consecutive heads for a fair coin.
+Suggest three ways an operations team can coordinate a shift handover and compare the tradeoffs.
+In Mandarin, explain the difference between precision and recall to someone who has sorted hundreds of photos.
+Give a short example showing how one can use a moving average when studying a monthly time series.
+Why does sourdough dough rise at different speeds on two days with the same room temperature?
+Describe a water conservation plan for a city where gardens account for a substantial share of summer demand.
+Explain how to debug a function that works on ASCII strings and fails on text with combining characters.
+Write a paragraph that introduces an exhibit about the design of bicycles over the past century.
+Find the derivative of sin(x) times x squared, and explain how a product rule follows from the limit definition.
+Compare absolute and relative positioning when laying out a responsive web page with a sticky navigation header.
+Describe three reasonable interpretations of a chart that shows a stable median and a rapidly rising ninety-ninth percentile.
+List the main steps in running a reproducible experiment that compares two methods for parallel matrix multiplication.

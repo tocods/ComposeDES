@@ -1,0 +1,113 @@
+{
+  "forecasts_ms": {
+    "dag": {
+      "tiled_whole": 7.648407499999999,
+      "split_all": 7.7509175,
+      "ready_26": 8.1725505,
+      "ready_39": 7.898823999999999,
+      "ready_52": 8.708401499999999,
+      "upstream": 6.808533,
+      "mono_flags": 7.7712415,
+      "mono_barrier": 7.8364385,
+      "mono_split_cached": 7.885650500000001
+    },
+    "window": {
+      "tiled_whole": 7.648407499999999,
+      "split_all": 7.7509175,
+      "ready_26": 8.185495636582992,
+      "ready_39": 7.9074739144319715,
+      "ready_52": 8.714886205857196,
+      "upstream": 6.808533,
+      "mono_flags": 7.7712415,
+      "mono_barrier": 7.8364385,
+      "mono_split_cached": 7.885650500000001
+    },
+    "gaps": {
+      "tiled_whole": 7.648407499999999,
+      "split_all": 7.7509175,
+      "ready_26": 8.586162531707132,
+      "ready_39": 8.220817496381313,
+      "ready_52": 9.172541123158606,
+      "upstream": 6.808533,
+      "mono_flags": 7.7712415,
+      "mono_barrier": 7.8364385,
+      "mono_split_cached": 7.885650500000001
+    },
+    "tile": {
+      "tiled_whole": 7.648407499999999,
+      "split_all": 7.7509175,
+      "ready_26": 8.69329489557422,
+      "ready_39": 8.798123626591961,
+      "ready_52": 10.075368598708577,
+      "upstream": 6.808533,
+      "mono_flags": 7.7712415,
+      "mono_barrier": 7.8364385,
+      "mono_split_cached": 7.885650500000001
+    }
+  },
+  "ready_picks": {
+    "dag": "ready_39",
+    "window": "ready_39",
+    "gaps": "ready_39",
+    "tile": "ready_26"
+  },
+  "witnesses": {
+    "window/ready_26": {
+      "ns": 70983.36598948567,
+      "replayable_dag_ns": 70980,
+      "overlap_ns": 43227.29201879458
+    },
+    "window/ready_39": {
+      "ns": 63489.61872423956,
+      "replayable_dag_ns": 63489,
+      "overlap_ns": 34297.719169603
+    },
+    "window/ready_52": {
+      "ns": 84209.17753440444,
+      "replayable_dag_ns": 84210,
+      "overlap_ns": 23109.849931460907
+    },
+    "gaps/ready_26": {
+      "ns": 81547.34949416493,
+      "replayable_dag_ns": 81545,
+      "overlap_ns": 40579.427436872706
+    },
+    "gaps/ready_39": {
+      "ns": 71746.72878341799,
+      "replayable_dag_ns": 71745,
+      "overlap_ns": 33676.33890940643
+    },
+    "gaps/ready_52": {
+      "ns": 95931.3286507432,
+      "replayable_dag_ns": 95931,
+      "overlap_ns": 19995.823813057934
+    },
+    "tile/ready_26": {
+      "ns": 84520.81343313225,
+      "replayable_dag_ns": 84521,
+      "overlap_ns": 48193.687259233855
+    },
+    "tile/ready_39": {
+      "ns": 88021.41621195126,
+      "replayable_dag_ns": 88023,
+      "overlap_ns": 34103.17242251459
+    },
+    "tile/ready_52": {
+      "ns": 119448.59778020621,
+      "replayable_dag_ns": 119450,
+      "overlap_ns": 20575.463708926283
+    }
+  },
+  "train_non_routed_ms": 5.3533265,
+  "train_stock_ms": 6.808533,
+  "heldout_forwards": 16,
+  "fp8_calibration": {
+    "common_non_monomoe_ms": 6.6140385,
+    "routed_kernel_ms": {
+      "flags": 1.157203,
+      "barrier": 1.2224,
+      "split_cached": 1.271612
+    },
+    "method": "40 measured FP8 projection groups and one training runtime anchor"
+  }
+}

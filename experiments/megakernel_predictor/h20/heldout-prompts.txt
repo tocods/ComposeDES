@@ -1,0 +1,16 @@
+Explain the difference between measuring a river's water level and measuring its discharge. Include an example in which one rises while the other changes much less.
+Write a detailed inventory procedure for a small repair shop that shares several expensive tools among technicians on different shifts.
+Compare three ways a small city can count nighttime bicycle trips when none of its existing traffic counters are designed for bicycles.
+In German, draft a polite email asking a university archive for access to a set of nineteenth-century maps and explain the purpose of the research visit.
+A science museum is designing an exhibit about sound. Write a script for an educator to use while visitors test strings with different tensions.
+Describe an experiment that would let a baker distinguish slow fermentation from a poorly sealed oven as the cause of dense bread.
+给一个老旧小区写一份雨水排查计划，说明如何查找积水点、记录发生条件，以及怎么区分排水堵塞和地面坡度问题。
+Give a numerical example of a probability estimate that changes after an uncertain observation. Show the calculation and explain how the prior enters.
+Write a Python function to group timetable entries by route and detect gaps lasting more than thirty minutes. Discuss how it handles midnight.
+A community radio station wants to archive its recordings. Outline a practical metadata scheme that distinguishes recording, editing, and release dates.
+Compare a simple grid survey and a stratified survey for estimating tree canopy in an irregularly shaped public park. Explain a situation where each approach is preferable.
+A freight train is moving downhill on a rainy day. Explain qualitatively how traction, braking, and the distribution of loaded cars can matter.
+Give two plausible causes for recurring low evening voltage in a neighborhood and describe what data would help an electrician distinguish them.
+A research team must hand over a weekly data pipeline to another group. Write a short runbook that includes validation steps and how to handle duplicate files.
+Describe how a school might compare indoor and outdoor lessons over an academic term while accounting for task difficulty and changing weather.
+Explain how the mechanical design of a manual typewriter affects the balance between typing speed, alignment, and key travel.

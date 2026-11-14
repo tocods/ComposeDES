@@ -1,0 +1,182 @@
+{
+  "coefficients": {
+    "gate": {
+      "opposite": 0.010222500938140512,
+      "unconstrained_opposite": 0.010222500938140512,
+      "self_delta": -0.6761078269204217,
+      "tiles": 900864
+    },
+    "down": {
+      "opposite": 0.007205908382626021,
+      "unconstrained_opposite": 0.007205908382626021,
+      "self_delta": -0.004488922412359254,
+      "tiles": 1801728
+    }
+  },
+  "pairs": 3840,
+  "tile_ns": {
+    "26/down/18/1": 4768.0,
+    "26/down/18/2": 7040.0,
+    "26/down/23/1": 4000.0,
+    "26/down/23/2": 5696.0,
+    "26/gate/17/1": 5696.0,
+    "26/gate/17/2": 9440.0,
+    "26/gate/18/1": 6560.0,
+    "26/gate/18/2": 10816.0,
+    "39/down/18/1": 4768.0,
+    "39/down/18/2": 7008.0,
+    "39/down/23/1": 3968.0,
+    "39/down/23/2": 5664.0,
+    "39/gate/17/1": 5728.0,
+    "39/gate/17/2": 9568.0,
+    "39/gate/18/1": 6624.0,
+    "39/gate/18/2": 11072.0,
+    "52/down/18/1": 4736.0,
+    "52/down/18/2": 6976.0,
+    "52/down/23/1": 3968.0,
+    "52/down/23/2": 5632.0,
+    "52/gate/17/1": 5792.0,
+    "52/gate/17/2": 10720.0,
+    "52/gate/18/1": 6720.0,
+    "52/gate/18/2": 11744.0
+  },
+  "scheduling": {
+    "26": {
+      "gate_gap_ns": 1024.0,
+      "down_gap_ns": 576,
+      "ready_gap_ns": 800
+    },
+    "39": {
+      "gate_gap_ns": 1056.0,
+      "down_gap_ns": 576.0,
+      "ready_gap_ns": 800.0
+    },
+    "52": {
+      "gate_gap_ns": 1024.0,
+      "down_gap_ns": 576.0,
+      "ready_gap_ns": 800.0
+    }
+  },
+  "diagnostics": {
+    "26/down/mostly_overlap": {
+      "median": 1.0046082949308757,
+      "n": 523966
+    },
+    "26/down/no_overlap": {
+      "median": 1.0,
+      "n": 63874
+    },
+    "26/down/pipeline_logical_GBs": {
+      "median": 89.56001784917447,
+      "n": 1280
+    },
+    "26/down/serial_logical_GBs": {
+      "median": 114.45909114266405,
+      "n": 1280
+    },
+    "26/forward/overlap_fraction": {
+      "median": 0.7236576693340079,
+      "n": 1280
+    },
+    "26/forward/pipeline_span_us": {
+      "median": 78.88,
+      "n": 1280
+    },
+    "26/gate/mostly_overlap": {
+      "median": 1.0105633802816902,
+      "n": 259345
+    },
+    "26/gate/no_overlap": {
+      "median": 1.0,
+      "n": 32200
+    },
+    "26/gate/pipeline_logical_GBs": {
+      "median": 140.19611470860315,
+      "n": 1280
+    },
+    "26/gate/serial_logical_GBs": {
+      "median": 140.58627087198516,
+      "n": 1280
+    },
+    "39/down/mostly_overlap": {
+      "median": 1.0068027210884354,
+      "n": 323312
+    },
+    "39/down/no_overlap": {
+      "median": 1.0,
+      "n": 236298
+    },
+    "39/down/pipeline_logical_GBs": {
+      "median": 84.36485918453131,
+      "n": 1280
+    },
+    "39/down/serial_logical_GBs": {
+      "median": 84.64951497258541,
+      "n": 1280
+    },
+    "39/forward/overlap_fraction": {
+      "median": 0.47841039358043563,
+      "n": 1280
+    },
+    "39/forward/pipeline_span_us": {
+      "median": 83.36,
+      "n": 1280
+    },
+    "39/gate/mostly_overlap": {
+      "median": 1.0057803468208093,
+      "n": 249976
+    },
+    "39/gate/no_overlap": {
+      "median": 1.0,
+      "n": 45424
+    },
+    "39/gate/pipeline_logical_GBs": {
+      "median": 197.9777922926192,
+      "n": 1280
+    },
+    "39/gate/serial_logical_GBs": {
+      "median": 199.1484888304862,
+      "n": 1280
+    },
+    "52/down/mostly_overlap": {
+      "median": 1.013157894736842,
+      "n": 152378
+    },
+    "52/down/no_overlap": {
+      "median": 1.0,
+      "n": 433725
+    },
+    "52/down/pipeline_logical_GBs": {
+      "median": 59.04795528096499,
+      "n": 1280
+    },
+    "52/down/serial_logical_GBs": {
+      "median": 59.415038484310244,
+      "n": 1280
+    },
+    "52/forward/overlap_fraction": {
+      "median": 0.22982648795823654,
+      "n": 1280
+    },
+    "52/forward/pipeline_span_us": {
+      "median": 115.968,
+      "n": 1280
+    },
+    "52/gate/mostly_overlap": {
+      "median": 1.005586592178771,
+      "n": 229744
+    },
+    "52/gate/no_overlap": {
+      "median": 1.0,
+      "n": 62256
+    },
+    "52/gate/pipeline_logical_GBs": {
+      "median": 272.08617594254935,
+      "n": 1280
+    },
+    "52/gate/serial_logical_GBs": {
+      "median": 273.31289449954915,
+      "n": 1280
+    }
+  }
+}

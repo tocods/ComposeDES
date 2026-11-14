@@ -1,0 +1,68 @@
+{
+  "forecasts_ms": {
+    "dag": {
+      "tiled_whole": 7.6469095,
+      "split_all": 7.7494195,
+      "ready_26": 8.1548245,
+      "ready_39": 7.891448499999999,
+      "ready_52": 8.7094195,
+      "stock": 6.771203
+    },
+    "window": {
+      "tiled_whole": 7.6469095,
+      "split_all": 7.7494195,
+      "ready_26": 8.1677072848715,
+      "ready_39": 7.900676429237704,
+      "ready_52": 8.715466253379834,
+      "stock": 6.771203
+    },
+    "gaps": {
+      "tiled_whole": 7.6469095,
+      "split_all": 7.7494195,
+      "ready_26": 8.554250218659005,
+      "ready_39": 8.220209490502945,
+      "ready_52": 9.152121994979026,
+      "stock": 6.771203
+    }
+  },
+  "ready_picks": {
+    "dag": "ready_39",
+    "window": "ready_39",
+    "gaps": "ready_39"
+  },
+  "witnesses": {
+    "window/ready_26": {
+      "ns": 66679.33655803482,
+      "replayable_dag_ns": 66679,
+      "overlap_ns": 31459.516389830314
+    },
+    "window/ready_39": {
+      "ns": 60063.086105347225,
+      "replayable_dag_ns": 60063,
+      "overlap_ns": 28568.16994268744
+    },
+    "window/ready_52": {
+      "ns": 76760.34182443465,
+      "replayable_dag_ns": 76760,
+      "overlap_ns": 18978.039902623907
+    },
+    "gaps/ready_26": {
+      "ns": 72140.71125681279,
+      "replayable_dag_ns": 72141,
+      "overlap_ns": 29850.059185110626
+    },
+    "gaps/ready_39": {
+      "ns": 64689.09816787731,
+      "replayable_dag_ns": 64689,
+      "overlap_ns": 27971.417958353457
+    },
+    "gaps/ready_52": {
+      "ns": 82736.32112814073,
+      "replayable_dag_ns": 82736,
+      "overlap_ns": 17232.375421002802
+    }
+  },
+  "train_non_routed_ms": 5.3533265,
+  "train_stock_ms": 6.771203,
+  "heldout_forwards": 16
+}

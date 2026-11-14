@@ -1,0 +1,750 @@
+--- a/ggml/src/ggml-cuda/ggml-cuda.cu
++++ b/ggml/src/ggml-cuda/ggml-cuda.cu
+@@ -19,6 +19,7 @@
+ #include "ggml-cuda/conv2d-transpose.cuh"
+ #include "ggml-cuda/convert.cuh"
+ #include "ggml-cuda/dual-deadline.cuh"
++#include "ggml-cuda/resident-moe.cuh"
+ #include "ggml-cuda/count-equal.cuh"
+ #include "ggml-cuda/cpy.cuh"
+ #include "ggml-cuda/cross-entropy-loss.cuh"
+@@ -2030,6 +2031,10 @@
+ 
+ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct ggml_tensor * dst) {
+     switch (dst->op) {
++        case GGML_OP_CUSTOM:
++            if (!ggml_cuda_is_resident_moe(dst)) return false;
++            ggml_cuda_resident_moe(ctx, dst);
++            break;
+         case GGML_OP_ARGMAX:
+             ggml_cuda_argmax(ctx, dst);
+             break;
+@@ -4767,6 +4772,8 @@
+     }
+ 
+     switch (op->op) {
++        case GGML_OP_CUSTOM:
++            return ggml_cuda_is_resident_moe(op);
+         case GGML_OP_UNARY:
+             switch (ggml_get_unary_op(op)) {
+                 case GGML_UNARY_OP_ABS:
+--- a/ggml/src/ggml-cuda/resident-moe.cu
++++ b/ggml/src/ggml-cuda/resident-moe.cu
+@@ -0,0 +1,640 @@
++#include "resident-moe.cuh"
++#include "vecdotq.cuh"
++#include <cooperative_groups.h>
++#include <cuda/atomic>
++#include <math_constants.h>
++#include <cstring>
++#include <cstdlib>
++
++namespace {
++namespace cg = cooperative_groups;
++constexpr int hidden = 2048, ff = 512, n_experts = 256, top = 8, max_batch = 8;
++constexpr int slots = max_batch * top, threads = 256, warp = 32;
++constexpr int iq2 = GGML_TYPE_IQ2_XS, iq3 = GGML_TYPE_IQ3_XXS, iq4 = GGML_TYPE_IQ4_XS;
++
++struct Group {
++    int expert, count;
++    int routes[max_batch];
++};
++struct Routing {
++    Group groups[slots];
++    int used;
++    unsigned int ready[slots], next_down[slots], unclaimed;
++    int ids[slots];
++    float score[slots];
++};
++using Weight = unsigned char;
++
++struct State {
++    const float *activation, *logits;
++    const int32_t *fixed_ids;
++    size_t logit_stride, id_stride;
++    float *intermediate, *down_output, *out;
++    block_q8_1 *xq, *hq;
++    const Weight *gate, *up, *down;
++    Routing *routes;
++    int batch, first_type, first_bytes, down_type, down_bytes;
++    float score_scale;
++};
++
++__device__ float sum_warp(float x) {
++    for (int i = warp / 2; i; i >>= 1) x += __shfl_down_sync(0xffffffff, x, i);
++    return x;
++}
++
++__device__ __forceinline__ void route(State s) {
++    if (blockIdx.x != 0) return;
++    const int lane = threadIdx.x % warp;
++    Routing &r = *s.routes;
++    for (int w = threadIdx.x / warp; w < s.batch; w += blockDim.x / warp) {
++        const float *logits = s.logits + w * s.logit_stride;
++        int id = -1;
++        const auto *fixed = s.fixed_ids ? s.fixed_ids + w * s.id_stride : nullptr;
++        float values[n_experts / warp];
++#pragma unroll
++        for (int i = 0; i < n_experts / warp; ++i) values[i] = logits[i * warp + lane];
++        float weights[top], normalizer = 0, largest = 0;
++        for (int k = 0; k < top; ++k) {
++            float best = -CUDART_INF_F;
++            if (fixed) {
++                id = fixed[k];
++                best = logits[id];
++            } else {
++                id = n_experts;
++#pragma unroll
++                for (int i = 0; i < n_experts / warp; ++i) {
++                    if (values[i] > best) {
++                        best = values[i];
++                        id = i * warp + lane;
++                    }
++                }
++                for (int stride = warp / 2; stride; stride >>= 1) {
++                    float peer = __shfl_down_sync(0xffffffff, best, stride);
++                    int other = __shfl_down_sync(0xffffffff, id, stride);
++                    if (peer > best || (peer == best && other < id)) {
++                        best = peer;
++                        id = other;
++                    }
++                }
++                id = __shfl_sync(0xffffffff, id, 0);
++                if (lane == (id % warp)) values[id / warp] = -CUDART_INF_F;
++            }
++            if (lane == 0) {
++                if (k == 0) largest = best;
++                weights[k] = expf(best - largest);
++                normalizer += weights[k];
++                r.ids[w * top + k] = id;
++            }
++        }
++        if (lane == 0)
++            for (int k = 0; k < top; ++k)
++                r.score[w * top + k] = s.score_scale * weights[k] / normalizer;
++    }
++    __syncthreads();
++    if (threadIdx.x == 0) {
++        int used = 0;
++        // Group tokens by expert so projections reuse a quantized weight on each row.
++        __shared__ int index[n_experts];
++        for (int e = 0; e < n_experts; ++e) index[e] = -1;
++        for (int i = 0; i < s.batch * top; ++i) {
++            const int expert = r.ids[i];
++            int group = index[expert];
++            if (group < 0) {
++                index[expert] = group = used++;
++                r.groups[group].expert = expert;
++                r.groups[group].count = 0;
++                r.ready[group] = 0;
++                r.next_down[group] = 0;
++            }
++            auto &target = r.groups[group];
++            target.routes[target.count++] = i;
++        }
++        r.used = used;
++    }
++}
++
++template<int width>
++__device__ __forceinline__ void quantize(const float *input, block_q8_1 *output, int nrows) {
++    const int lane = threadIdx.x % warp;
++    const int worker = (blockIdx.x * blockDim.x + threadIdx.x) / warp;
++    const int workers = gridDim.x * blockDim.x / warp;
++    for (int i = worker; i < nrows * (width / warp); i += workers) {
++        const float x = input[i * warp + lane];
++        const float max = warp_reduce_max<warp>(fabsf(x));
++        const float sum = warp_reduce_sum<warp>(x);
++        const float scale = max / 127.f;
++        output[i].qs[lane] = max == 0 ? 0 : roundf(x / scale);
++        if (!lane) output[i].ds = make_half2(scale, sum);
++    }
++}
++
++template<int type>
++__device__ __forceinline__ float dot(const Weight *w, const block_q8_1 *x, int block32) {
++    const int row_block = block32 / 8;
++    const auto *q8 = x + row_block * 8;
++    if constexpr (type == iq2) return vec_dot_iq2_xs_q8_1(w, q8, row_block, 2 * (block32 % 8));
++    if constexpr (type == iq3) return vec_dot_iq3_xxs_q8_1(w, q8, row_block, 2 * (block32 % 8));
++    if constexpr (type == iq4) return vec_dot_iq4_xs_q8_1(w, q8, row_block, 4 * (block32 % 8));
++}
++
++template<bool first, int batch, int type>
++__device__ __forceinline__ void project_quant(State s) {
++    const int lane = threadIdx.x % warp;
++    const int worker = int(blockIdx.x) * (blockDim.x / warp) + threadIdx.x / warp;
++    const int workers = gridDim.x * (blockDim.x / warp);
++    constexpr int cols = first ? hidden : ff;
++    constexpr int rows = first ? ff : hidden;
++    const auto &r = *s.routes;
++    const int row_bytes = first ? s.first_bytes / ff : s.down_bytes / hidden;
++    for (int i = worker; i < r.used * rows; i += workers) {
++        const int g = i / rows, row = i % rows;
++        const Group &group = r.groups[g];
++        const int expert = group.expert;
++        const auto *a = first ? s.gate + expert * s.first_bytes + row * row_bytes
++                              : s.down + expert * s.down_bytes + row * row_bytes;
++        const auto *b = s.up + expert * s.first_bytes + row * row_bytes;
++        float sum_a[batch] = {}, sum_b[batch] = {};
++        for (int col = lane; col < cols / warp; col += warp) {
++#pragma unroll
++            for (int j = 0; j < batch; ++j) {
++                if (j < group.count) {
++                    const int idx = group.routes[j];
++                    const auto *x = first ? s.xq + idx / top * (hidden / warp)
++                                          : s.hq + idx * (ff / warp);
++                    sum_a[j] += dot<type>(a, x, col);
++                    if constexpr (first) sum_b[j] += dot<type>(b, x, col);
++                }
++            }
++        }
++#pragma unroll
++        for (int j = 0; j < batch; ++j) {
++            if (j < group.count) {
++                const float ga = sum_warp(sum_a[j]);
++                float up = 0;
++                if constexpr (first) up = sum_warp(sum_b[j]);
++                if (lane == 0) {
++                    const int idx = group.routes[j];
++                    if constexpr (first) s.intermediate[idx * ff + row] = up * (ga / (1.0f + expf(-ga)));
++                    else s.down_output[idx * hidden + row] = ga;
++                }
++            }
++        }
++    }
++}
++
++template<bool first, int batch>
++__device__ __forceinline__ void project(State s) {
++    switch (first ? s.first_type : s.down_type) {
++        case iq2: project_quant<first, batch, iq2>(s); break;
++        case iq3: project_quant<first, batch, iq3>(s); break;
++        case iq4: project_quant<first, batch, iq4>(s); break;
++    }
++}
++
++__device__ __forceinline__ void reduce(State s) {
++    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < s.batch * hidden; i += gridDim.x * blockDim.x) {
++        const int token = i / hidden, column = i % hidden;
++        float total = 0;
++        for (int k = 0; k < top; ++k) {
++            const int id = token * top + k;
++            total += s.routes->score[id] * s.down_output[id * hidden + column];
++        }
++        s.out[i] = total;
++    }
++}
++
++// Each block holds one expert's intermediates in shared memory. A ready block
++// proceeds to down without synchronizing with other experts.
++template<int width>
++__device__ __forceinline__ void quantize_expert(const float *in, block_q8_1 *out, int nrows) {
++    const int lane = threadIdx.x % warp;
++    for (int i = threadIdx.x / warp; i < nrows * (width / warp); i += blockDim.x / warp) {
++        const float x = in[i * warp + lane];
++        const float max = warp_reduce_max<warp>(fabsf(x));
++        const float sum = warp_reduce_sum<warp>(x);
++        const float scale = max / 127.f;
++        out[i].qs[lane] = max == 0 ? 0 : roundf(x / scale);
++        if (!lane) out[i].ds = make_half2(scale, sum);
++    }
++}
++
++template<bool first, int type>
++__device__ __forceinline__ void project_expert(State s, const Group &group, float *h, const block_q8_1 *hq) {
++    const int lane = threadIdx.x % warp;
++    constexpr int cols = first ? hidden : ff;
++    constexpr int rows = first ? ff : hidden;
++    const int row_bytes = first ? s.first_bytes / ff : s.down_bytes / hidden;
++    for (int row = threadIdx.x / warp; row < rows; row += blockDim.x / warp) {
++        const int expert = group.expert;
++        const auto *a = first ? s.gate + expert * s.first_bytes + row * row_bytes
++                              : s.down + expert * s.down_bytes + row * row_bytes;
++        const auto *b = s.up + expert * s.first_bytes + row * row_bytes;
++        for (int j = 0; j < group.count; ++j) {
++            const int idx = group.routes[j];
++            const auto *x = first ? s.xq + idx / top * (hidden / warp) : hq + j * (ff / warp);
++            float ga = 0, up = 0;
++            for (int col = lane; col < cols / warp; col += warp) {
++                ga += dot<type>(a, x, col);
++                if constexpr (first) up += dot<type>(b, x, col);
++            }
++            ga = sum_warp(ga);
++            if constexpr (first) up = sum_warp(up);
++            if (lane == 0) {
++                if constexpr (first) h[j * ff + row] = up * (ga / (1.0f + expf(-ga)));
++                else s.down_output[idx * hidden + row] = ga;
++            }
++        }
++    }
++}
++
++template<int batch, bool wait_all>
++__global__ void expert_local(State s) {
++    extern __shared__ float scratch[];
++    float *h = scratch;
++    auto *hq = reinterpret_cast<block_q8_1 *>(h + batch * ff);
++    auto grid = cg::this_grid();
++    route(s);
++    quantize<hidden>(s.activation, s.xq, s.batch);
++    grid.sync();
++    const int i = blockIdx.x;
++    if (i < s.routes->used) {
++        const auto &group = s.routes->groups[i];
++        if (s.first_type == iq2) project_expert<true, iq2>(s, group, h, hq);
++        else if (s.first_type == iq3) project_expert<true, iq3>(s, group, h, hq);
++        else project_expert<true, iq4>(s, group, h, hq);
++        __syncthreads();
++    }
++    if constexpr (wait_all) grid.sync();
++    if (i < s.routes->used) {
++        quantize_expert<ff>(h, hq, s.routes->groups[i].count);
++        __syncthreads();
++    }
++    if constexpr (wait_all) grid.sync();
++    if (i < s.routes->used) {
++        const auto &group = s.routes->groups[i];
++        if (s.down_type == iq2) project_expert<false, iq2>(s, group, h, hq);
++        else if (s.down_type == iq3) project_expert<false, iq3>(s, group, h, hq);
++        else project_expert<false, iq4>(s, group, h, hq);
++    }
++    grid.sync();
++    reduce(s);
++}
++
++// Gate/up tiles cover disjoint ranges of complete 32-value quantization groups.
++template<bool first, int batch, int type>
++__device__ __forceinline__ void tile_project(State s, const Group &g, int start,
++                                             int width, float *scratch) {
++    constexpr int cols = first ? hidden : ff;
++    const int row_bytes = first ? s.first_bytes / ff : s.down_bytes / hidden;
++    const int lane = threadIdx.x % warp;
++    for (int local = threadIdx.x / warp; local < width; local += blockDim.x / warp) {
++        const int row = start + local;
++        const auto *a = first ? s.gate + g.expert * s.first_bytes + row * row_bytes
++                              : s.down + g.expert * s.down_bytes + row * row_bytes;
++        const auto *b = s.up + g.expert * s.first_bytes + row * row_bytes;
++        float sa[batch] = {}, sb[batch] = {};
++        for (int col = lane; col < cols / warp; col += warp) {
++#pragma unroll
++            for (int j = 0; j < batch; ++j) {
++                if (j < g.count) {
++                    const int id = g.routes[j];
++                    const auto *x = first ? s.xq + id / top * (hidden / warp)
++                                          : s.hq + id * (ff / warp);
++                    sa[j] += dot<type>(a, x, col);
++                    if constexpr (first) sb[j] += dot<type>(b, x, col);
++                }
++            }
++        }
++#pragma unroll
++        for (int j = 0; j < batch; ++j) {
++            if (j < g.count) {
++                const float ga = sum_warp(sa[j]);
++                float up = 0;
++                if constexpr (first) up = sum_warp(sb[j]);
++                if (lane == 0) {
++                    if constexpr (first) scratch[j * width + local] = up * (ga / (1.0f + expf(-ga)));
++                    else s.down_output[g.routes[j] * hidden + row] = ga;
++                }
++            }
++        }
++    }
++}
++
++template<bool first, int batch>
++__device__ __forceinline__ void tile_project(State s, const Group &group, int start,
++                                             int width, float *scratch) {
++    switch (first ? s.first_type : s.down_type) {
++        case iq2: tile_project<first, batch, iq2>(s, group, start, width, scratch); break;
++        case iq3: tile_project<first, batch, iq3>(s, group, start, width, scratch); break;
++        case iq4: tile_project<first, batch, iq4>(s, group, start, width, scratch); break;
++    }
++}
++
++using TileReady = cuda::atomic_ref<unsigned int, cuda::thread_scope_device>;
++
++template<int batch, bool publish>
++__device__ __forceinline__ void gate_tiles(State s, int worker, int workers, int width) {
++    __shared__ float scratch[batch * 128];
++    const int count = ff / width;
++    const int lane = threadIdx.x % warp;
++    for (int task = worker; task < s.routes->used * count; task += workers) {
++        const int index = task / count, offset = task % count * width;
++        const auto &group = s.routes->groups[index];
++        tile_project<true, batch>(s, group, offset, width, scratch);
++        __syncthreads();
++        const int groups = width / warp;
++        for (int i = threadIdx.x / warp; i < group.count * groups; i += blockDim.x / warp) {
++            const float x = scratch[i * warp + lane];
++            const float max = warp_reduce_max<warp>(fabsf(x));
++            const float sum = warp_reduce_sum<warp>(x);
++            const float scale = max / 127.f;
++            auto &out = s.hq[group.routes[i / groups] * (ff / warp) + offset / warp + i % groups];
++            out.qs[lane] = max == 0 ? 0 : roundf(x / scale);
++            if (!lane) out.ds = make_half2(scale, sum);
++        }
++        // Ensure the complete tile is visible before publishing or reusing shared memory.
++        __syncthreads();
++        if constexpr (publish) {
++            if (threadIdx.x == 0) TileReady(s.routes->ready[index]).fetch_add(1, cuda::memory_order_acq_rel);
++        }
++    }
++}
++
++template<int batch, bool wait_ready>
++__device__ __forceinline__ void down_tiles(State s, int worker, int workers, int width, int gate_width) {
++    const int count = hidden / width;
++    for (int task = worker; task < s.routes->used * count; task += workers) {
++        const int index = task / count;
++        if constexpr (wait_ready) {
++            if (threadIdx.x == 0) {
++                while (TileReady(s.routes->ready[index]).load(cuda::memory_order_acquire) != ff / gate_width)
++                    __nanosleep(64);
++            }
++            __syncthreads();
++        }
++        tile_project<false, batch>(s, s.routes->groups[index], task % count * width, width, nullptr);
++    }
++}
++
++template<int batch, bool ready>
++__global__ void tiled_fusion(State s, int producers, int gate_width, int down_width) {
++    const auto grid = cg::this_grid();
++    route(s);
++    quantize<hidden>(s.activation, s.xq, s.batch);
++    grid.sync();
++    if (producers == 0 || blockIdx.x < producers)
++        gate_tiles<batch, ready>(s, blockIdx.x, producers == 0 ? gridDim.x : producers, gate_width);
++    if constexpr (!ready) grid.sync();
++    if (blockIdx.x >= producers)
++        down_tiles<batch, ready>(s, blockIdx.x - producers, gridDim.x - producers, down_width, gate_width);
++    grid.sync();
++    reduce(s);
++}
++
++template<int batch>
++__global__ void tiled_gate(State s, int gate_width) {
++    const auto grid = cg::this_grid();
++    route(s);
++    quantize<hidden>(s.activation, s.xq, s.batch);
++    grid.sync();
++    gate_tiles<batch, false>(s, blockIdx.x, gridDim.x, gate_width);
++}
++
++template<int batch>
++__global__ void tiled_down(State s, int down_width) {
++    down_tiles<batch, false>(s, blockIdx.x, gridDim.x, down_width, 0);
++    cg::this_grid().sync();
++    reduce(s);
++}
++
++template<int batch>
++void launch_tiles(cudaStream_t stream, int blocks, State &s, int mode, int first, int second) {
++    static const auto option = [](const char *key, int fallback) {
++        const char *value = std::getenv(key);
++        return value ? std::atoi(value) : fallback;
++    };
++    static int gate_width = option("QWEN_GATE_ROWS", 64);
++    static int down_width = option("QWEN_DOWN_ROWS", 128);
++    static int partition = option("QWEN_PRODUCER_CTAS", 26);
++    GGML_ASSERT(gate_width == 32 || gate_width == 64 || gate_width == 128);
++    GGML_ASSERT(down_width == 64 || down_width == 128 || down_width == 256 || down_width == 512);
++    GGML_ASSERT((partition > 0 || (partition == 0 && mode == 7)) && partition < blocks);
++    if (mode == 9) {
++        // The split path can use all SMs, or use the same partition as fusion.
++        static const bool matched = option("QWEN_MATCH_PARTITION", 0) != 0;
++        void *gate[] = {&s, &gate_width};
++        void *down[] = {&s, &down_width};
++        CUDA_CHECK(cudaLaunchCooperativeKernel(reinterpret_cast<const void *>(tiled_gate<batch>),
++                   matched ? partition : blocks, first, gate, 0, stream));
++        CUDA_CHECK(cudaLaunchCooperativeKernel(reinterpret_cast<const void *>(tiled_down<batch>),
++                   matched ? blocks - partition : blocks, second, down, 0, stream));
++        return;
++    }
++    void *args[] = {&s, &partition, &gate_width, &down_width};
++    const void *kernel = mode == 8
++        ? reinterpret_cast<const void *>(tiled_fusion<batch, true>)
++        : reinterpret_cast<const void *>(tiled_fusion<batch, false>);
++    CUDA_CHECK(cudaLaunchCooperativeKernel(kernel, blocks, first, args, 0, stream));
++}
++
++// A finished producer can begin down work without reassigning any resident CTA
++// that still owns gate tiles. Consumers only claim work whose data is ready.
++template<int batch>
++__device__ __forceinline__ void claim_down(State s, int width, int gate_width) {
++    const int tasks = hidden / width;
++    const int used = s.routes->used;
++    int cursor = blockIdx.x % used;
++    __shared__ int selected_expert, selected_row;
++    for (;;) {
++        if (threadIdx.x == 0) {
++            selected_expert = -1;
++            while (TileReady(s.routes->unclaimed).load(cuda::memory_order_relaxed) != 0) {
++                const int e = cursor;
++                cursor = cursor + 1 == used ? 0 : cursor + 1;
++                TileReady next(s.routes->next_down[e]);
++                unsigned int i = next.load(cuda::memory_order_relaxed);
++                if (i >= tasks ||
++                    TileReady(s.routes->ready[e]).load(cuda::memory_order_acquire) != ff / gate_width) {
++                    __nanosleep(16);
++                    continue;
++                }
++                constexpr unsigned int claim_size = 2;
++                if (next.compare_exchange_strong(i, i + claim_size, cuda::memory_order_relaxed)) {
++                    selected_expert = e;
++                    selected_row = i * width;
++                    TileReady(s.routes->unclaimed).fetch_sub(claim_size, cuda::memory_order_relaxed);
++                    break;
++                }
++            }
++        }
++        __syncthreads();
++        const int e = selected_expert, row = selected_row;
++        if (e < 0) return;
++        tile_project<false, batch>(s, s.routes->groups[e], row, width * 2, nullptr);
++        __syncthreads();
++    }
++}
++
++template<int batch, bool transfer>
++__global__ void tiled_queued(State s, int producers, int gate_width, int down_width) {
++    const auto grid = cg::this_grid();
++    route(s);
++    if (blockIdx.x == 0 && threadIdx.x == 0)
++        s.routes->unclaimed = s.routes->used * (hidden / down_width);
++    quantize<hidden>(s.activation, s.xq, s.batch);
++    grid.sync();
++    if (blockIdx.x < producers) gate_tiles<batch, true>(s, blockIdx.x, producers, gate_width);
++    if (transfer || blockIdx.x >= producers) claim_down<batch>(s, down_width, gate_width);
++    grid.sync();
++    reduce(s);
++}
++
++template<int batch>
++void launch_queued(cudaStream_t stream, int blocks, State &s, int mode, int first) {
++    static int gate_rows = std::getenv("QWEN_GATE_ROWS") ? std::atoi(std::getenv("QWEN_GATE_ROWS")) : 32;
++    static int down_rows = std::getenv("QWEN_DOWN_ROWS") ? std::atoi(std::getenv("QWEN_DOWN_ROWS")) : 64;
++    static int producers = std::getenv("QWEN_PRODUCER_CTAS") ? std::atoi(std::getenv("QWEN_PRODUCER_CTAS")) : 26;
++    GGML_ASSERT(gate_rows == 32 || gate_rows == 64 || gate_rows == 128);
++    GGML_ASSERT(down_rows == 64 || down_rows == 128 || down_rows == 256 || down_rows == 512);
++    GGML_ASSERT(producers > 0 && producers < blocks);
++    void *args[] = {&s, &producers, &gate_rows, &down_rows};
++    const void *kernel = mode == 10
++        ? reinterpret_cast<const void *>(tiled_queued<batch, true>)
++        : reinterpret_cast<const void *>(tiled_queued<batch, false>);
++    CUDA_CHECK(cudaLaunchCooperativeKernel(kernel, blocks, first, args, 0, stream));
++}
++
++enum Stage : unsigned { ROUTE = 1, FIRST = 2, DOWN = 4, REDUCE = 8, XQ = 16, HQ = 32 };
++enum Plan { WHOLE = 1, ROUTE_CUT, GATE_CUT, FOUR, EXPERT_LOCAL, EXPERT_BARRIER };
++template<int batch, unsigned mask>
++__global__ void resident_kernel(State s) {
++    auto grid = cg::this_grid();
++    if constexpr (mask & ROUTE) route(s);
++    if constexpr (mask & XQ) quantize<hidden>(s.activation, s.xq, s.batch);
++    if constexpr ((mask & (ROUTE | XQ)) && (mask & FIRST)) grid.sync();
++    if constexpr (mask & FIRST) project<true, batch>(s);
++    if constexpr ((mask & FIRST) && (mask & (HQ | DOWN | REDUCE))) grid.sync();
++    if constexpr (mask & HQ) quantize<ff>(s.intermediate, s.hq, s.batch * top);
++    if constexpr ((mask & HQ) && (mask & DOWN)) grid.sync();
++    if constexpr (mask & DOWN) project<false, batch>(s);
++    if constexpr ((mask & DOWN) && (mask & REDUCE)) grid.sync();
++    if constexpr (mask & REDUCE) reduce(s);
++}
++
++template<int batch, unsigned stages>
++void launch(cudaStream_t stream, int blocks, State &s, int nthreads) {
++    constexpr bool multi = stages & (stages - 1);
++    if constexpr (multi) {
++        void *args[] = {&s};
++        CUDA_CHECK(cudaLaunchCooperativeKernel(reinterpret_cast<const void *>(resident_kernel<batch, stages>),
++                                               blocks, nthreads, args, 0, stream));
++    } else {
++        const int grid = stages == ROUTE ? 1 : blocks;
++        resident_kernel<batch, stages><<<grid, nthreads, 0, stream>>>(s);
++        CUDA_CHECK(cudaGetLastError());
++    }
++}
++
++template<int batch>
++void dispatch(cudaStream_t stream, int blocks, int mode, State &s, int first, int second) {
++    switch (mode) {
++        case WHOLE:
++            launch<batch, ROUTE | XQ | FIRST | HQ | DOWN | REDUCE>(stream, blocks, s, first);
++            break;
++        case ROUTE_CUT:
++            launch<batch, ROUTE>(stream, blocks, s, threads);
++            launch<batch, XQ | FIRST | HQ | DOWN | REDUCE>(stream, blocks, s, first);
++            break;
++        case GATE_CUT:
++            launch<batch, ROUTE | XQ | FIRST>(stream, blocks, s, first);
++            launch<batch, HQ | DOWN | REDUCE>(stream, blocks, s, second);
++            break;
++        case FOUR:
++            launch<batch, ROUTE>(stream, blocks, s, threads);
++            launch<batch, XQ>(stream, blocks, s, threads);
++            launch<batch, FIRST>(stream, blocks, s, first);
++            launch<batch, HQ>(stream, blocks, s, threads);
++            launch<batch, DOWN>(stream, blocks, s, second);
++            launch<batch, REDUCE>(stream, blocks, s, threads);
++            break;
++        case EXPERT_LOCAL:
++        case EXPERT_BARRIER: {
++            GGML_ASSERT(blocks >= batch * top);
++            void *args[] = {&s};
++            const size_t scratch = batch * (ff * sizeof(float) + ff / warp * sizeof(block_q8_1));
++            const void *kernel = mode == EXPERT_BARRIER
++                ? reinterpret_cast<const void *>(expert_local<batch, true>)
++                : reinterpret_cast<const void *>(expert_local<batch, false>);
++            CUDA_CHECK(cudaLaunchCooperativeKernel(kernel, blocks, first, args, scratch, stream));
++            break;
++        }
++        case 7:
++        case 8:
++        case 9:
++            launch_tiles<batch>(stream, blocks, s, mode, first, second);
++            break;
++        case 10:
++        case 11:
++            launch_queued<batch>(stream, blocks, s, mode, first);
++            break;
++        default:
++            GGML_ABORT("invalid resident MoE cut");
++    }
++}
++
++bool quant_supported(int q) {
++    return q == iq2 || q == iq3 || q == iq4;
++}
++} // namespace
++
++bool ggml_cuda_is_resident_moe(const ggml_tensor *op) {
++    return op->op == GGML_OP_CUSTOM && !std::strncmp(op->name, "qwen_resident_moe", 17);
++}
++
++#ifndef QWEN_RESIDENT_STANDALONE
++void ggml_cuda_resident_moe(ggml_backend_cuda_context &ctx, ggml_tensor *dst) {
++    const auto *activation = dst->src[0], *logits = dst->src[1], *gate = dst->src[2];
++    const auto *up = dst->src[3], *down = dst->src[4];
++    const auto *fixed = dst->src[5];
++    GGML_ASSERT(activation->type == GGML_TYPE_F32 && logits->type == GGML_TYPE_F32);
++    GGML_ASSERT(ggml_is_contiguous(activation) && ggml_is_contiguous(gate) &&
++                ggml_is_contiguous(up) && ggml_is_contiguous(down));
++    GGML_ASSERT(gate->type == up->type && quant_supported(gate->type) && quant_supported(down->type));
++    GGML_ASSERT(!fixed || (fixed->type == GGML_TYPE_I32 && fixed->nb[0] == sizeof(int32_t)));
++    const int batch = activation->ne[1];
++    GGML_ASSERT(batch >= 1 && batch <= max_batch && logits->ne[1] == batch);
++    const int mode = std::atoi(dst->name + 17);
++    float scale = 1.f;
++    memcpy(&scale, &dst->op_params[12], sizeof(scale));
++    const size_t scratch_bytes = sizeof(Routing) + sizeof(float) * batch * top * (ff + hidden) +
++        sizeof(block_q8_1) * batch * (hidden + top * ff) / warp;
++    GGML_ASSERT(ggml_nbytes(dst) >= batch * hidden * sizeof(float) + scratch_bytes);
++    // Scratch and output share one graph-planned allocation. Intermediate pointers
++    // therefore remain valid across CUDA Graph recording and all following replays.
++    auto *out = static_cast<float *>(dst->data);
++    auto *route_state = reinterpret_cast<Routing *>(out + batch * hidden);
++    auto *intermediate = reinterpret_cast<float *>(route_state + 1);
++    auto *xq = reinterpret_cast<block_q8_1 *>(intermediate + batch * top * (ff + hidden));
++    State s{
++        static_cast<const float *>(activation->data), static_cast<const float *>(logits->data),
++        fixed ? static_cast<const int32_t *>(fixed->data) : nullptr,
++        logits->nb[1] / sizeof(float), fixed ? fixed->nb[1] / sizeof(int32_t) : 0,
++        intermediate, intermediate + batch * top * ff, out, xq, xq + batch * hidden / warp,
++        static_cast<const Weight *>(gate->data), static_cast<const Weight *>(up->data),
++        static_cast<const Weight *>(down->data), route_state,
++        batch, gate->type, int(gate->nb[2]), down->type, int(down->nb[2]), scale,
++    };
++    const int blocks = ggml_cuda_info().devices[ctx.device].nsm;
++    const auto stream = ctx.stream();
++    const auto width = [](const char *key) {
++        const char *value = std::getenv(key);
++        const int count = value ? std::atoi(value) : 256;
++        GGML_ASSERT(count == 128 || count == 256 || count == 512);
++        return count;
++    };
++    static const int first = width("QWEN_CTA_FIRST"), second = width("QWEN_CTA_SECOND");
++    if (batch <= 2) dispatch<2>(stream, blocks, mode, s, first, second);
++    else if (batch <= 4) dispatch<4>(stream, blocks, mode, s, first, second);
++    else dispatch<8>(stream, blocks, mode, s, first, second);
++}
++#endif
+--- a/ggml/src/ggml-cuda/resident-moe.cuh
++++ b/ggml/src/ggml-cuda/resident-moe.cuh
+@@ -0,0 +1,6 @@
++#pragma once
++
++#include "common.cuh"
++
++bool ggml_cuda_is_resident_moe(const ggml_tensor *op);
++void ggml_cuda_resident_moe(ggml_backend_cuda_context &ctx, ggml_tensor *dst);
+--- a/src/llama-model.cpp
++++ b/src/llama-model.cpp
+@@ -1328,7 +1328,8 @@
+ 
+     // assign the input layer
+     // there is very little benefit to offloading the input layer, so always keep it on the CPU
+-    pimpl->dev_input = { cpu_dev, &pimpl->cpu_buft_list };
++    pimpl->dev_input = std::getenv("QWEN_RESIDENT_EMBEDDING") && act_gpu_layers == n_layer_all + 1
++        ? get_layer_buft_list(0) : llama_model::impl::layer_dev{cpu_dev, &pimpl->cpu_buft_list};
+ 
+     // assign the repeating layers to the devices according to the splits
+     pimpl->dev_layer.resize(n_layer_all);
+--- a/src/models/qwen35moe.cpp
++++ b/src/models/qwen35moe.cpp
+@@ -1,6 +1,10 @@
+ #include "models.h"
+ #include "llama-memory-recurrent.h"
+ 
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++
+ void llama_model_qwen35moe::load_arch_hparams(llama_model_loader & ml) {
+     ml.get_key(LLM_KV_EXPERT_FEED_FORWARD_LENGTH,        hparams.n_ff_exp, false);
+     ml.get_key(LLM_KV_EXPERT_SHARED_FEED_FORWARD_LENGTH, hparams.n_ff_shexp, false);
+@@ -497,8 +501,32 @@
+     // Check if this is an MoE layer
+     GGML_ASSERT(model.layers[il].ffn_gate_inp != nullptr);
+ 
+-    ggml_tensor * moe_out =
+-        build_moe_ffn(cur,
++    static const int cut = [] {
++        const char *mode = std::getenv("QWEN_RESIDENT_CUT");
++        return mode ? std::atoi(mode) : 0;
++    }();
++    static const bool fixed_route = std::getenv("QWEN_RESIDENT_FIXED_ROUTE") != nullptr;
++    const auto &layer = model.layers[il];
++    ggml_tensor * moe_out;
++    if (cut > 0 && cut <= 11 && n_tokens <= 8 && n_embd == 2048 &&
++        n_expert == 256 && n_expert_used == 8 && !layer.ffn_gate_up_exps &&
++        !layer.ffn_up_exps_s && !layer.ffn_gate_exps_s && !layer.ffn_down_exps_s) {
++        auto *logits = build_lora_mm(layer.ffn_gate_inp, cur);
++        auto *ids = fixed_route ? ggml_argsort_top_k(ctx0, ggml_soft_max(ctx0, logits), n_expert_used) : nullptr;
++        ggml_tensor *args[] = {cur, logits, layer.ffn_gate_exps, layer.ffn_up_exps, layer.ffn_down_exps, ids};
++        const int64_t scratch_floats = 4096 + n_tokens * 8 * (512 + 2048) + n_tokens * 1728;
++        auto *node = ggml_custom_4d(ctx0, GGML_TYPE_F32, n_embd * n_tokens + scratch_floats,
++                1, 1, 1, args, fixed_route ? 6 : 5,
++                [](ggml_tensor *, int, int, void *) { GGML_ABORT("resident MoE requires CUDA"); }, 1, nullptr);
++        const float scale = hparams.expert_weights_scale == 0.0f ? 1.0f : hparams.expert_weights_scale;
++        std::memcpy(&node->op_params[12], &scale, sizeof(scale));
++        node->op_params[13] = il;
++        char name[GGML_MAX_NAME];
++        std::snprintf(name, sizeof(name), "qwen_resident_moe%d", cut);
++        ggml_set_name(node, name);
++        moe_out = ggml_view_2d(ctx0, node, n_embd, n_tokens, n_embd * sizeof(float), 0);
++    } else {
++        moe_out = build_moe_ffn(cur,
+             model.layers[il].ffn_gate_inp,
+             model.layers[il].ffn_up_exps,
+             model.layers[il].ffn_gate_exps,
+@@ -512,6 +540,7 @@
+             model.layers[il].ffn_up_exps_s,
+             model.layers[il].ffn_gate_exps_s,
+             model.layers[il].ffn_down_exps_s);
++    }
+     cb(moe_out, "ffn_moe_out", il);
+ 
+     // Add shared experts if present - following Qwen3Next reference implementation
