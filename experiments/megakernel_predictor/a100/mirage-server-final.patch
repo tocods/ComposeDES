@@ -1,0 +1,141 @@
+diff --git a/include/mirage/persistent_kernel/persistent_kernel.cuh b/include/mirage/persistent_kernel/persistent_kernel.cuh
+index 873e064..af69432 100644
+--- a/include/mirage/persistent_kernel/persistent_kernel.cuh
++++ b/include/mirage/persistent_kernel/persistent_kernel.cuh
+@@ -1430,6 +1430,9 @@ __device__ __forceinline__ void execute_scheduler(RuntimeConfig config,
+         // assign event in a round-robin fashion
+         // Split event across local schedulers
+         assert(sched_id < config.num_local_schedulers);
++#ifdef MPK_HICACHE
++        int ready_page_groups = 0;
++#endif
+         for (size_t i = 0;
+              i < (e.last_task_id - e.first_task_id + config.num_workers - 1) /
+                      config.num_workers;
+@@ -1438,6 +1441,18 @@ __device__ __forceinline__ void execute_scheduler(RuntimeConfig config,
+             size_t position_index =
+                 e.first_task_id + i * config.num_workers + j;
+             if (position_index < e.last_task_id) {
++#ifdef MPK_HICACHE
++              // H2D publishes K and V in monotonically increasing page groups.
++              // Leave dependent work outside the worker queues until it is ready.
++              int needed = config.all_tasks[position_index].task_metadata.kv_idx;
++              while (ready_page_groups < needed) {
++                asm volatile("ld.acquire.gpu.b32 %0, [%1];"
++                             : "=r"(ready_page_groups)
++                             : "l"(config.hicache.ready)
++                             : "memory");
++                if (ready_page_groups < needed) __nanosleep(64);
++              }
++#endif
+               size_t last_task_id =
+                   worker_queue_next_free_task_pos[next_worker -
+                                                   my_first_worker]++;
+@@ -1940,7 +1955,7 @@ extern "C" void
+   // Create events
+   cudaEventCreateWithFlags(&global_runtime_config.prepare_done_event,
+                            cudaEventDisableTiming);
+-#ifdef MODE_OFFLINE
++#if defined(MODE_OFFLINE) || defined(MODE_ONLINE_NOTOKEN)
+   cudaEventCreateWithFlags(&global_runtime_config.worker_done_event,
+                            cudaEventDisableTiming);
+   cudaEventCreateWithFlags(&global_runtime_config.scheduler_done_event,
+@@ -1979,8 +1994,6 @@ extern "C" void launch_persistent_kernel(cudaStream_t default_stream) {
+   int num_schedulers = global_runtime_config.num_local_schedulers +
+                        global_runtime_config.num_remote_schedulers;
+   if (global_runtime_config.split_worker_scheduler) {
+-    printf("worker kernel & scheduler kernel\n");
+-    printf("smem size: %d\n", MAX_DYNAMIC_SHARED_MEMORY_SIZE);
+ 
+     cudaStreamWaitEvent(global_runtime_config.worker_stream,
+                         global_runtime_config.prepare_done_event,
+@@ -2008,7 +2021,7 @@ extern "C" void launch_persistent_kernel(cudaStream_t default_stream) {
+         0 /*smem*/,
+         global_runtime_config.scheduler_stream>>>(global_runtime_config);
+ 
+-#ifdef MODE_OFFLINE
++#if defined(MODE_OFFLINE) || defined(MODE_ONLINE_NOTOKEN)
+     cudaEventRecord(global_runtime_config.worker_done_event,
+                     global_runtime_config.worker_stream);
+     cudaEventRecord(global_runtime_config.scheduler_done_event,
+@@ -2019,7 +2032,6 @@ extern "C" void launch_persistent_kernel(cudaStream_t default_stream) {
+     cudaStreamWaitEvent(
+         default_stream, global_runtime_config.scheduler_done_event, 0);
+ #endif
+-    printf("Finished Launching Persistent Kernel (Async)\n");
+   } else {
+     printf("a single persistent kernel\n");
+     int num_sms_to_use = global_runtime_config.num_workers +
+@@ -2110,7 +2122,7 @@ extern "C" void finalize_persistent_kernel() {
+ #endif
+   // Free worker and scheduler streams
+   cudaEventDestroy(global_runtime_config.prepare_done_event);
+-#ifdef MODE_OFFLINE
++#if defined(MODE_OFFLINE) || defined(MODE_ONLINE_NOTOKEN)
+   cudaEventDestroy(global_runtime_config.worker_done_event);
+   cudaEventDestroy(global_runtime_config.scheduler_done_event);
+ #endif
+diff --git a/include/mirage/persistent_kernel/runtime_header.h b/include/mirage/persistent_kernel/runtime_header.h
+index 3d70f5a..a92946a 100644
+--- a/include/mirage/persistent_kernel/runtime_header.h
++++ b/include/mirage/persistent_kernel/runtime_header.h
+@@ -424,6 +424,15 @@ struct RuntimeConfig {
+   TaskId **worker_queues;
+   EventId **sched_queues;
+   TaskId *first_tasks;
++#ifdef MPK_HICACHE
++  struct {
++    void *query, *key, *value, *output;
++    float *lse;
++    int *ready;
++    const void *parts;
++    int rows;
++  } hicache;
++#endif
+   int *step;                // Metadata for LLM serving
+   long long *tokens;        // Metadata for LLM serving
+   long long *input_tokens;  // Metadata for LLM serving
+diff --git a/python/mirage/mpk/persistent_kernel.py b/python/mirage/mpk/persistent_kernel.py
+index 3fad5e7..544f976 100644
+--- a/python/mirage/mpk/persistent_kernel.py
++++ b/python/mirage/mpk/persistent_kernel.py
+@@ -1433,7 +1433,11 @@ class PersistentKernel:
+         elif self.target_cc == 100:
+             self.kn_graph.register_task(tb_graph, "paged_attention_sm100", params)
+         else:
+-            self.kn_graph.register_task(tb_graph, "paged_attention", params)
++            # SM80's task register uses a fixed 10-field ABI. The group and
++            # stride occupy positions 8 and 9, unlike the Hopper/SM100 form.
++            assert not (q_len_override or tail_offset or rotary_dim or eps_bits != default_eps_bits)
++            ampere_params = params[:6] + [0, 0, group_id, stride_field]
++            self.kn_graph.register_task(tb_graph, "paged_attention", ampere_params)
+ 
+     
+     def paged_attention_split_kv_layer(
+@@ -3217,7 +3221,7 @@ class PersistentKernel:
+         output_dir = kwargs.get("output_dir", None)
+ 
+         MIRAGE_ROOT, INCLUDE_PATH, DEPS_PATH = get_key_paths()
+-        if self.mode == "online_notoken" or self.mode == "online" or self.mode == "multi_turn" or self.mode=="online_pinned":
++        if self.mode in {"online", "multi_turn", "online_pinned"}:
+             # We will init for multiple times so the output directory should be permanent
+             tempdir = "./permanent_output_dir/"
+         else:
+@@ -3439,7 +3443,7 @@ class PersistentKernel:
+             meta_tensors_ptr,
+             profiler_buffer_ptr,
+             self.mpi_rank,
+-            self.num_workers,
++            kwargs.get("runtime_num_workers", self.num_workers),
+             self.num_local_schedulers,
+             self.num_remote_schedulers,
+             self.max_seq_length,
+@@ -3559,7 +3563,7 @@ class PersistentKernel:
+             meta_tensors_ptr,
+             profiler_buffer_ptr,
+             self.mpi_rank,
+-            self.num_workers,
++            kwargs.get("runtime_num_workers", self.num_workers),
+             self.num_local_schedulers,
+             self.num_remote_schedulers,
+             self.max_seq_length,

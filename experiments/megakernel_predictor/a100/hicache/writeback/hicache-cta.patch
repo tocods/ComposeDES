@@ -1,0 +1,135 @@
+--- a/sglang/kernels/jit/csrc/kvcacheio/relayout.cuh
++++ b/sglang/kernels/jit/csrc/kvcacheio/relayout.cuh
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include "hicache.cuh"
++#include <algorithm>
+ #include <limits>
+ 
+ namespace sglang {
+@@ -69,7 +70,8 @@
+     int64_t num_layers,
+     int64_t page_size,
+     bool use_int32,
+-    DLDevice device) {
++    DLDevice device,
++    uint32_t max_ctas = 0) {
+   using namespace host;
+ 
+   constexpr uint32_t kRelayoutBlockSize = 256;
+@@ -81,7 +83,8 @@
+     return;
+   }
+ 
+-  const auto grid = div_ceil(total_vecs, static_cast<uint64_t>(kRelayoutBlockSize));
++  const auto full_grid = div_ceil(total_vecs, static_cast<uint64_t>(kRelayoutBlockSize));
++  const auto grid = max_ctas ? std::min(full_grid, uint64_t{max_ctas}) : full_grid;
+   RuntimeCheck(
+       grid <= std::numeric_limits<uint32_t>::max(), "HiCache staged relayout: CUDA grid size exceeds uint32 range");
+   LaunchKernel(static_cast<uint32_t>(grid), kRelayoutBlockSize, device)(kernel, params);
+--- a/sglang/kernels/jit/csrc/kvcacheio/staged_write_back.cuh
++++ b/sglang/kernels/jit/csrc/kvcacheio/staged_write_back.cuh
+@@ -196,7 +196,10 @@
+       const tvm::ffi::TensorView page_indices_src,
+       const tvm::ffi::TensorView k_ptr_src,
+       const tvm::ffi::TensorView v_ptr_src,
+-      const int64_t page_size) {
++      const int64_t page_size,
++      uint32_t max_ctas = 0,
++      bool pack = true,
++      bool copy = true) {
+     using namespace host;
+ 
+     auto T = SymbolicSize{"num_tokens"};
+@@ -266,7 +269,11 @@
+     };
+     const auto device = device_.unwrap();
+     const auto use_int32 = indices_dtype.unwrap().bits == 32;
+-    launch_hicache_relayout_kernel<kElementSize, kIsMLA>(params, P.unwrap(), N.unwrap(), page_size, use_int32, device);
++    if (pack) {
++      launch_hicache_relayout_kernel<kElementSize, kIsMLA>(
++          params, P.unwrap(), N.unwrap(), page_size, use_int32, device, max_ctas);
++    }
++    if (!copy) return;
+ 
+     auto stream = LaunchKernel::resolve_device(device);
+     const int64_t* dst_indices_ptr = static_cast<const int64_t*>(dst_indices_cpu.data_ptr());
+@@ -311,6 +318,23 @@
+         k_ptr_src,
+         v_ptr_src,
+         page_size);
++  }
++
++  static void run_all_lf_pf_controlled(
++      const tvm::ffi::TensorView k_cache_dst,
++      const tvm::ffi::TensorView v_cache_dst,
++      const tvm::ffi::TensorView dst_indices_cpu,
++      const tvm::ffi::TensorView staging_k,
++      const tvm::ffi::TensorView staging_v,
++      const tvm::ffi::TensorView page_indices_src,
++      const tvm::ffi::TensorView k_ptr_src,
++      const tvm::ffi::TensorView v_ptr_src,
++      int64_t page_size, int64_t max_ctas, int64_t pack, int64_t copy) {
++    host::RuntimeCheck(max_ctas >= 0 && max_ctas <= UINT32_MAX, "Invalid HiCache CTA cap");
++    run_staged_impl<false>(
++        k_cache_dst, v_cache_dst, dst_indices_cpu, staging_k, staging_v,
++        page_indices_src, k_ptr_src, v_ptr_src, page_size,
++        static_cast<uint32_t>(max_ctas), pack != 0, copy != 0);
+   }
+ 
+   static void run_all_mla_lf_pf_staged(
+--- a/sglang/kernels/ops/kvcache/hicache.py
++++ b/sglang/kernels/ops/kvcache/hicache.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ 
+ import logging
++import os
+ from typing import TYPE_CHECKING
+ 
+ import torch
+@@ -65,7 +66,7 @@
+         1024,  # num_threads, kept for template compatibility
+     )
+     return load_jit(
+-        "hicache_staged",
++        "hicache_staged_composedes",
+         *args,
+         cuda_files=[
+             "kvcacheio/staged_write_back.cuh",
+@@ -74,6 +75,10 @@
+             (
+                 "launch_all_lf_pf_staged",
+                 f"&HiCacheStagedWriteBackKernel<{args}>::run_all_lf_pf_staged",
++            ),
++            (
++                "launch_all_lf_pf_controlled",
++                f"&HiCacheStagedWriteBackKernel<{args}>::run_all_lf_pf_controlled",
+             ),
+             (
+                 "launch_all_mla_lf_pf_staged",
+@@ -437,10 +442,14 @@
+     staging_v = staging_v.view(staging_v.shape[0], staging_v.shape[1], -1)
+     dst_k = dst_k.view(dst_k.shape[0], dst_k.shape[1], -1)
+     dst_v = dst_v.view(dst_v.shape[0], dst_v.shape[1], -1)
++    max_ctas = int(os.environ.get("COMPOSEDES_HICACHE_RELAYOUT_QUOTA", "0"))
++    launch = (module.launch_all_lf_pf_controlled if max_ctas
++              else module.launch_all_lf_pf_staged)
++    quota_args = (max_ctas, 1, 1) if max_ctas else ()
+     for page_begin in range(0, src_page_indices.numel(), staging_page_capacity):
+         chunk_pages = min(staging_page_capacity, src_page_indices.numel() - page_begin)
+         chunk_tokens = chunk_pages * page_size
+-        module.launch_all_lf_pf_staged(
++        launch(
+             dst_k,
+             dst_v,
+             dst_indices[
+@@ -452,6 +461,7 @@
+             k_ptr_src,
+             v_ptr_src,
+             page_size,
++            *quota_args,
+         )
+ 
+ 

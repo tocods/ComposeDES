@@ -1,0 +1,1176 @@
+{
+  "training": {
+    "cases": {
+      "chain": 8,
+      "expanded": 24
+    },
+    "configs": {
+      "chain": 120,
+      "expanded": 298
+    }
+  },
+  "all_candidate_pilot": {
+    "same-process": 0.03452861805549601,
+    "cross-process": 0.03333127221767096
+  },
+  "main_comparison": [
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "concurrent-expanded",
+      "budget": 0,
+      "regret": 0.9518682657953637,
+      "unseen_regret": 0.9518682657953637
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "concurrent-expanded",
+      "budget": 1,
+      "regret": 0.7799697579625564,
+      "unseen_regret": 0.7799697579625564
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "concurrent-expanded",
+      "budget": 2,
+      "regret": 1.5454205320001275,
+      "unseen_regret": 0.4668202894713369
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "concurrent-expanded",
+      "budget": 4,
+      "regret": 0.2393322549798682,
+      "unseen_regret": 1.1879607712109441
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "concurrent-expanded",
+      "budget": 8,
+      "regret": 0.03929160512192997,
+      "unseen_regret": 0.8065708452984433
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "direct-adaptive",
+      "budget": 0,
+      "regret": 12.937344280625254,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "direct-adaptive",
+      "budget": 1,
+      "regret": 12.937344280625254,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "direct-adaptive",
+      "budget": 2,
+      "regret": 1.258127330171488,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "direct-adaptive",
+      "budget": 4,
+      "regret": 1.1411840772148603,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "direct-adaptive",
+      "budget": 8,
+      "regret": 1.3892182408631726,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "original-expanded",
+      "budget": 0,
+      "regret": 0.9518682657953637,
+      "unseen_regret": 0.9518682657953637
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "original-expanded",
+      "budget": 1,
+      "regret": 0.7799697579625564,
+      "unseen_regret": 0.7799697579625564
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "original-expanded",
+      "budget": 2,
+      "regret": 0.7293827478631387,
+      "unseen_regret": 1.4239690775181142
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "original-expanded",
+      "budget": 4,
+      "regret": 0.19186749052235996,
+      "unseen_regret": 0.14860387998643088
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "original-expanded",
+      "budget": 8,
+      "regret": 0.034369081510321475,
+      "unseen_regret": 1.9374477463361433
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "regression-expanded",
+      "budget": 0,
+      "regret": 4.464981614720642,
+      "unseen_regret": 4.464981614720642
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "regression-expanded",
+      "budget": 1,
+      "regret": 4.464981614720642,
+      "unseen_regret": 4.464981614720642
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "regression-expanded",
+      "budget": 2,
+      "regret": 4.720397331743404,
+      "unseen_regret": 5.954733137105158
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "regression-expanded",
+      "budget": 4,
+      "regret": 4.20736392158938,
+      "unseen_regret": 6.881240168162081
+    },
+    {
+      "protocol": "active",
+      "test": "cross-process",
+      "method": "regression-expanded",
+      "budget": 8,
+      "regret": 0.4491422096940145,
+      "unseen_regret": 1.1401911729563814
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "concurrent-expanded",
+      "budget": 0,
+      "regret": 0.9744840531949572,
+      "unseen_regret": 0.9744840531949572
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "concurrent-expanded",
+      "budget": 1,
+      "regret": 1.000117083779359,
+      "unseen_regret": 1.000117083779359
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "concurrent-expanded",
+      "budget": 2,
+      "regret": 1.7636855517804833,
+      "unseen_regret": 0.7373201980323651
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "concurrent-expanded",
+      "budget": 4,
+      "regret": 0.2787578627144488,
+      "unseen_regret": 0.6752922168424574
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "concurrent-expanded",
+      "budget": 8,
+      "regret": 0.05635539549231905,
+      "unseen_regret": 0.7038931850388952
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "direct-adaptive",
+      "budget": 0,
+      "regret": 11.679132146047936,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "direct-adaptive",
+      "budget": 1,
+      "regret": 11.679132146047936,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "direct-adaptive",
+      "budget": 2,
+      "regret": 1.490972810020827,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "direct-adaptive",
+      "budget": 4,
+      "regret": 1.2713781168729872,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "direct-adaptive",
+      "budget": 8,
+      "regret": 1.0725919325634778,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "original-expanded",
+      "budget": 0,
+      "regret": 0.9744840531949572,
+      "unseen_regret": 0.9744840531949572
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "original-expanded",
+      "budget": 1,
+      "regret": 1.000117083779359,
+      "unseen_regret": 1.000117083779359
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "original-expanded",
+      "budget": 2,
+      "regret": 0.9101844316849378,
+      "unseen_regret": 1.136842968497373
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "original-expanded",
+      "budget": 4,
+      "regret": 0.23441650924289625,
+      "unseen_regret": 0.13879212654928086
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "original-expanded",
+      "budget": 8,
+      "regret": 0.048777636976490846,
+      "unseen_regret": 1.4449731807273547
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "regression-expanded",
+      "budget": 0,
+      "regret": 4.089061919448558,
+      "unseen_regret": 4.089061919448558
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "regression-expanded",
+      "budget": 1,
+      "regret": 4.089061919448558,
+      "unseen_regret": 4.089061919448558
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "regression-expanded",
+      "budget": 2,
+      "regret": 4.378705622623394,
+      "unseen_regret": 5.924838751022219
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "regression-expanded",
+      "budget": 4,
+      "regret": 3.483874605842619,
+      "unseen_regret": 5.800455152400547
+    },
+    {
+      "protocol": "active",
+      "test": "same-process",
+      "method": "regression-expanded",
+      "budget": 8,
+      "regret": 0.3284673849246078,
+      "unseen_regret": 0.895199301895605
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-chain",
+      "budget": 0,
+      "regret": 0.9518682657953637,
+      "unseen_regret": 0.9518682657953637
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-chain",
+      "budget": 1,
+      "regret": 0.7799697579625564,
+      "unseen_regret": 0.7799697579625564
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-chain",
+      "budget": 2,
+      "regret": 1.357562928212666,
+      "unseen_regret": 0.8100112966070994
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-chain",
+      "budget": 4,
+      "regret": 1.3069759181132485,
+      "unseen_regret": 0.8328561854243466
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-chain",
+      "budget": 8,
+      "regret": 1.0492493621847427,
+      "unseen_regret": 0.7757024307966931
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-expanded",
+      "budget": 0,
+      "regret": 0.9518682657953637,
+      "unseen_regret": 0.9518682657953637
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-expanded",
+      "budget": 1,
+      "regret": 0.7799697579625564,
+      "unseen_regret": 0.7799697579625564
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-expanded",
+      "budget": 2,
+      "regret": 1.357562928212666,
+      "unseen_regret": 0.7637039341309382
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-expanded",
+      "budget": 4,
+      "regret": 1.3069759181132485,
+      "unseen_regret": 0.8328561854243466
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-expanded",
+      "budget": 8,
+      "regret": 1.0492493621847427,
+      "unseen_regret": 0.7757024307966931
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-expanded-frozen",
+      "budget": 0,
+      "regret": 0.9518682657953637,
+      "unseen_regret": 0.9518682657953637
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-expanded-frozen",
+      "budget": 1,
+      "regret": 0.7799697579625564,
+      "unseen_regret": 0.7799697579625564
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-expanded-frozen",
+      "budget": 2,
+      "regret": 1.486934013444846,
+      "unseen_regret": 0.8100112966070994
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-expanded-frozen",
+      "budget": 4,
+      "regret": 1.3069759181132485,
+      "unseen_regret": 0.7637039341309382
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "concurrent-expanded-frozen",
+      "budget": 8,
+      "regret": 1.0492493621847427,
+      "unseen_regret": 0.7757024307966931
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "direct-shared",
+      "budget": 0,
+      "regret": 12.937344280625254,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "direct-shared",
+      "budget": 1,
+      "regret": 12.937344280625254,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "direct-shared",
+      "budget": 2,
+      "regret": 1.258127330171488,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "direct-shared",
+      "budget": 4,
+      "regret": 1.258127330171488,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "direct-shared",
+      "budget": 8,
+      "regret": 1.0492493621847427,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "original-chain",
+      "budget": 0,
+      "regret": 0.9518682657953637,
+      "unseen_regret": 0.9518682657953637
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "original-chain",
+      "budget": 1,
+      "regret": 0.7799697579625564,
+      "unseen_regret": 0.7799697579625564
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "original-chain",
+      "budget": 2,
+      "regret": 1.357562928212666,
+      "unseen_regret": 0.8100112966070994
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "original-chain",
+      "budget": 4,
+      "regret": 1.3069759181132485,
+      "unseen_regret": 0.7637039341309382
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "original-chain",
+      "budget": 8,
+      "regret": 1.0492493621847427,
+      "unseen_regret": 0.7757024307966931
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "original-expanded",
+      "budget": 0,
+      "regret": 0.9518682657953637,
+      "unseen_regret": 0.9518682657953637
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "original-expanded",
+      "budget": 1,
+      "regret": 0.7799697579625564,
+      "unseen_regret": 0.7799697579625564
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "original-expanded",
+      "budget": 2,
+      "regret": 1.357562928212666,
+      "unseen_regret": 0.8100112966070994
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "original-expanded",
+      "budget": 4,
+      "regret": 1.3069759181132485,
+      "unseen_regret": 0.8100112966070994
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "original-expanded",
+      "budget": 8,
+      "regret": 1.0492493621847427,
+      "unseen_regret": 0.7468889927577729
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "regression-chain",
+      "budget": 0,
+      "regret": 3.99561093705626,
+      "unseen_regret": 3.99561093705626
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "regression-chain",
+      "budget": 1,
+      "regret": 3.99561093705626,
+      "unseen_regret": 3.99561093705626
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "regression-chain",
+      "budget": 2,
+      "regret": 1.5433100067878402,
+      "unseen_regret": 1.4015358134505607
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "regression-chain",
+      "budget": 4,
+      "regret": 1.5433100067878402,
+      "unseen_regret": 1.4015358134505607
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "regression-chain",
+      "budget": 8,
+      "regret": 2.410252929062229,
+      "unseen_regret": 2.226511860593425
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "regression-expanded",
+      "budget": 0,
+      "regret": 4.464981614720642,
+      "unseen_regret": 4.464981614720642
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "regression-expanded",
+      "budget": 1,
+      "regret": 4.464981614720642,
+      "unseen_regret": 4.464981614720642
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "regression-expanded",
+      "budget": 2,
+      "regret": 1.9912675652912049,
+      "unseen_regret": 1.7154752081700781
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "regression-expanded",
+      "budget": 4,
+      "regret": 2.313797651776375,
+      "unseen_regret": 2.171776712691917
+    },
+    {
+      "protocol": "shared",
+      "test": "cross-process",
+      "method": "regression-expanded",
+      "budget": 8,
+      "regret": 2.320177013155153,
+      "unseen_regret": 2.2323974022116864
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-chain",
+      "budget": 0,
+      "regret": 0.9744840531949572,
+      "unseen_regret": 0.9744840531949572
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-chain",
+      "budget": 1,
+      "regret": 1.000117083779359,
+      "unseen_regret": 1.000117083779359
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-chain",
+      "budget": 2,
+      "regret": 1.6222059045654436,
+      "unseen_regret": 0.9733521821567448
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-chain",
+      "budget": 4,
+      "regret": 1.5322732524710225,
+      "unseen_regret": 1.1765380841855606
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-chain",
+      "budget": 8,
+      "regret": 0.6275015510589482,
+      "unseen_regret": 1.1279856995434134
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-expanded",
+      "budget": 0,
+      "regret": 0.9744840531949572,
+      "unseen_regret": 0.9744840531949572
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-expanded",
+      "budget": 1,
+      "regret": 1.000117083779359,
+      "unseen_regret": 1.000117083779359
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-expanded",
+      "budget": 2,
+      "regret": 1.6222059045654436,
+      "unseen_regret": 0.9958591055903271
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-expanded",
+      "budget": 4,
+      "regret": 1.5322732524710225,
+      "unseen_regret": 1.1765380841855606
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-expanded",
+      "budget": 8,
+      "regret": 0.6275015510589482,
+      "unseen_regret": 1.1279856995434134
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-expanded-frozen",
+      "budget": 0,
+      "regret": 0.9744840531949572,
+      "unseen_regret": 0.9744840531949572
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-expanded-frozen",
+      "budget": 1,
+      "regret": 1.000117083779359,
+      "unseen_regret": 1.000117083779359
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-expanded-frozen",
+      "budget": 2,
+      "regret": 1.7081208826298877,
+      "unseen_regret": 0.9733521821567448
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-expanded-frozen",
+      "budget": 4,
+      "regret": 1.5322732524710225,
+      "unseen_regret": 0.9958591055903271
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "concurrent-expanded-frozen",
+      "budget": 8,
+      "regret": 0.6275015510589482,
+      "unseen_regret": 1.1279856995434134
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "direct-shared",
+      "budget": 0,
+      "regret": 11.679132146047936,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "direct-shared",
+      "budget": 1,
+      "regret": 11.679132146047936,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "direct-shared",
+      "budget": 2,
+      "regret": 1.490972810020827,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "direct-shared",
+      "budget": 4,
+      "regret": 1.490972810020827,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "direct-shared",
+      "budget": 8,
+      "regret": 0.6275015510589482,
+      "unseen_regret": null
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "original-chain",
+      "budget": 0,
+      "regret": 0.9744840531949572,
+      "unseen_regret": 0.9744840531949572
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "original-chain",
+      "budget": 1,
+      "regret": 1.000117083779359,
+      "unseen_regret": 1.000117083779359
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "original-chain",
+      "budget": 2,
+      "regret": 1.6222059045654436,
+      "unseen_regret": 0.9733521821567448
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "original-chain",
+      "budget": 4,
+      "regret": 1.5322732524710225,
+      "unseen_regret": 0.9958591055903271
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "original-chain",
+      "budget": 8,
+      "regret": 0.6275015510589482,
+      "unseen_regret": 1.1279856995434134
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "original-expanded",
+      "budget": 0,
+      "regret": 0.9744840531949572,
+      "unseen_regret": 0.9744840531949572
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "original-expanded",
+      "budget": 1,
+      "regret": 1.000117083779359,
+      "unseen_regret": 1.000117083779359
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "original-expanded",
+      "budget": 2,
+      "regret": 1.6222059045654436,
+      "unseen_regret": 0.9733521821567448
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "original-expanded",
+      "budget": 4,
+      "regret": 1.5322732524710225,
+      "unseen_regret": 0.9733521821567448
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "original-expanded",
+      "budget": 8,
+      "regret": 0.6275015510589482,
+      "unseen_regret": 1.052815579919809
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "regression-chain",
+      "budget": 0,
+      "regret": 3.614686301647238,
+      "unseen_regret": 3.614686301647238
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "regression-chain",
+      "budget": 1,
+      "regret": 3.614686301647238,
+      "unseen_regret": 3.614686301647238
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "regression-chain",
+      "budget": 2,
+      "regret": 1.5633211596973229,
+      "unseen_regret": 1.5622048910372166
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "regression-chain",
+      "budget": 4,
+      "regret": 1.5633211596973229,
+      "unseen_regret": 1.5622048910372166
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "regression-chain",
+      "budget": 8,
+      "regret": 2.0488782620014403,
+      "unseen_regret": 2.317567617206455
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "regression-expanded",
+      "budget": 0,
+      "regret": 4.089061919448558,
+      "unseen_regret": 4.089061919448558
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "regression-expanded",
+      "budget": 1,
+      "regret": 4.089061919448558,
+      "unseen_regret": 4.089061919448558
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "regression-expanded",
+      "budget": 2,
+      "regret": 2.179459442105794,
+      "unseen_regret": 2.0431173163374394
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "regression-expanded",
+      "budget": 4,
+      "regret": 2.3015485042283097,
+      "unseen_regret": 2.3003926985043304
+    },
+    {
+      "protocol": "shared",
+      "test": "same-process",
+      "method": "regression-expanded",
+      "budget": 8,
+      "regret": 2.303810230715661,
+      "unseen_regret": 2.3468300139850435
+    }
+  ],
+  "supplementary_acquisition": [
+    {
+      "method": "decision-frozen",
+      "test": "cross-process",
+      "budget": 0,
+      "regret": 0.9518682657953637
+    },
+    {
+      "method": "decision-frozen",
+      "test": "cross-process",
+      "budget": 1,
+      "regret": 0.7799697579625564
+    },
+    {
+      "method": "decision-frozen",
+      "test": "cross-process",
+      "budget": 2,
+      "regret": 1.314875426569112
+    },
+    {
+      "method": "decision-frozen",
+      "test": "cross-process",
+      "budget": 4,
+      "regret": 0.16609977921606678
+    },
+    {
+      "method": "decision-frozen",
+      "test": "cross-process",
+      "budget": 8,
+      "regret": 0.23671118645917366
+    },
+    {
+      "method": "decision-frozen",
+      "test": "same-process",
+      "budget": 0,
+      "regret": 0.9744840531949572
+    },
+    {
+      "method": "decision-frozen",
+      "test": "same-process",
+      "budget": 1,
+      "regret": 1.000117083779359
+    },
+    {
+      "method": "decision-frozen",
+      "test": "same-process",
+      "budget": 2,
+      "regret": 1.4979052695271973
+    },
+    {
+      "method": "decision-frozen",
+      "test": "same-process",
+      "budget": 4,
+      "regret": 0.20375178750818845
+    },
+    {
+      "method": "decision-frozen",
+      "test": "same-process",
+      "budget": 8,
+      "regret": 0.23480727789819966
+    },
+    {
+      "method": "engine-order-search",
+      "test": "cross-process",
+      "budget": 0,
+      "regret": 12.937344280625254
+    },
+    {
+      "method": "engine-order-search",
+      "test": "cross-process",
+      "budget": 1,
+      "regret": 12.937344280625254
+    },
+    {
+      "method": "engine-order-search",
+      "test": "cross-process",
+      "budget": 2,
+      "regret": 1.6178834417917565
+    },
+    {
+      "method": "engine-order-search",
+      "test": "cross-process",
+      "budget": 4,
+      "regret": 0.05937415964827053
+    },
+    {
+      "method": "engine-order-search",
+      "test": "cross-process",
+      "budget": 8,
+      "regret": 0.08322041478902586
+    },
+    {
+      "method": "engine-order-search",
+      "test": "same-process",
+      "budget": 0,
+      "regret": 11.679132146047936
+    },
+    {
+      "method": "engine-order-search",
+      "test": "same-process",
+      "budget": 1,
+      "regret": 11.679132146047936
+    },
+    {
+      "method": "engine-order-search",
+      "test": "same-process",
+      "budget": 2,
+      "regret": 1.606819426651465
+    },
+    {
+      "method": "engine-order-search",
+      "test": "same-process",
+      "budget": 4,
+      "regret": 0.10291023255558363
+    },
+    {
+      "method": "engine-order-search",
+      "test": "same-process",
+      "budget": 8,
+      "regret": 0.07395700313526654
+    },
+    {
+      "method": "static-top-score",
+      "test": "cross-process",
+      "budget": 0,
+      "regret": 0.9518682657953637
+    },
+    {
+      "method": "static-top-score",
+      "test": "cross-process",
+      "budget": 1,
+      "regret": 0.7799697579625564
+    },
+    {
+      "method": "static-top-score",
+      "test": "cross-process",
+      "budget": 2,
+      "regret": 0.38051722129693877
+    },
+    {
+      "method": "static-top-score",
+      "test": "cross-process",
+      "budget": 4,
+      "regret": 0.03929160512192997
+    },
+    {
+      "method": "static-top-score",
+      "test": "cross-process",
+      "budget": 8,
+      "regret": 0.03333127221767096
+    },
+    {
+      "method": "static-top-score",
+      "test": "same-process",
+      "budget": 0,
+      "regret": 0.9744840531949572
+    },
+    {
+      "method": "static-top-score",
+      "test": "same-process",
+      "budget": 1,
+      "regret": 1.000117083779359
+    },
+    {
+      "method": "static-top-score",
+      "test": "same-process",
+      "budget": 2,
+      "regret": 0.1555062264487872
+    },
+    {
+      "method": "static-top-score",
+      "test": "same-process",
+      "budget": 4,
+      "regret": 0.05635539549231905
+    },
+    {
+      "method": "static-top-score",
+      "test": "same-process",
+      "budget": 8,
+      "regret": 0.03452861805549601
+    }
+  ],
+  "frozen_model_sha256": "6444f8409d23f0c99406181f9202f08aaaf096553f4fabab590c697f6f5771db",
+  "frozen_inputs_sha256": {
+    "calibration": "f943b9c25d8087483b29d1d05fc80725e5707a00fa93b866dfe4def06ae36567",
+    "code": {
+      "active_model.py": "037781a68f099aeb4f1d9aff16fb2b87e31ef8a7530cdbfc09360c3bc2ff91ff",
+      "active_evaluate.py": "cf2a226674a645dcb027241dd90acf8e665a8f8f9f28a4e00f20b908ff360024",
+      "admission_calibrate.py": "8294bc821688230c0dcd1ededd969894e3d19ab2661427d92338cef84aabc5ab",
+      "admission_framework.py": "e97084b73e0f621603961f2be4e412640650fa2cd9b940cac429ac343c0c2122",
+      "admission_bench.py": "99995c11ffe4a519569bcf0efc8874eec2cee2504dc14a8384a0a07279cbb30d",
+      "admission_model.py": "34ffe7680c311d99bb5c58d04042968fef1082e4dbf620d43393d971bcb5b343",
+      "explicit_graph.cu": "5907b0ee397b6f1df9f67f272a44e1f7e2a547b0e78d798cc57140fb3afe7d16",
+      "explicit_graph.py": "477fd21bb3c59ed2dfc4273f0af6ecf6d860cd8b075c6a39a270ed1e9a4dbc85",
+      "joint_cases.py": "90b7f4c41c7f98a025de783607a156d051e958c5965812c1871d1cae5cc08200",
+      "joint_probe.py": "efb1d79b4241b58ff89c2705cdeb9b9f1029435827ba5d4933dedd36c2d85ae5"
+    }
+  }
+}

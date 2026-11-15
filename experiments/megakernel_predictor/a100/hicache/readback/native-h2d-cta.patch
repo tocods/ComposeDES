@@ -1,0 +1,33 @@
+--- a/sglang/srt/mem_cache/pool_host/mha.py
++++ b/sglang/srt/mem_cache/pool_host/mha.py
+@@ -1,6 +1,8 @@
+ from __future__ import annotations
+ 
+ import logging
++import os
++from pathlib import Path
+ import threading
+ from typing import Sequence
+ 
+@@ -465,6 +467,13 @@
+                     )
+             elif self.layout == "page_first":
+                 if self.can_use_jit:
++                    quota_file = os.environ.get("COMPOSEDES_HICACHE_H2D_QUOTA_FILE")
++                    if host_layer_id == 0 and quota_file:
++                        quota = int(Path(quota_file).read_text())
++                        if quota not in (0, 2, 8):
++                            raise ValueError("Unexpected paired-experiment H2D quota")
++                        self._composedes_h2d_quota = quota or None
++                        logging.getLogger(__name__).info("HiCache experiment H2D quota = %s", quota)
+                     # Transpose [page, layer, ...] -> [layer, page, ...] then
+                     # index by layer_id to get a per-layer view with strided layout.
+                     # The kernel handles different src/dst strides automatically.
+@@ -477,6 +486,7 @@
+                         indices_dst=device_indices,
+                         indices_src=host_indices,
+                         element_dim=self.element_dim,
++                        block_quota=getattr(self, "_composedes_h2d_quota", None),
+                     )
+                 else:
+                     self._require_packed_device_rows("transfer_kv_per_layer_pf_lf")

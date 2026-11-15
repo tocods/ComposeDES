@@ -1,0 +1,18 @@
+A100 handoff environment observed on the reference server
+GPU NVIDIA A100-PCIE-40GB
+Driver 595.71.05
+CUDA Toolkit 13.0.88
+Python 3.12.3
+PyTorch 2.14.1 (built against CUDA 13.0)
+SGLang 0.5.23
+FlashInfer Python 0.7.2
+Transformers 5.19.0
+safetensors 0.8.0
+NumPy 2.3.5
+Triton 3.8.0
+nvidia-cudnn-cu13 9.24.0.43
+Hugging Face Hub CLI 1.33.0
+
+Separate CPU analysis environment used NumPy 2.5.4 and Matplotlib 3.11.2.
+This is an observed version record, not a package-resolution lockfile.
+The older MPK and vLLM environments are described in ../README.md.

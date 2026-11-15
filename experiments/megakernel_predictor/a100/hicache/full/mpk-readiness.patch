@@ -1,0 +1,62 @@
+diff --git a/include/mirage/persistent_kernel/persistent_kernel.cuh b/include/mirage/persistent_kernel/persistent_kernel.cuh
+index 873e064..af69432 100644
+--- a/include/mirage/persistent_kernel/persistent_kernel.cuh
++++ b/include/mirage/persistent_kernel/persistent_kernel.cuh
+@@ -1430,6 +1430,9 @@ __device__ __forceinline__ void execute_scheduler(RuntimeConfig config,
+         // assign event in a round-robin fashion
+         // Split event across local schedulers
+         assert(sched_id < config.num_local_schedulers);
++#ifdef MPK_HICACHE
++        int ready_page_groups = 0;
++#endif
+         for (size_t i = 0;
+              i < (e.last_task_id - e.first_task_id + config.num_workers - 1) /
+                      config.num_workers;
+@@ -1438,6 +1441,18 @@ __device__ __forceinline__ void execute_scheduler(RuntimeConfig config,
+             size_t position_index =
+                 e.first_task_id + i * config.num_workers + j;
+             if (position_index < e.last_task_id) {
++#ifdef MPK_HICACHE
++              // H2D publishes K and V in monotonically increasing page groups.
++              // Leave dependent work outside the worker queues until it is ready.
++              int needed = config.all_tasks[position_index].task_metadata.kv_idx;
++              while (ready_page_groups < needed) {
++                asm volatile("ld.acquire.gpu.b32 %0, [%1];"
++                             : "=r"(ready_page_groups)
++                             : "l"(config.hicache.ready)
++                             : "memory");
++                if (ready_page_groups < needed) __nanosleep(64);
++              }
++#endif
+               size_t last_task_id =
+                   worker_queue_next_free_task_pos[next_worker -
+                                                   my_first_worker]++;
+@@ -2110,7 +2122,7 @@ extern "C" void finalize_persistent_kernel() {
+ #endif
+   // Free worker and scheduler streams
+   cudaEventDestroy(global_runtime_config.prepare_done_event);
+-#ifdef MODE_OFFLINE
++#if defined(MODE_OFFLINE) || defined(MODE_ONLINE_NOTOKEN)
+   cudaEventDestroy(global_runtime_config.worker_done_event);
+   cudaEventDestroy(global_runtime_config.scheduler_done_event);
+ #endif
+diff --git a/include/mirage/persistent_kernel/runtime_header.h b/include/mirage/persistent_kernel/runtime_header.h
+index 3d70f5a..a92946a 100644
+--- a/include/mirage/persistent_kernel/runtime_header.h
++++ b/include/mirage/persistent_kernel/runtime_header.h
+@@ -424,6 +424,15 @@ struct RuntimeConfig {
+   TaskId **worker_queues;
+   EventId **sched_queues;
+   TaskId *first_tasks;
++#ifdef MPK_HICACHE
++  struct {
++    void *query, *key, *value, *output;
++    float *lse;
++    int *ready;
++    const void *parts;
++    int rows;
++  } hicache;
++#endif
+   int *step;                // Metadata for LLM serving
+   long long *tokens;        // Metadata for LLM serving
+   long long *input_tokens;  // Metadata for LLM serving

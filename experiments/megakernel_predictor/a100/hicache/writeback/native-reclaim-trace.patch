@@ -1,0 +1,26 @@
+--- a/sglang/srt/mem_cache/unified_radix_cache.py
++++ b/sglang/srt/mem_cache/unified_radix_cache.py
+@@ -3479,16 +3479,23 @@
+ 
+         if write_back:
+             # Blocking: submit what is still queued, then wait for every ack.
++            from time import perf_counter_ns
++            wait_ns = write_bytes = 0
+             cc.start_writing()
+             while self.ongoing_write_through:
+                 for ack in cc.ack_write_queue:
++                    started = perf_counter_ns()
+                     ack.finish_event.synchronize()
++                    wait_ns += perf_counter_ns() - started
++                    write_bytes += ack.num_bytes
+                     for ack_id in ack.node_ids:
+                         if ack_id in self.ongoing_write_through:
+                             self._finish_write_through_ack(ack_id)
+                     self._log_write_ack_metrics(ack)
+                 cc.ack_write_queue.clear()
+                 assert len(self.ongoing_write_through) == 0
++            if write_bytes:
++                logger.info("COMPOSEDES_RECLAIM bytes=%d wait_ns=%d", write_bytes, wait_ns)
+             return
+ 
+         if finish_count is None:
