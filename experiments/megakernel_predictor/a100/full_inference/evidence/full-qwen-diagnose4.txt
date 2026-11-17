@@ -1,0 +1,20 @@
+native repeat 0 0.0
+native repeat 1 0.011182704009115696
+native repeat 2 0.017467105761170387
+native repeat 3 0.01198152918368578
+fixed linear 0 0.017578125 140 copydiff 0 weights changed 5 input changed 0
+fixed linear 1 0.03125 314 copydiff 0 weights changed 7 input changed 0
+fixed linear 2 0.03125 327 copydiff 0 weights changed 9 input changed 0
+fixed linear 3 0.03125 417 copydiff 0 weights changed 12 input changed 0
+fixed linear 4 0.03125 512 copydiff 0 weights changed 15 input changed 0
+fixed linear 5 0.03125 526 copydiff 0 weights changed 15 input changed 0
+fixed linear 6 0.03125 717 copydiff 0 weights changed 20 input changed 0
+fixed linear 7 0.03125 717 copydiff 0 weights changed 20 input changed 0
+fixed linear 8 0.03125 718 copydiff 0 weights changed 22 input changed 0
+fixed linear 9 0.03125 834 copydiff 0 weights changed 24 input changed 0
+fixed linear 10 0.03125 844 copydiff 0 weights changed 24 input changed 0
+fixed linear 11 0.03125 890 copydiff 0 weights changed 25 input changed 0
+fixed linear 12 0.03125 954 copydiff 0 weights changed 26 input changed 0
+fixed linear 13 0.03125 954 copydiff 0 weights changed 27 input changed 0
+fixed linear 14 0.03125 1076 copydiff 0 weights changed 31 input changed 0
+fixed linear 15 0.03125 1194 copydiff 0 weights changed 33 input changed 0

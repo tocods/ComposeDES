@@ -1,0 +1,2 @@
+name, uuid, pci.bus_id, driver_version, memory.total [MiB], ecc.mode.current
+NVIDIA A100-PCIE-40GB, GPU-1c1d714e-1032-6c7d-eb4e-30ac636039ec, 00000000:00:0C.0, 595.71.05, 40960 MiB, Disabled

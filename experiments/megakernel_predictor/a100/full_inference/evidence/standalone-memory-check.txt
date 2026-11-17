@@ -1,0 +1,8 @@
+round=0 chunk=42 address=0x7f56f0000000 mismatched_words=2
+round=0 verified_GiB=20 total_mismatched_words=2
+round=1 chunk=42 address=0x7f56f0000000 mismatched_words=2
+round=1 verified_GiB=20 total_mismatched_words=2
+round=2 chunk=42 address=0x7f56f0000000 mismatched_words=2
+round=2 verified_GiB=20 total_mismatched_words=2
+round=3 chunk=42 address=0x7f56f0000000 mismatched_words=2
+round=3 verified_GiB=20 total_mismatched_words=2

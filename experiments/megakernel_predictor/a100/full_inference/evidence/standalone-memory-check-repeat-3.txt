@@ -1,0 +1,40 @@
+round=0 chunk=34 address=0x7fa940000000 mismatched_words=1 first_index=50346816 expected=0xa6a53b62 cpu_read=0xa6a53a62
+round=0 chunk=35 address=0x7fa930000000 mismatched_words=35 first_index=3889464 expected=0xa59e591b cpu_read=0xa59e581b
+round=0 chunk=36 address=0x7fa920000000 mismatched_words=62 first_index=3722752 expected=0xa59dce24 cpu_read=0xa59d8e24
+round=0 chunk=37 address=0x7fa910000000 mismatched_words=12 first_index=29304288 expected=0xa41a25c5 cpu_read=0xa41a24c5
+round=0 chunk=38 address=0x7fa900000000 mismatched_words=45 first_index=1888544 expected=0xa5b9d106 cpu_read=0xa5b9d006
+round=0 chunk=39 address=0x7fa8f0000000 mismatched_words=71 first_index=4538592 expected=0xa5e040c7 cpu_read=0xa5e000c7
+round=0 chunk=40 address=0x7fa8e0000000 mismatched_words=92 first_index=1675360 expected=0xa5bc9048 cpu_read=0xa5bc8048
+round=0 chunk=41 address=0x7fa8d0000000 mismatched_words=35 first_index=9591040 expected=0xa5375929 cpu_read=0xa5375829
+round=0 chunk=42 address=0x7fa8c0000000 mismatched_words=7 first_index=10248184 expected=0xa5395fd2 cpu_read=0xa5391fd2
+round=0 verified_GiB=20 total_mismatched_words=360
+round=1 chunk=34 address=0x7fa940000000 mismatched_words=2 first_index=50346816 expected=0xa6a53b62 cpu_read=0xa6a53a62
+round=1 chunk=35 address=0x7fa930000000 mismatched_words=37 first_index=3889464 expected=0xa59e591b cpu_read=0xa59e581b
+round=1 chunk=36 address=0x7fa920000000 mismatched_words=64 first_index=3722752 expected=0xa59dce24 cpu_read=0xa59d8e24
+round=1 chunk=37 address=0x7fa910000000 mismatched_words=12 first_index=29304288 expected=0xa41a25c5 cpu_read=0xa41a24c5
+round=1 chunk=38 address=0x7fa900000000 mismatched_words=48 first_index=1888544 expected=0xa5b9d106 cpu_read=0xa5b9d006
+round=1 chunk=39 address=0x7fa8f0000000 mismatched_words=72 first_index=4538592 expected=0xa5e040c7 cpu_read=0xa5e000c7
+round=1 chunk=40 address=0x7fa8e0000000 mismatched_words=93 first_index=1675360 expected=0xa5bc9048 cpu_read=0xa5bc8048
+round=1 chunk=41 address=0x7fa8d0000000 mismatched_words=35 first_index=9591040 expected=0xa5375929 cpu_read=0xa5375829
+round=1 chunk=42 address=0x7fa8c0000000 mismatched_words=7 first_index=10248184 expected=0xa5395fd2 cpu_read=0xa5391fd2
+round=1 verified_GiB=20 total_mismatched_words=370
+round=2 chunk=34 address=0x7fa940000000 mismatched_words=2 first_index=50346816 expected=0xa6a53b62 cpu_read=0xa6a53a62
+round=2 chunk=35 address=0x7fa930000000 mismatched_words=37 first_index=3889464 expected=0xa59e591b cpu_read=0xa59e581b
+round=2 chunk=36 address=0x7fa920000000 mismatched_words=64 first_index=3722752 expected=0xa59dce24 cpu_read=0xa59d8e24
+round=2 chunk=37 address=0x7fa910000000 mismatched_words=12 first_index=29304288 expected=0xa41a25c5 cpu_read=0xa41a24c5
+round=2 chunk=38 address=0x7fa900000000 mismatched_words=48 first_index=1888544 expected=0xa5b9d106 cpu_read=0xa5b9d006
+round=2 chunk=39 address=0x7fa8f0000000 mismatched_words=72 first_index=4538592 expected=0xa5e040c7 cpu_read=0xa5e000c7
+round=2 chunk=40 address=0x7fa8e0000000 mismatched_words=93 first_index=1675360 expected=0xa5bc9048 cpu_read=0xa5bc8048
+round=2 chunk=41 address=0x7fa8d0000000 mismatched_words=35 first_index=9591040 expected=0xa5375929 cpu_read=0xa5375829
+round=2 chunk=42 address=0x7fa8c0000000 mismatched_words=7 first_index=10248184 expected=0xa5395fd2 cpu_read=0xa5391fd2
+round=2 verified_GiB=20 total_mismatched_words=370
+round=3 chunk=34 address=0x7fa940000000 mismatched_words=2 first_index=50346816 expected=0xa6a53b62 cpu_read=0xa6a53a62
+round=3 chunk=35 address=0x7fa930000000 mismatched_words=37 first_index=3889464 expected=0xa59e591b cpu_read=0xa59e581b
+round=3 chunk=36 address=0x7fa920000000 mismatched_words=64 first_index=3722752 expected=0xa59dce24 cpu_read=0xa59d8e24
+round=3 chunk=37 address=0x7fa910000000 mismatched_words=12 first_index=29304288 expected=0xa41a25c5 cpu_read=0xa41a24c5
+round=3 chunk=38 address=0x7fa900000000 mismatched_words=48 first_index=1888544 expected=0xa5b9d106 cpu_read=0xa5b9d006
+round=3 chunk=39 address=0x7fa8f0000000 mismatched_words=72 first_index=4538592 expected=0xa5e040c7 cpu_read=0xa5e000c7
+round=3 chunk=40 address=0x7fa8e0000000 mismatched_words=93 first_index=1675360 expected=0xa5bc9048 cpu_read=0xa5bc8048
+round=3 chunk=41 address=0x7fa8d0000000 mismatched_words=35 first_index=9591040 expected=0xa5375929 cpu_read=0xa5375829
+round=3 chunk=42 address=0x7fa8c0000000 mismatched_words=7 first_index=10248184 expected=0xa5395fd2 cpu_read=0xa5391fd2
+round=3 verified_GiB=20 total_mismatched_words=370

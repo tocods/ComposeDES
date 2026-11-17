@@ -1,0 +1,36 @@
+round=0 chunk=35 address=0x7feb48000000 mismatched_words=29 first_index=23083896 expected=0xa4c53b5b cpu_read=0xa4c52b5b
+round=0 chunk=36 address=0x7feb38000000 mismatched_words=46 first_index=1931906 expected=0xa5b87aa6 cpu_read=0xa5b83aa6
+round=0 chunk=37 address=0x7feb28000000 mismatched_words=35 first_index=6594528 expected=0xa5c19fc5 cpu_read=0xa5c19ec5
+round=0 chunk=38 address=0x7feb18000000 mismatched_words=71 first_index=28672 expected=0xa5a57026 cpu_read=0xa5a53026
+round=0 chunk=39 address=0x7feb08000000 mismatched_words=44 first_index=1440064 expected=0xa5b0f967 cpu_read=0xa5b0f867
+round=0 chunk=40 address=0x7feaf8000000 mismatched_words=44 first_index=1255802 expected=0xa5b62952 cpu_read=0xa5b62852
+round=0 chunk=41 address=0x7feae8000000 mismatched_words=54 first_index=8732928 expected=0xa5204129 cpu_read=0xa5200029
+round=0 chunk=42 address=0x7fead8000000 mismatched_words=40 first_index=4906856 expected=0xa5efdf42 cpu_read=0xa5efde42
+round=0 verified_GiB=20 total_mismatched_words=363
+round=1 chunk=35 address=0x7feb48000000 mismatched_words=32 first_index=23083896 expected=0xa4c53b5b cpu_read=0xa4c52b5b
+round=1 chunk=36 address=0x7feb38000000 mismatched_words=48 first_index=1931906 expected=0xa5b87aa6 cpu_read=0xa5b83aa6
+round=1 chunk=37 address=0x7feb28000000 mismatched_words=37 first_index=6594528 expected=0xa5c19fc5 cpu_read=0xa5c19ec5
+round=1 chunk=38 address=0x7feb18000000 mismatched_words=72 first_index=28672 expected=0xa5a57026 cpu_read=0xa5a53026
+round=1 chunk=39 address=0x7feb08000000 mismatched_words=45 first_index=1440064 expected=0xa5b0f967 cpu_read=0xa5b0f867
+round=1 chunk=40 address=0x7feaf8000000 mismatched_words=46 first_index=1255802 expected=0xa5b62952 cpu_read=0xa5b62852
+round=1 chunk=41 address=0x7feae8000000 mismatched_words=55 first_index=8732928 expected=0xa5204129 cpu_read=0xa5200029
+round=1 chunk=42 address=0x7fead8000000 mismatched_words=40 first_index=4906856 expected=0xa5efdf42 cpu_read=0xa5efde42
+round=1 verified_GiB=20 total_mismatched_words=375
+round=2 chunk=35 address=0x7feb48000000 mismatched_words=32 first_index=23083896 expected=0xa4c53b5b cpu_read=0xa4c52b5b
+round=2 chunk=36 address=0x7feb38000000 mismatched_words=48 first_index=1931906 expected=0xa5b87aa6 cpu_read=0xa5b83aa6
+round=2 chunk=37 address=0x7feb28000000 mismatched_words=37 first_index=6594528 expected=0xa5c19fc5 cpu_read=0xa5c19ec5
+round=2 chunk=38 address=0x7feb18000000 mismatched_words=72 first_index=28672 expected=0xa5a57026 cpu_read=0xa5a53026
+round=2 chunk=39 address=0x7feb08000000 mismatched_words=45 first_index=1440064 expected=0xa5b0f967 cpu_read=0xa5b0f867
+round=2 chunk=40 address=0x7feaf8000000 mismatched_words=46 first_index=1255802 expected=0xa5b62952 cpu_read=0xa5b62852
+round=2 chunk=41 address=0x7feae8000000 mismatched_words=55 first_index=8732928 expected=0xa5204129 cpu_read=0xa5200029
+round=2 chunk=42 address=0x7fead8000000 mismatched_words=40 first_index=4906856 expected=0xa5efdf42 cpu_read=0xa5efde42
+round=2 verified_GiB=20 total_mismatched_words=375
+round=3 chunk=35 address=0x7feb48000000 mismatched_words=32 first_index=23083896 expected=0xa4c53b5b cpu_read=0xa4c52b5b
+round=3 chunk=36 address=0x7feb38000000 mismatched_words=48 first_index=1931906 expected=0xa5b87aa6 cpu_read=0xa5b83aa6
+round=3 chunk=37 address=0x7feb28000000 mismatched_words=37 first_index=6594528 expected=0xa5c19fc5 cpu_read=0xa5c19ec5
+round=3 chunk=38 address=0x7feb18000000 mismatched_words=72 first_index=28672 expected=0xa5a57026 cpu_read=0xa5a53026
+round=3 chunk=39 address=0x7feb08000000 mismatched_words=45 first_index=1440064 expected=0xa5b0f967 cpu_read=0xa5b0f867
+round=3 chunk=40 address=0x7feaf8000000 mismatched_words=46 first_index=1255802 expected=0xa5b62952 cpu_read=0xa5b62852
+round=3 chunk=41 address=0x7feae8000000 mismatched_words=55 first_index=8732928 expected=0xa5204129 cpu_read=0xa5200029
+round=3 chunk=42 address=0x7fead8000000 mismatched_words=40 first_index=4906856 expected=0xa5efdf42 cpu_read=0xa5efde42
+round=3 verified_GiB=20 total_mismatched_words=375

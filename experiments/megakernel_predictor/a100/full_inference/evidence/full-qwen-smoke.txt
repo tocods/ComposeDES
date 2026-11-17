@@ -1,0 +1,6 @@
+loaded complete model 36 8190735360
+native reference tokens [785, 5025, 1948, 3070]
+native replay reference error 0.01898764632642269
+eager staged reference error 0.01154473889619112
+    raise AssertionError(f'full-model output mismatch step={step}, rel={rel}, max={absolute}, token={token}')
+AssertionError: full-model output mismatch step=0, rel=0.011202777735888958, max=0.25, token=785

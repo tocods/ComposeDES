@@ -1,0 +1,50 @@
+{
+  "status": "blocked_by_memory_integrity_failures",
+  "full_model_performance_validated": false,
+  "independent_cuda_memory_check": {
+    "standalone-memory-check-confirm.log": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "standalone-memory-check-repeat-1.log": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "standalone-memory-check-repeat-2.log": [
+      415,
+      427,
+      427,
+      427
+    ],
+    "standalone-memory-check-repeat-3.log": [
+      360,
+      370,
+      370,
+      370
+    ],
+    "standalone-memory-check-repeat-4.log": [
+      390,
+      404,
+      404,
+      404
+    ],
+    "standalone-memory-check-repeat-5.log": [
+      363,
+      375,
+      375,
+      375
+    ],
+    "standalone-memory-check.log": [
+      2,
+      2,
+      2,
+      2
+    ]
+  },
+  "raw_archive": "experiments/megakernel_predictor/runs/full-qwen-diagnostics.tar.gz",
+  "raw_archive_sha256": "2a0bb3338e567db2147dc19cbfcb97739e26afb9d6383ecea9bf615ee5e5be8f"
+}

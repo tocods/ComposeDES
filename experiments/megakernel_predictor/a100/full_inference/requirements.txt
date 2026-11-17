@@ -1,0 +1,7 @@
+transformers==5.19.0
+flashinfer-python==0.7.2
+numpy==2.4.6
+huggingface_hub==2.4.0
+safetensors==0.8.0
+# Tested installation: Python 3.12, torch 2.12.1+cu130, CUDA Toolkit 13.0.88.
+# Install a matching CUDA-enabled torch build separately.
