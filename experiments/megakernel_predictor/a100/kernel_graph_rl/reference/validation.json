@@ -1,0 +1,12 @@
+{
+  "performance_only": true,
+  "model_numerical_validation_performed": false,
+  "structural_tests": "safe level actions and exact local two-hop GCN equivalence passed",
+  "data_audit": "all query budgets, kernel DAG fingerprints, and 32-token generations verified",
+  "archive_verified_sha256": "fdc0d19284a6d8d744612a85d1949855fdf690dcf0ba01d5b59c096059d55324",
+  "archive_verified_files": 95,
+  "training_loss_updates": 3085,
+  "frozen_training_sha256_verified": true,
+  "training_queries_per_method": 3200,
+  "target_queries_per_method_per_shape": 512
+}

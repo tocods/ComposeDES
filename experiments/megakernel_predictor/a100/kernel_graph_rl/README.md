@@ -1,5 +1,7 @@
 # 完整 Qwen3-8B 实际 CUDA kernel 图的辅助边优化
 
+本轮已完成。两个留出形状中，最终 512 次目标测量预算下选择的配对收益区间均包含零，未观察到稳定加速。详见 [结论与研究判断](DISCUSSION.md)、[结果表与预算曲线](RESULTS.md)；全部原始计时和冻结权重已归档。
+
 ## 研究目标与复现边界
 
 本实验依照 [Optimizing CUDA Graph Scheduling with Reinforcement Learning: A Case Study in SSTA Propagation](https://tsung-wei-huang.github.io/papers/2025-MLCAD.pdf) 的公开方法，在完整 Qwen3-8B 上实现节点拓扑层级调整、GCN 与 DQN，并与随机策略和 ComposeDES 比较。应用、GPU 和 CUDA 版本与论文不同。
@@ -37,6 +39,8 @@ GCN 使用论文的六项节点特征和两跳信息传播；DQN 的全连接网
 每个方法都单独记录公共准备、kernel 标定、完整图查询和 CPU 选择耗时。标定包含实际节点的独立计时，不隐藏在“零测量”表述中。零目标反馈只表示选择时未使用该目标完整图的计时反馈，ComposeDES 仍使用目标节点标定。
 
 论文式冻结策略的直接选择与等预算搜索分开报告。留出时 DQN 权重冻结，直接选择用 epsilon=0，预算搜索用 epsilon=0.05；ComposeDES 在等预算观测下更新共享参数权重。这项预算比较是本实验的扩展，不应冒充论文原有评价协议。
+
+GCN/DQN 的训练和决策在 CPU 上进行，GPU 只执行被测模型。选择属于离线图优化；完整生成时直接回放已经选定的图，不重新运行选择器。离线搜索耗时与 GPU 前向时间分别报告。
 
 ## ComposeDES
 

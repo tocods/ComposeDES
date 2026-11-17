@@ -35,14 +35,19 @@ def main():
         lines.append(f"| {NAMES[method]} | {x['budget']} | {x['search_seconds']:.2f} | {x['setup_seconds']:.2f} | {x['profiling_seconds']:.3f} |")
     lines += ['', '公共准备包括模型装载、参考路径执行、图捕获、独立节点标定和预热。各方法均执行公共准备；只有 ComposeDES 使用节点计时来预测。该成本另列，不隐藏为免费信息。搜索耗时包含模型计算、图构建、CPU 决策、训练和事件回放核对，不等于 GPU 算法推理开销。', '',
               '## 3. 新形状和新进程上的冻结方案复测', '',
-              '训练后先固定策略与参数，再处理两个留出形状。所有最终候选在重建模型的新进程中、使用新 prompt 随机交错测量 32 轮，并核对源图节点、参数特征和依赖指纹相同。正收益表示快于同进程的原始分支图。', '',
-              '| 前缀/新增 token | 方法与目标查询数 | 中位时间（ms） | 配对收益（%） | 95% bootstrap 区间（%） |',
-              '|---|---|---:|---:|---|']
+              '训练后先固定策略与参数，再处理两个留出形状。所有最终候选在重建模型的新进程中、使用新 prompt 随机交错测量 32 轮，并核对源图节点、参数特征和依赖指纹相同。正收益表示快于同进程的原始分支图。配对收益定义为 median_r[100 × (T_original,r − T_candidate,r) / T_original,r]，因此不必等于两个边际中位时间的比值；区间通过重采样测量轮次获得。', '',
+              '| 前缀/新增 token | 方法与目标查询数 | 辅助边数 | 中位时间（ms） | 配对收益（%） | 95% bootstrap 区间（%） |',
+              '|---|---|---:|---:|---:|---|']
     for case in data['heldout'].values():
         for label in ['original','AA','serial','random-512','dqn-512','des-512','dqn-zero','des-zero']:
             x=case['timings'][label];ci=x['ci95_pct']
-            lines.append(f"| {case['prefix']}/{case['query_tokens']} | {label} | {x['ms']:.6f} | {x['gain_pct']:+.4f} | [{ci[0]:+.4f}, {ci[1]:+.4f}] |")
-    lines += ['', '`zero` 表示无目标完整图计时反馈的冻结策略。ComposeDES 仍使用目标独立 kernel 标定，不能称为完全零标定。GCN+DQN 的目标权重不更新，预算内以 epsilon=0.05 探索；ComposeDES 按相同预算更新共享参数权重。', '',
+            if '-' in label:
+                method,budget=label.split('-');selected=case['methods'][method]
+                edges=selected['zero_shot_edges'] if budget=='zero' else selected['checkpoints'][budget]['edges']
+                count=len(edges)
+            else:count='—' if label=='serial' else 0
+            lines.append(f"| {case['prefix']}/{case['query_tokens']} | {label} | {count} | {x['ms']:.6f} | {x['gain_pct']:+.4f} | [{ci[0]:+.4f}, {ci[1]:+.4f}] |")
+    lines += ['', '`zero` 表示无目标完整图计时反馈的冻结策略。ComposeDES 仍使用目标独立 kernel 标定，不能称为完全零标定。GCN+DQN 的目标权重不更新，预算内以 epsilon=0.05 探索；ComposeDES 按相同预算更新共享参数权重。辅助边数为 0 的选择与原图依赖相同，其计时差异不能归因于加边优化。', '',
               '![Budget versus independently confirmed gain](budget-gain.png)', '',
               '预算曲线按 8/32/128/512 次目标查询的冻结选择绘制；误差条是同一确认进程内配对中位收益的 bootstrap 区间，不包含多随机训练种子或多 GPU 的不确定性。', '',
               '## 4. 完整 32-token 生成', '',
