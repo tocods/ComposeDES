@@ -1,0 +1,23 @@
+{
+  "performance_only": true,
+  "model": "Qwen/Qwen3-8B",
+  "weights": "all 36 layers, BF16, GPU resident",
+  "source_graph": "actual CUDA Graph kernel/memcpy/memset nodes; independent Q/K/V and gate/up branches retained",
+  "source_modification": "only add dependencies to a clone; preserve all original nodes and dependencies",
+  "discovery": {"prefix": 512, "query_tokens": 1, "seed": 701, "distinct_graphs": 10000, "added_edges": [1,2,4,8,16,32]},
+  "methods": ["random", "dqn", "des"],
+  "training": {"prefix": 768, "query_tokens": 1, "seed": 901, "epochs": 100, "queries_each_epoch": 32, "baseline_queries_each_epoch": 1, "action_queries_each_epoch": 31, "queries_per_method": 3200},
+  "heldout": [{"name":"decode","prefix":2048,"query_tokens":1,"seed":1201}, {"name":"prefill","prefix":1024,"query_tokens":64,"seed":1202}],
+  "target_queries_per_method_per_heldout": 512,
+  "graph_launches_per_query": {"warmup":1,"timed":3},
+  "common_preparation": "identical source capture and standalone-node profiling available to all methods; measured cost reported separately; no uncounted end-to-end feedback for decisions",
+  "checkpoints": [8,32,128,512,1024,3200],
+  "confirmation": "random interleaving, 32 rounds; source graph, A/A, serial baseline and selected graphs; confirmation measurements excluded from learning",
+  "actions": [0,1,2],
+  "action_to_edge": "predecessor at requested level minus one, excluding target and all descendants; uniform choice",
+  "node_features": ["threads","blocks","copy_bytes","topological_level","fanin","fanout"],
+  "published_dqn": {"layers":[3072,256,64,3],"gamma":0.99,"tau":0.005,"epsilon_initial":1.0,"epsilon_final":0.05,"epsilon_decay":0.997,"batch_size":16,"learning_rate":0.0001,"optimizer":"Adam","loss":"Huber","freeze_gcn_after_epoch":10},
+  "unspecified_paper_details_fixed_here": {"gcn_widths":[6,64,3072],"aggregation":"incoming directed edges with self loops and symmetric degree normalization","target_selection":"uniform currently movable kernel","actions_per_epoch":31,"replay_capacity":10000,"reward_normalization":"epoch source-graph time"},
+  "matched_budget_extension": "random uses uniform valid actions; DQN uses learned Q values; ComposeDES scores the same action-generated graphs and updates shared parameter weights. Target DQN weights stay frozen, epsilon 0.05; ComposeDES updates with the same target query budget. Zero-target-feedback selection reported separately.",
+  "reproduction_boundary": "published algorithmic mechanisms and hyperparameters reproduced on a different application; not an exact reproduction of unpublished implementation choices or SSTA results"
+}
