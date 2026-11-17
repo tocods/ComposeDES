@@ -37,6 +37,21 @@
 
 完整证据见 [汇总](evidence/summary.json)、[GPU 状态](evidence/gpu-memory-health.txt)、[重复 2 原始检查](evidence/standalone-memory-check-repeat-2.txt) 和 [权重变化诊断](evidence/full-qwen-diagnose4.txt)。原始诊断日志另保存在仓库的本地 `experiments/megakernel_predictor/runs/full-qwen-diagnostics/`，不纳入性能分析。
 
+### 2.1 用户要求的再次复查（2026-11-17 22:48 起）
+
+重新编译检查器，在同一 GPU UUID、没有其他可见计算进程时，启动三个独立进程，每次检查 20 GiB：
+
+| 路径 | 进程 1 | 进程 2 | 进程 3 |
+|---|---|---|---|
+| GPU kernel 写入与检查，错误位置另拷回 CPU | 0/0/0/0 | 295/309/309/309 | 351/355/355/355 |
+| CPU 生成，H2D 后全部 D2H，由 CPU 核对，不启动自定义 GPU kernel | 0/0 | 0/0 | 0/0 |
+
+表中数字为同一进程各轮错误的 32 位字数，不应跨轮相加当作独立错误总数。新错误样例：预期 `0xa55d2d5c`，CPU 实际读回 `0xa55d2c5c`，异或为 `0x100`。NVML 的重映射失败状态及 8 行不可纠正错误记录未变；该状态可能包含历史记录，不能将 8 行解释为本次新增错误。
+
+新增的 [纯主机校验实现](memory_check_host.cu) 三次通过，应与失败结果一并报告。它说明纯拷贝路径在这轮测试中正常，**不能将当前结论扩大为所有内存路径都失败，也不能仅凭这些检查定位具体故障部件**。目前可重复确认的是 GPU kernel 读写路径的数据完整性错误；结合此前模型权重变化，完整模型性能结论仍不可信。尚未区分物理显存、缓存、驱动或其他执行环境因素。
+
+本次全部原始记录位于 [recheck-20261117](evidence/recheck-20261117/)，没有继续运行模型性能测量。
+
 ## 3. 完整模型实验的范围
 
 研究问题仍参考 [Optimizing CUDA Graph Scheduling with Reinforcement Learning: A Case Study in SSTA Propagation](https://tsung-wei-huang.github.io/papers/2025-MLCAD.pdf)：在不减少原始计算、不移除功能依赖的前提下，添加辅助依赖边或改变图构建顺序，能否改进真实 GPU 执行。
