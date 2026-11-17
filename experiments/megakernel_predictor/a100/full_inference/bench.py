@@ -101,7 +101,7 @@ def ttft(req,plan,resident=False):
     return dict(ttft_ms=(after-before)/1e6,gpu_ms=start.elapsed_time(end),token=token)
 
 
-def generate(req,plan,resident=False,check=False):
+def generate(req,plan,resident=False,check=False,performance_only=False):
     first=ttft(req,plan,resident);tokens=[first['token']]
     errors=[req.check_logits(0)] if check else []
     intervals=[];start=time.perf_counter_ns()
@@ -110,10 +110,11 @@ def generate(req,plan,resident=False,check=False):
         intervals.append((after-before)/1e6)
         if check:errors.append(req.check_logits(step+1))
     total=(time.perf_counter_ns()-start)/1e6
-    assert tokens==req.reference_tokens,'autoregressive tokens differ from native complete model'
+    if not performance_only:
+        assert tokens==req.reference_tokens,'autoregressive tokens differ from native complete model'
     return dict(**first,tokens=tokens,tpot_ms=median(intervals),decode_ms=total,
                 total_ms=first['ttft_ms']+total,output_tokens_per_second=len(tokens)*1000/(first['ttft_ms']+total),
-                errors=errors,per_token_ms=intervals)
+                errors=errors,per_token_ms=intervals,reference_tokens_match=tokens==req.reference_tokens)
 
 
 @torch.inference_mode()
@@ -122,7 +123,9 @@ def main():
     p.add_argument('--prefix',type=int,default=2048);p.add_argument('--suffix',type=int,default=64)
     p.add_argument('--seed',type=int,default=11);p.add_argument('--tokens',type=int,default=32)
     p.add_argument('--repeat',type=int,default=24);p.add_argument('--generate-repeat',type=int,default=4)
-    p.add_argument('--session',default='A');p.add_argument('--smoke',action='store_true');a=p.parse_args()
+    p.add_argument('--session',default='A');p.add_argument('--smoke',action='store_true')
+    p.add_argument('--performance-only',action='store_true',help='Record timing without requiring numerical/token agreement')
+    a=p.parse_args()
     torch.set_num_threads(4)
     torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction=False
     torch.backends.cuda.matmul.allow_fp16_reduced_precision_reduction=False
@@ -135,17 +138,22 @@ def main():
     validation={}
     for label in order:
         print('checking',label,flush=True)
-        result=generate(req,plans[label],label=='resident-full',check=True)
-        validation[label]=dict(max_logit_relative_l2=max(x['relative_l2'] for x in result['errors']),
-                               max_logit_absolute=max(x['max_absolute'] for x in result['errors']),tokens=result['tokens'])
-        print('validated',label,'TTFT',result['ttft_ms'],flush=True)
+        result=generate(req,plans[label],label=='resident-full',check=not a.performance_only,performance_only=a.performance_only)
+        validation[label]=dict(numerical_validation_performed=not a.performance_only,
+            max_logit_relative_l2=max((x['relative_l2'] for x in result['errors']),default=None),
+            max_logit_absolute=max((x['max_absolute'] for x in result['errors']),default=None),
+            tokens=result['tokens'],reference_tokens_match=result['reference_tokens_match'],
+            final_logits_finite=bool(torch.isfinite(req.logits).all()))
+        print('warmed' if a.performance_only else 'validated',label,'TTFT',result['ttft_ms'],flush=True)
     free,total=torch.cuda.mem_get_info()
     meta.update(type='meta',model='Qwen/Qwen3-8B',layers=m.layers,parameters=m.params,prefix=a.prefix,suffix=a.suffix,
         seed=a.seed,session=a.session,output_tokens=a.tokens,ids=req.ids,prompt_sha256=req.prompt_sha256,
         generated_text=m.tokenizer.decode(req.reference_tokens),h2d_bytes=req.bytes,validation=validation,
         torch_allocated=torch.cuda.memory_allocated(),torch_reserved=torch.cuda.memory_reserved(),
         driver_used_bytes=total-free,setup_seconds=time.time()-began,labels=list(plans),
-        reference='native Transformers full model with FlashInfer FA2 attention')
+        reference='native Transformers full model with FlashInfer FA2 attention',performance_only=a.performance_only,
+        numerical_correctness_validated=not a.performance_only,
+        device=torch.cuda.get_device_name(),device_uuid=str(torch.cuda.get_device_properties(0).uuid))
     a.out.parent.mkdir(parents=True,exist_ok=True)
     with a.out.open('w') as out:
         out.write(json.dumps(meta)+'\n');out.flush()
@@ -153,13 +161,13 @@ def main():
             rng.shuffle(order)
             for position,label in enumerate(order):
                 row=ttft(req,plans[label],label=='resident-full')
-                assert row['token']==req.reference_tokens[0]
+                if not a.performance_only:assert row['token']==req.reference_tokens[0]
                 out.write(json.dumps(dict(type='ttft',repeat=rep,position=position,label=label,**row))+'\n')
             out.flush()
         for rep in range(a.generate_repeat):
             rng.shuffle(order)
             for position,label in enumerate(order):
-                row=generate(req,plans[label],label=='resident-full')
+                row=generate(req,plans[label],label=='resident-full',performance_only=a.performance_only)
                 out.write(json.dumps(dict(type='generation',repeat=rep,position=position,label=label,**row))+'\n')
             out.flush()
     print('complete',a.out,flush=True)

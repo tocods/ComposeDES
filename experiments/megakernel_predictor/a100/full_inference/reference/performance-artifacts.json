@@ -1,0 +1,18 @@
+{
+  "performance-raw.tar.gz": {
+    "bytes": 229438,
+    "sha256": "5b21ae9964c692cbe1e67ee45b386ef705bd40b98be7123782c93c10af3ffb7f"
+  },
+  "performance-summary.json": {
+    "bytes": 76767,
+    "sha256": "12f8162af11f5fe2a4de823d6e16caa15a6042b578b2cbb0d0d13827c6850719"
+  },
+  "frozen-performance.json": {
+    "bytes": 5439,
+    "sha256": "2a6e896b5db0631d6728350cb3569d52edade3d9552e34d94bd52472d8699265"
+  },
+  "performance-protocol.json": {
+    "bytes": 496,
+    "sha256": "f8063bfd0bed75546fb05267308efa4b69b9f4c8df232ba8a35a59d6c7e8b72c"
+  }
+}

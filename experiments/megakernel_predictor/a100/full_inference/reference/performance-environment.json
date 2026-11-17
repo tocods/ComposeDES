@@ -1,0 +1,13 @@
+{
+  "python": "3.12.3",
+  "platform": "Linux-5.15.0-86-generic-x86_64-with-glibc2.35",
+  "packages": {
+    "torch": "2.12.1+cu130",
+    "transformers": "5.19.0",
+    "flashinfer-python": "0.7.2",
+    "numpy": "2.4.6",
+    "huggingface_hub": "2.4.0",
+    "safetensors": "0.8.0"
+  },
+  "performance_only": true
+}

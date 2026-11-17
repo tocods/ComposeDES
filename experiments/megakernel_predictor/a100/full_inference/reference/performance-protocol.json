@@ -1,0 +1,38 @@
+{
+  "calibration": [
+    [
+      2048,
+      64,
+      11
+    ],
+    [
+      4096,
+      256,
+      12
+    ]
+  ],
+  "heldout": [
+    [
+      4096,
+      128
+    ],
+    [
+      8192,
+      64
+    ],
+    [
+      8192,
+      512
+    ]
+  ],
+  "sessions": [
+    "A",
+    "B"
+  ],
+  "output_tokens": 32,
+  "ttft_repeats": 24,
+  "generation_repeats": 4,
+  "frozen_at": 1794927807.0908105,
+  "performance_only": true,
+  "model_sha256": "2a6e896b5db0631d6728350cb3569d52edade3d9552e34d94bd52472d8699265"
+}
