@@ -1,0 +1,90 @@
+[
+  {
+    "label": "candidate-0/repeat-0",
+    "kernels": 32,
+    "copies": 32,
+    "copy_bytes": 131072,
+    "gpu_span_us": 441.06,
+    "kernel_union_us": 123.553,
+    "copy_union_us": 89.152,
+    "overlap_us": 0.032,
+    "idle_between_activities_us": 228.387
+  },
+  {
+    "label": "candidate-6/repeat-0",
+    "kernels": 32,
+    "copies": 32,
+    "copy_bytes": 131072,
+    "gpu_span_us": 406.916,
+    "kernel_union_us": 129.409,
+    "copy_union_us": 83.969,
+    "overlap_us": 0.128,
+    "idle_between_activities_us": 193.666
+  },
+  {
+    "label": "candidate-6/repeat-1",
+    "kernels": 32,
+    "copies": 32,
+    "copy_bytes": 131072,
+    "gpu_span_us": 888.744,
+    "kernel_union_us": 133.152,
+    "copy_union_us": 91.618,
+    "overlap_us": 0.64,
+    "idle_between_activities_us": 664.614
+  },
+  {
+    "label": "candidate-0/repeat-1",
+    "kernels": 32,
+    "copies": 32,
+    "copy_bytes": 131072,
+    "gpu_span_us": 404.547,
+    "kernel_union_us": 131.361,
+    "copy_union_us": 88.608,
+    "overlap_us": 0.128,
+    "idle_between_activities_us": 184.706
+  },
+  {
+    "label": "candidate-0/repeat-2",
+    "kernels": 32,
+    "copies": 32,
+    "copy_bytes": 131072,
+    "gpu_span_us": 416.612,
+    "kernel_union_us": 124.16,
+    "copy_union_us": 85.986,
+    "overlap_us": 0.032,
+    "idle_between_activities_us": 206.498
+  },
+  {
+    "label": "candidate-6/repeat-2",
+    "kernels": 32,
+    "copies": 32,
+    "copy_bytes": 131072,
+    "gpu_span_us": 410.18,
+    "kernel_union_us": 125.441,
+    "copy_union_us": 81.472,
+    "overlap_us": 0.032,
+    "idle_between_activities_us": 203.299
+  },
+  {
+    "label": "candidate-6/repeat-3",
+    "kernels": 32,
+    "copies": 32,
+    "copy_bytes": 131072,
+    "gpu_span_us": 381.795,
+    "kernel_union_us": 136.96,
+    "copy_union_us": 84.418,
+    "overlap_us": 0.192,
+    "idle_between_activities_us": 160.609
+  },
+  {
+    "label": "candidate-0/repeat-3",
+    "kernels": 32,
+    "copies": 32,
+    "copy_bytes": 131072,
+    "gpu_span_us": 421.38,
+    "kernel_union_us": 124.898,
+    "copy_union_us": 87.169,
+    "overlap_us": 0.576,
+    "idle_between_activities_us": 209.889
+  }
+]

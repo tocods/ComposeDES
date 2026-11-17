@@ -1,0 +1,59 @@
+{
+  "shapes": [
+    [
+      101,
+      1024,
+      32,
+      "layered",
+      32
+    ],
+    [
+      102,
+      4096,
+      32,
+      "layered",
+      256
+    ],
+    [
+      103,
+      4096,
+      32,
+      "fork",
+      1024
+    ],
+    [
+      104,
+      16384,
+      32,
+      "random",
+      128
+    ],
+    [
+      105,
+      65536,
+      32,
+      "layered",
+      32
+    ],
+    [
+      106,
+      4096,
+      48,
+      "random",
+      256
+    ]
+  ],
+  "model_sha256": {
+    "gcn-dqn.pt": "eb941f443b881bf2db9592ec9843e6a587434be63227fa68702c18974c145cb1",
+    "frozen-des.json": "9cf48ecaf0424cfa2d3bd3f2380c6e3a384269a5a9eb51e4b83cd36a21a6b7c7"
+  },
+  "sessions": [
+    "A",
+    "B"
+  ],
+  "repetitions": {
+    "A": 24,
+    "B": 48
+  },
+  "inner_replays": 8
+}
