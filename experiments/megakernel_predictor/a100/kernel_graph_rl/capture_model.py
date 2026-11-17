@@ -1,11 +1,13 @@
 """Capture the full Qwen forward, retaining Q/K/V and gate/up independence."""
 import sys
 from pathlib import Path
-sys.path.insert(0,str(Path(__file__).resolve().parent.parent/'full_inference'))
+_model_path=str(Path(__file__).resolve().parent.parent/'full_inference')
+sys.path.insert(0,_model_path)
 import torch
 from model import Model,Request,attention
 from transformers.models.qwen3.modeling_qwen3 import rotate_half
 from runtime import capture
+sys.path.remove(_model_path)
 
 class Forward:
     def __init__(self,req,parallel=True,readback=False):

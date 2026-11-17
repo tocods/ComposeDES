@@ -58,6 +58,10 @@ python test_methods.py
 python probe.py --out ../../runs/kernel-graph-rl/discovery --samples 10000
 python run_comparison.py ../../runs/kernel-graph-rl
 python analyze.py ../../runs/kernel-graph-rl --out reference/summary.json
+python report.py reference/summary.json
+python archive.py ../../runs/kernel-graph-rl --out reference
 ```
 
 `run_comparison.py` 支持继续已经完成的训练或确认任务。CUDA 执行错误、非法依赖及不同进程源图结构不一致仍会停止任务；输出数值不同不会停止性能实验。最终结果必须从冻结方案的独立确认中取得，不能只报告随机搜索的最小值。
+
+结果表、完整生成测量及预算曲线见 `RESULTS.md`。`reference/kernel-graph-raw.tar.gz` 保存全部原始计时、真实图导出、训练权重和冻结选择，`reference/artifacts.json` 提供逐文件 SHA-256。实验环境在归档内的 `environment.json` 中。归档不包含模型权重，可从 Qwen/Qwen3-8B 单独获取。
